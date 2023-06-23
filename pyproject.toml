@@ -23,6 +23,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.7"
+aiohttp = "*"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0"
