@@ -1,0 +1,19 @@
+# Changes here will be overwritten by Copier
+_commit: 81fd824
+_src_path: https://github.com/browniebroke/pypackage-template
+add_me_as_contributor: false
+copyright_year: '2023'
+documentation: false
+email: simone.chemelli@gmail.com
+full_name: Simone Chemelli
+github_username: chemelli74
+initial_commit: true
+open_source_license: Apache Software License 2.0
+package_name: aiovodafone
+project_name: aiovodafone
+project_short_description: Python library to control Vodafone Station
+project_slug: aiovodafone
+run_poetry_install: true
+setup_github: false
+setup_pre_commit: true
+
