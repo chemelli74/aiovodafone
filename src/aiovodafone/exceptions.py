@@ -1,0 +1,14 @@
+"""Vodafone Station library exceptions."""
+from __future__ import annotations
+
+
+class VodafoneError(Exception):
+    """Base class for aiovodafone errors."""
+
+
+class CannotConnect(VodafoneError):
+    """Exception raised when connection fails."""
+
+
+class CannotAuthenticate(VodafoneError):
+    """Exception raised when credentials are incorrect."""
