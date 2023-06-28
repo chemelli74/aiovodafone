@@ -263,4 +263,7 @@ class VodafoneStationApi:
     async def logout(self) -> None:
         """Router logout."""
         self.session.cookie_jar.clear()
+
+    async def close(self) -> None:
+        """Router close session."""
         await self.session.close()
