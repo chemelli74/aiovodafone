@@ -4,3 +4,4 @@ omit =
     src/aiovodafone/__init__.py
     src/aiovodafone/api.py
     src/aiovodafone/exceptions.py
+    library_test.py
