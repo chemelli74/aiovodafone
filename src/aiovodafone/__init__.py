@@ -1,7 +1,7 @@
 __version__ = "0.0.2"
 
-from .api import VodafoneStationDevice, VodafoneStationApi
-from .exceptions import VodafoneError, CannotConnect, CannotAuthenticate
+from .api import VodafoneStationApi, VodafoneStationDevice
+from .exceptions import CannotAuthenticate, CannotConnect, VodafoneError
 
 __all__ = [
     "VodafoneStationDevice",
