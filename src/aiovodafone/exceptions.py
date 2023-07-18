@@ -12,3 +12,7 @@ class CannotConnect(VodafoneError):
 
 class CannotAuthenticate(VodafoneError):
     """Exception raised when credentials are incorrect."""
+
+
+class AlreadyLogged(VodafoneError):
+    """Exception raised if a user is already logged."""
