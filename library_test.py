@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import logging
 
 from aiovodafone.api import VodafoneStationApi
 
@@ -35,6 +36,9 @@ async def main() -> None:
     api = VodafoneStationApi(args.router, args.ssl, args.username, args.password)
     logged = await api.login()
     print("Logged:", logged)
+    if not logged:
+        exit(1)
+
     print("-" * 20)
     devices = await api.get_all_devices()
     print("Devices:", devices)
@@ -42,8 +46,11 @@ async def main() -> None:
     data = await api.get_user_data()
     print("Data:", data)
     print("-" * 20)
+    print("Logout & close session")
     await api.logout()
+    await api.close()
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
     asyncio.run(main())

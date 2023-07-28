@@ -3,7 +3,6 @@ import asyncio
 import hashlib
 import hmac
 import html
-import logging
 import re
 import urllib.parse
 from dataclasses import dataclass
@@ -13,9 +12,8 @@ from typing import Any
 
 import aiohttp
 
-from .exceptions import CannotAuthenticate, CannotConnect
-
-_LOGGER = logging.getLogger(__package__)
+from .const import _LOGGER, LOGIN
+from .exceptions import AlreadyLogged, CannotAuthenticate, CannotConnect
 
 
 @dataclass
@@ -255,10 +253,19 @@ class VodafoneStationApi:
             verify_ssl=False,
             allow_redirects=True,
         )
-        if reply.status != 200:
+        reply_json = await reply.json(content_type="text/html")
+        _LOGGER.debug("Login result: %s[%s]", LOGIN[int(reply_json)], reply_json)
+
+        if reply_json == "1":
+            return True
+
+        if reply_json == "2":
+            raise AlreadyLogged
+
+        if reply_json in ["3", "4"]:
             raise CannotAuthenticate
 
-        return True
+        return False
 
     async def logout(self) -> None:
         """Router logout."""
