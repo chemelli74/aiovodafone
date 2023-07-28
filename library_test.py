@@ -36,6 +36,9 @@ async def main() -> None:
     api = VodafoneStationApi(args.router, args.ssl, args.username, args.password)
     logged = await api.login()
     print("Logged:", logged)
+    if not logged:
+        exit(1)
+
     print("-" * 20)
     devices = await api.get_all_devices()
     print("Devices:", devices)
