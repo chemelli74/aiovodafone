@@ -2,6 +2,14 @@
 
 <!--next-version-placeholder-->
 
+## v0.0.5 (2023-07-28)
+
+### Fix
+
+* Improve login handling ([`e50cf1a`](https://github.com/chemelli74/aiovodafone/commit/e50cf1a8ebf47b2088d9e43d321b6b18329d97bb))
+* Stop script if login fails ([`3a31c02`](https://github.com/chemelli74/aiovodafone/commit/3a31c025660443c3455f5d3e2acab4721c34a0be))
+* Drop python 3.9 ([`dd2ecb6`](https://github.com/chemelli74/aiovodafone/commit/dd2ecb66a9d5be687c4c576ae3e806f24791d6a5))
+
 ## v0.0.4 (2023-07-01)
 
 ### Fix
