@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.0.6 (2023-08-22)
+
+### Fix
+
+* Poetry lock ([`b489804`](https://github.com/chemelli74/aiovodafone/commit/b4898044c77a6172cc28796f57832951cf2281f2))
+
 ## v0.0.5 (2023-07-28)
 
 ### Fix
