@@ -12,9 +12,6 @@ def get_arguments() -> tuple[argparse.ArgumentParser, argparse.Namespace]:
         "--router", "-r", type=str, default="192.168.1.1", help="Set router IP address"
     )
     parser.add_argument(
-        "--ssl", "-s", type=bool, default=True, help="Select HTTPS instead of HTTP"
-    )
-    parser.add_argument(
         "--username", "-u", type=str, default="vodafone", help="Set router username"
     )
     parser.add_argument("--password", "-p", type=str, help="Set router password")
@@ -33,10 +30,11 @@ async def main() -> None:
         exit(1)
 
     print("-" * 20)
-    api = VodafoneStationApi(args.router, args.ssl, args.username, args.password)
+    api = VodafoneStationApi(args.router, args.username, args.password)
     logged = await api.login()
     print("Logged:", logged)
     if not logged:
+        await api.close()
         exit(1)
 
     print("-" * 20)
@@ -53,4 +51,6 @@ async def main() -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
+    logging.getLogger("asyncio").setLevel(logging.INFO)
+    logging.getLogger("charset_normalizer").setLevel(logging.INFO)
     asyncio.run(main())

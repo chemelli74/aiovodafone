@@ -11,6 +11,7 @@ from http.cookies import SimpleCookie
 from typing import Any
 
 import aiohttp
+import bs4
 
 from .const import _LOGGER, LOGIN
 from .exceptions import AlreadyLogged, CannotAuthenticate, CannotConnect
@@ -31,19 +32,17 @@ class VodafoneStationDevice:
 class VodafoneStationApi:
     """Queries router running Vodafone Station firmware."""
 
-    def __init__(self, host: str, ssl: bool, username: str, password: str) -> None:
+    def __init__(self, host: str, username: str, password: str) -> None:
         """Initialize the scanner."""
         self.host = host
-        self.protocol = "https" if ssl else "http"
+        self.protocol = "http"
         self.username = username
         self.password = password
-        self.base_url = f"{self.protocol}://{self.host}"
+        self.base_url = self._base_url()
         self.headers = {
             "User-Agent": "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
             "Accept-Language": "en-GB,en;q=0.5",
-            "Origin": self.base_url,
-            "Referer": f"{self.base_url}/login.html",
             "DNT": "1",
         }
         jar = aiohttp.CookieJar(unsafe=True)
@@ -53,22 +52,50 @@ class VodafoneStationApi:
         self._unique_id: str | None = None
         self._devices: dict[str, VodafoneStationDevice] = {}
 
-    async def _get_csrf_token(self) -> None:
-        """Load login page to get csrf token."""
+    def _base_url(self) -> str:
+        """Create base URL"""
+        return f"{self.protocol}://{self.host}"
+
+    async def _find_login_url(self) -> str:
+        """
+        Find the login page
+
+        Router reply with 200 and a html body instead of a formal redirect
+        """
 
         url = f"{self.base_url}/login.html"
+        _LOGGER.debug("Requested login url: <%s>", url)
         reply = await self.session.get(
             url,
             headers=self.headers,
             timeout=10,
-            verify_ssl=False,
-            allow_redirects=False,
+            ssl=False,
+            allow_redirects=True,
         )
         reply_text = await reply.text()
-        tokens = re.search("(?<=csrf_token = ')[^']+", reply_text)
-        if not tokens:
+        soup = bs4.BeautifulSoup(reply_text, "html.parser")
+        meta_refresh = soup.find("meta", {"http-equiv": "Refresh"})
+        if meta_refresh is not None:
+            meta_content = meta_refresh["content"]
+            reply_url = urllib.parse.parse_qs(meta_content, separator="; ")["URL"][0]
+            redirect_url = urllib.parse.urlparse(reply_url)
+            if redirect_url.scheme != self.protocol:
+                self.protocol = redirect_url.scheme
+                self.base_url = self._base_url()
+                _LOGGER.debug("Redirected login!")
+                reply_text = await self._find_login_url()
+
+        return reply_text
+
+    async def _get_csrf_token(self, reply_text: str) -> None:
+        """Load login page to get csrf token."""
+
+        soup = bs4.BeautifulSoup(reply_text, "html.parser")
+        script_tag = soup.find("script", string=True)
+        token = re.findall("(?<=csrf_token)|[^']+", script_tag.string)[1]
+        if not token:
             return None
-        self.csrf_token = tokens.group(0)
+        self.csrf_token = token
         _LOGGER.debug("csrf_token: <%s>", self.csrf_token)
 
     async def _get_user_lang(self) -> None:
@@ -80,7 +107,7 @@ class VodafoneStationApi:
             url,
             headers=self.headers,
             timeout=10,
-            verify_ssl=False,
+            ssl=False,
             allow_redirects=False,
         )
 
@@ -128,7 +155,7 @@ class VodafoneStationApi:
             data=payload,
             headers=self.headers,
             timeout=10,
-            verify_ssl=False,
+            ssl=False,
             allow_redirects=False,
         )
 
@@ -144,12 +171,43 @@ class VodafoneStationApi:
             url,
             headers=self.headers,
             timeout=10,
-            verify_ssl=False,
+            ssl=False,
             allow_redirects=True,
         )
         reply_json = await reply.json(content_type="text/html")
         _LOGGER.debug("Full Response (overview): %s", reply_json)
         return reply_json
+
+    async def _login_json(self, username: str, password: str) -> bool:
+        """Login via json page"""
+
+        payload = {
+            "LoginName": username,
+            "LoginPWD": password,
+        }
+        timestamp = datetime.now().strftime("%s")
+        url = f"{self.base_url}/data/login.json?_={timestamp}&csrf_token={self.csrf_token}"
+        reply = await self.session.post(
+            url,
+            data=payload,
+            headers=self.headers,
+            timeout=10,
+            ssl=False,
+            allow_redirects=True,
+        )
+        reply_json = await reply.json(content_type="text/html")
+        _LOGGER.debug("Login result: %s[%s]", LOGIN[int(reply_json)], reply_json)
+
+        if reply_json == "1":
+            return True
+
+        if reply_json == "2":
+            raise AlreadyLogged
+
+        if reply_json in ["3", "4"]:
+            raise CannotAuthenticate
+
+        return False
 
     async def get_user_data(self) -> dict[Any, Any]:
         """Load user_data page information."""
@@ -161,7 +219,7 @@ class VodafoneStationApi:
             url,
             headers=self.headers,
             timeout=10,
-            verify_ssl=False,
+            ssl=False,
             allow_redirects=False,
         )
         reply_json = await reply.json(content_type="text/html")
@@ -225,47 +283,29 @@ class VodafoneStationApi:
         """Router login."""
         _LOGGER.debug("Logging into %s", self.host)
         try:
-            await self._get_csrf_token()
+            html_page = await self._find_login_url()
         except (asyncio.exceptions.TimeoutError, aiohttp.ClientConnectorError) as exc:
             _LOGGER.warning("Connection error for %s", self.host)
             raise CannotConnect from exc
 
+        await self._get_csrf_token(html_page)
         await self._get_user_lang()
         await self._set_cookie()
         await self._reset()
 
-        username = (
-            await self._encrypt_string(self.username)
-            if self.protocol == "https"
-            else self.username
-        )
-        payload = {
-            "LoginName": username,
-            "LoginPWD": await self._encrypt_string(self.password),
-        }
-        timestamp = datetime.now().strftime("%s")
-        url = f"{self.base_url}/data/login.json?_={timestamp}&csrf_token={self.csrf_token}"
-        reply = await self.session.post(
-            url,
-            data=payload,
-            headers=self.headers,
-            timeout=10,
-            verify_ssl=False,
-            allow_redirects=True,
-        )
-        reply_json = await reply.json(content_type="text/html")
-        _LOGGER.debug("Login result: %s[%s]", LOGIN[int(reply_json)], reply_json)
+        # First  try with both  username and password encrypted
+        # Second try with plain username and password encrypted
+        try:
+            logged = await self._login_json(
+                await self._encrypt_string(self.username),
+                await self._encrypt_string(self.password),
+            )
+        except CannotAuthenticate:
+            logged = await self._login_json(
+                self.username, await self._encrypt_string(self.password)
+            )
 
-        if reply_json == "1":
-            return True
-
-        if reply_json == "2":
-            raise AlreadyLogged
-
-        if reply_json in ["3", "4"]:
-            raise CannotAuthenticate
-
-        return False
+        return logged
 
     async def logout(self) -> None:
         """Router logout."""
