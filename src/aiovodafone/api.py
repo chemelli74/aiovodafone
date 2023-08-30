@@ -204,7 +204,7 @@ class VodafoneStationApi:
         if reply_json == "2":
             raise AlreadyLogged
 
-        if reply_json in ["3", "4"]:
+        if reply_json in ["3", "4", "5"]:
             raise CannotAuthenticate
 
         return False
@@ -296,11 +296,13 @@ class VodafoneStationApi:
         # First  try with both  username and password encrypted
         # Second try with plain username and password encrypted
         try:
+            _LOGGER.debug("Login first try: username[encrypted], password[encrypted]")
             logged = await self._login_json(
                 await self._encrypt_string(self.username),
                 await self._encrypt_string(self.password),
             )
         except CannotAuthenticate:
+            _LOGGER.debug("Login second try: username[plain], password[encrypted]")
             logged = await self._login_json(
                 self.username, await self._encrypt_string(self.password)
             )
