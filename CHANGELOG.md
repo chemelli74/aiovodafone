@@ -2,6 +2,13 @@
 
 <!--next-version-placeholder-->
 
+## v0.0.8 (2023-09-05)
+
+### Fix
+
+* Labels ([`6c78985`](https://github.com/chemelli74/aiovodafone/commit/6c7898585ee8ab9b8945e8bf1c86dcb5dca7cf7f))
+* Labels ([`2e24074`](https://github.com/chemelli74/aiovodafone/commit/2e240749b1c41b7c3a025947191b68d92b7438a4))
+
 ## v0.0.7 (2023-09-05)
 
 ### Fix
