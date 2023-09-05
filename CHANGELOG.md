@@ -2,6 +2,13 @@
 
 <!--next-version-placeholder-->
 
+## v0.0.7 (2023-09-05)
+
+### Fix
+
+* Legacy device login ([`6dbb329`](https://github.com/chemelli74/aiovodafone/commit/6dbb3299d849a19d107624d6759fae8283594dbd))
+* Legacy device login ([`8b10e98`](https://github.com/chemelli74/aiovodafone/commit/8b10e98170d6c99929a25fed1ca43b504a51dc81))
+
 ## v0.0.6 (2023-08-22)
 
 ### Fix
