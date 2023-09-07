@@ -2,6 +2,18 @@
 
 <!--next-version-placeholder-->
 
+## v0.1.0 (2023-09-07)
+
+### Feature
+
+* Full sensor data, restart connection/router ([`db68478`](https://github.com/chemelli74/aiovodafone/commit/db684781d2b732f7920209cf0ef6f0c4af2e6ec5))
+* Full sensor data, restart connection/router ([`3f40512`](https://github.com/chemelli74/aiovodafone/commit/3f40512e5170bb3e1173ceafa6d7d44ee02a45eb))
+
+### Fix
+
+* Handle credentials with special characters ([`d3b0a14`](https://github.com/chemelli74/aiovodafone/commit/d3b0a14910908735c5c87615ba51c8e227581c59))
+* Handle credentials with special characters ([`1b4a6cd`](https://github.com/chemelli74/aiovodafone/commit/1b4a6cd5af2c6c644b2077515ad3164faab30c64))
+
 ## v0.0.8 (2023-09-05)
 
 ### Fix
