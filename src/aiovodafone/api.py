@@ -2,7 +2,6 @@
 import asyncio
 import hashlib
 import hmac
-import html
 import re
 import urllib.parse
 from dataclasses import dataclass
@@ -109,8 +108,6 @@ class VodafoneStationApi:
     async def _encrypt_string(self, credential: str) -> str:
         """Encrypt username or password for login."""
 
-        credential = urllib.parse.quote(credential)
-        credential = html.unescape(credential)
         hash1_str = hmac.new(
             bytes("$1$SERCOMM$", "latin-1"),
             msg=bytes(credential, "latin-1"),
