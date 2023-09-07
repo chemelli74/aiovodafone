@@ -101,24 +101,8 @@ class VodafoneStationApi:
     async def _get_user_lang(self) -> None:
         """Load user_lang page to get."""
 
-        timestamp = datetime.now().strftime("%s")
-        url = f"{self.base_url}/data/user_lang.json?_={timestamp}&csrf_token={self.csrf_token}"
-        reply = await self.session.get(
-            url,
-            headers=self.headers,
-            timeout=10,
-            ssl=False,
-            allow_redirects=False,
-        )
-
-        j = await reply.json(content_type="text/html")
-        user_obj = {}
-        for item in j:
-            key = list(item.keys())[0]
-            val = list(item.values())[0]
-            user_obj[key] = val
-
-        self.encryption_key = user_obj["encryption_key"]
+        return_dict = await self._get_page_result("/data/user_lang.json")
+        self.encryption_key = return_dict["encryption_key"]
         _LOGGER.debug("encryption_key: <%s>", self.encryption_key)
 
     async def _encrypt_string(self, credential: str) -> str:
@@ -148,35 +132,11 @@ class VodafoneStationApi:
         """Reset page content before loading."""
 
         payload = {"chk_sys_busy": ""}
-        timestamp = datetime.now().strftime("%s")
-        url = f"{self.base_url}/data/reset.json?_={timestamp}&csrf_token={self.csrf_token}"
-        reply = await self.session.post(
-            url,
-            data=payload,
-            headers=self.headers,
-            timeout=10,
-            ssl=False,
-            allow_redirects=False,
+        reply: aiohttp.ClientResponse = await self._post_page_result(
+            "/data/reset.json", payload, True
         )
 
         return reply.status == 200
-
-    async def _overview(self) -> dict[Any, Any]:
-        """Load overview page information."""
-        _LOGGER.debug("Getting overview for host %s", self.host)
-        timestamp = datetime.now().strftime("%s")
-        url = f"{self.base_url}/data/overview.json?_={timestamp}&csrf_token={self.csrf_token}"
-
-        reply = await self.session.get(
-            url,
-            headers=self.headers,
-            timeout=10,
-            ssl=False,
-            allow_redirects=True,
-        )
-        reply_json = await reply.json(content_type="text/html")
-        _LOGGER.debug("Full Response (overview): %s", reply_json)
-        return reply_json
 
     async def _login_json(self, username: str, password: str) -> bool:
         """Login via json page"""
@@ -185,18 +145,8 @@ class VodafoneStationApi:
             "LoginName": username,
             "LoginPWD": password,
         }
-        timestamp = datetime.now().strftime("%s")
-        url = f"{self.base_url}/data/login.json?_={timestamp}&csrf_token={self.csrf_token}"
-        reply = await self.session.post(
-            url,
-            data=payload,
-            headers=self.headers,
-            timeout=10,
-            ssl=False,
-            allow_redirects=True,
-        )
-        reply_json = await reply.json(content_type="text/html")
-        _LOGGER.debug("Login result: %s[%s]", LOGIN[int(reply_json)], reply_json)
+        reply_json = await self._post_page_result("/data/login.json", payload)
+        _LOGGER.debug("Login result: %s[%s]", LOGIN[int(str(reply_json))], reply_json)
 
         if reply_json == "1":
             return True
@@ -209,11 +159,44 @@ class VodafoneStationApi:
 
         return False
 
-    async def get_user_data(self) -> dict[Any, Any]:
-        """Load user_data page information."""
-        _LOGGER.debug("Getting user_data for host %s", self.host)
+    async def _list_2_dict(self, data: dict[Any, Any]) -> dict[Any, Any]:
+        """Transform list in a dict"""
+
+        kv_tuples = [(list(v.keys())[0], (list(v.values())[0])) for v in data]
+        key_values = {}
+        for entry in kv_tuples:
+            key_values[entry[0]] = entry[1]
+
+        _LOGGER.debug("Data retrieved (key_values): %s", key_values)
+        return key_values
+
+    async def _post_page_result(
+        self, page: str, payload: dict[str, Any], raw: bool = False
+    ) -> aiohttp.ClientResponse | dict[Any, Any]:
+        """Get data from a web page via POST."""
+        _LOGGER.debug("POST page  %s from host %s", page, self.host)
         timestamp = datetime.now().strftime("%s")
-        url = f"{self.base_url}/data/user_data.json?_={timestamp}&csrf_token={self.csrf_token}"
+        url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
+        reply = await self.session.post(
+            url,
+            data=payload,
+            headers=self.headers,
+            timeout=10,
+            ssl=False,
+            allow_redirects=True,
+        )
+        if raw:
+            _LOGGER.debug("POST reply (%s): %s", page, reply)
+            return reply
+        reply_json = await reply.json(content_type="text/html")
+        _LOGGER.debug("POST reply (%s): %s", page, reply_json)
+        return reply_json
+
+    async def _get_page_result(self, page: str) -> dict[Any, Any]:
+        """Get data from a web page via GET."""
+        _LOGGER.debug("GET page  %s [%s]", page, self.host)
+        timestamp = datetime.now().strftime("%s")
+        url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
 
         reply = await self.session.get(
             url,
@@ -223,39 +206,41 @@ class VodafoneStationApi:
             allow_redirects=False,
         )
         reply_json = await reply.json(content_type="text/html")
-        _LOGGER.debug("Full Response (user_data): %s", reply_json)
-        return reply_json
+        _LOGGER.debug("GET reply %s: %s", page, reply_json)
+        return await self._list_2_dict(reply_json)
+
+    async def get_user_data(self) -> dict[Any, Any]:
+        """Load user_data page information."""
+        _LOGGER.debug("Getting sensor data for host %s", self.host)
+
+        reply_dict = await self._get_page_result("/data/user_data.json")
+        return reply_dict
 
     async def get_all_devices(self) -> dict[str, VodafoneStationDevice]:
         """Get all connected devices."""
 
         _LOGGER.debug("Getting all devices for host %s", self.host)
-        data = await self._overview()
-        kv_tuples = [(list(v.keys())[0], (list(v.values())[0])) for v in data]
-        key_values = {}
-        for entry in kv_tuples:
-            key_values[entry[0]] = entry[1]
+        return_dict = await self._get_page_result("/data/overview.json")
 
-        _LOGGER.debug("Data retrieved (key_values): %s", key_values)
         if (
-            "wifi_user" not in key_values
-            and "wifi_guest" not in key_values
-            and "ethernet" not in key_values
+            "wifi_user" not in return_dict
+            and "wifi_guest" not in return_dict
+            and "ethernet" not in return_dict
         ):
             _LOGGER.info("No device in response from %s", self.host)
             return self._devices
 
         # 'on|smartphone|Telefono Nora (2.4GHz)|00:0a:f5:6d:8b:38|192.168.1.128||2.4G;'
         arr_devices = []
-        arr_wifi_user = key_values["wifi_user"].split(";")
+        arr_wifi_user = return_dict["wifi_user"].split(";")
         arr_wifi_user = filter(lambda x: x.strip() != "", arr_wifi_user)
         arr_wifi_user = ["Wifi (Main)|" + dev for dev in arr_wifi_user]
-        arr_wifi_guest = key_values["wifi_guest"].split(";")
+        arr_wifi_guest = return_dict["wifi_guest"].split(";")
         arr_wifi_guest = filter(lambda x: x.strip() != "", arr_wifi_guest)
         arr_wifi_guest = ["[Wifi (Guest)|" + dev for dev in arr_wifi_guest]
         arr_devices.append(arr_wifi_user)
         arr_devices.append(arr_wifi_guest)
-        arr_ethernet = key_values["ethernet"].split(";")
+        arr_ethernet = return_dict["ethernet"].split(";")
         arr_ethernet = filter(lambda x: x.strip() != "", arr_ethernet)
         arr_ethernet = ["Ethernet|on|" + dev + "|||" for dev in arr_ethernet]
         arr_devices.append(arr_ethernet)
