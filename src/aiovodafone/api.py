@@ -6,7 +6,7 @@ import html
 import re
 import urllib.parse
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from http.cookies import SimpleCookie
 from typing import Any
 
@@ -50,6 +50,7 @@ class VodafoneStationApi:
         self.csrf_token: str = ""
         self.encryption_key: str = ""
         self._unique_id: str | None = None
+        self._overview: dict[str, Any] = {}
         self._devices: dict[str, VodafoneStationDevice] = {}
 
     def _base_url(self) -> str:
@@ -209,18 +210,27 @@ class VodafoneStationApi:
         _LOGGER.debug("GET reply %s: %s", page, reply_json)
         return await self._list_2_dict(reply_json)
 
-    async def get_user_data(self) -> dict[Any, Any]:
+    async def get_sensor_data(self) -> dict[Any, Any]:
         """Load user_data page information."""
         _LOGGER.debug("Getting sensor data for host %s", self.host)
 
-        reply_dict = await self._get_page_result("/data/user_data.json")
-        return reply_dict
+        reply_dict_1 = await self._get_page_result("/data/user_data.json")
+        reply_dict_2 = await self._get_page_result("/data/statussupportstatus.json")
+        reply_dict_3 = await self._get_page_result("/data/statussupportrestart.json")
 
-    async def get_all_devices(self) -> dict[str, VodafoneStationDevice]:
+        return reply_dict_1 | reply_dict_2 | reply_dict_3 | self._overview
+
+    async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
         """Get all connected devices."""
 
         _LOGGER.debug("Getting all devices for host %s", self.host)
         return_dict = await self._get_page_result("/data/overview.json")
+
+        # Cleanup sensor data from devices in order to be merged later
+        self._overview.update(return_dict)
+        for info in ["wifi_user", "wifi_guest", "ethernet"]:
+            if info in self._overview:
+                self._overview.pop(info)
 
         if (
             "wifi_user" not in return_dict
@@ -264,6 +274,14 @@ class VodafoneStationApi:
 
         return self._devices
 
+    async def convert_uptime(self, uptime: str) -> datetime:
+        """Convert router uptime to last boot datetime."""
+        d = int(uptime.split(":")[0])
+        h = int(uptime.split(":")[1])
+        m = int(uptime.split(":")[2])
+
+        return datetime.utcnow() - timedelta(days=d, hours=h, minutes=m)
+
     async def login(self) -> bool:
         """Router login."""
         _LOGGER.debug("Logging into %s", self.host)
@@ -293,6 +311,19 @@ class VodafoneStationApi:
             )
 
         return logged
+
+    async def restart_connection(self) -> None:
+        """Internet Connection restart."""
+        payload = {"fiber_reconnect": "1"}
+        await self._post_page_result("/data/statussupportrestart.json", payload)
+
+    async def restart_router(self) -> None:
+        """Router restart."""
+        payload = {"restart_device": "1"}
+        try:
+            await self._post_page_result("/data/statussupportrestart.json", payload)
+        except asyncio.exceptions.TimeoutError:
+            pass
 
     async def logout(self) -> None:
         """Router logout."""
