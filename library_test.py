@@ -3,6 +3,7 @@ import asyncio
 import logging
 
 from aiovodafone.api import VodafoneStationApi
+from aiovodafone.exceptions import AlreadyLogged, CannotConnect, ModelNotSupported
 
 
 def get_arguments() -> tuple[argparse.ArgumentParser, argparse.Namespace]:
@@ -32,10 +33,22 @@ async def main() -> None:
     print("-" * 20)
     api = VodafoneStationApi(args.router, args.username, args.password)
     logged = False
+    exc = False
     try:
         logged = await api.login()
+    except ModelNotSupported:
+        print("Model is not supported yet for router", api.host)
+        exc = True
+    except CannotConnect:
+        print("Cannot connect to router", api.host)
+        exc = True
+    except AlreadyLogged:
+        print("Only one user at a time can connect to router", api.host)
+        exc = True
     finally:
         if not logged:
+            if not exc:
+                print("Unable to login to router", api.host)
             await api.close()
             exit(1)
     print("Logged:", logged)
