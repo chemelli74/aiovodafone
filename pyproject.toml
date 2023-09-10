@@ -28,7 +28,7 @@ bs4 = "*"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0"
-pytest-cov = "^3.0"
+pytest-cov = ">=3,<5"
 
 [tool.semantic_release]
 branch = "main"
