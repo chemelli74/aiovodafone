@@ -169,7 +169,7 @@ class VodafoneStationApi:
         return key_values
 
     async def _post_page_result(
-        self, page: str, payload: dict[str, Any], raw: bool = False
+        self, page: str, payload: dict[str, Any], raw: bool = False, timeout: int = 10
     ) -> aiohttp.ClientResponse | dict[Any, Any]:
         """Get data from a web page via POST."""
         _LOGGER.debug("POST page  %s from host %s", page, self.host)
@@ -179,7 +179,7 @@ class VodafoneStationApi:
             url,
             data=payload,
             headers=self.headers,
-            timeout=10,
+            timeout=timeout,
             ssl=False,
             allow_redirects=True,
         )
@@ -312,13 +312,21 @@ class VodafoneStationApi:
     async def restart_connection(self) -> None:
         """Internet Connection restart."""
         payload = {"fiber_reconnect": "1"}
-        await self._post_page_result("/data/statussupportrestart.json", payload)
+        try:
+            await self._post_page_result("/data/statussupportrestart.json", payload)
+        except aiohttp.ClientResponseError as ex:
+            # Some models dump a text reply with wrong HTML headers as reply to a reconnection request
+            if not ex.message.startswith("Invalid header token"):
+                raise ex
+            pass
 
     async def restart_router(self) -> None:
         """Router restart."""
         payload = {"restart_device": "1"}
         try:
-            await self._post_page_result("/data/statussupportrestart.json", payload)
+            await self._post_page_result(
+                "/data/statussupportrestart.json", payload, False, 2
+            )
         except asyncio.exceptions.TimeoutError:
             pass
 
