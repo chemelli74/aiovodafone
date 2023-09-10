@@ -30,6 +30,7 @@ class VodafoneStationDevice:
     ip_address: str
     name: str
     mac: str
+    type: str
     wifi: str
 
 
@@ -265,15 +266,17 @@ class VodafoneStationApi:
         _LOGGER.debug("Array of devices: %s", arr_devices)
 
         for device_line in arr_devices:
-            device_fields = device_line.split("|")
+            device_fields: list[Any] = device_line.split("|")
+            wifi_band = device_fields[7] if len(device_fields) == 8 else ""
             try:
                 dev_info = VodafoneStationDevice(
                     connection_type=device_fields[0],
                     connected=device_fields[1] == "on",
+                    type=device_fields[2],
                     name=device_fields[3],
                     mac=device_fields[4],
                     ip_address=device_fields[5],
-                    wifi=device_fields[7],
+                    wifi=wifi_band,
                 )
                 self._devices[dev_info.mac] = dev_info
             except (KeyError, IndexError):
