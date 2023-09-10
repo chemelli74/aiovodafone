@@ -315,6 +315,7 @@ class VodafoneStationApi:
         try:
             await self._post_page_result("/data/statussupportrestart.json", payload)
         except aiohttp.ClientResponseError as ex:
+            # Some models dump a text reply with wrong HTML headers as reply to a reconnection request
             if not ex.message.startswith("Invalid header token"):
                 raise ex
             pass
