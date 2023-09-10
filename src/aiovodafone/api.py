@@ -57,6 +57,7 @@ class VodafoneStationApi:
         self._unique_id: str | None = None
         self._overview: dict[str, Any] = {}
         self._devices: dict[str, VodafoneStationDevice] = {}
+        self._statusreportrestart: dict[Any, Any] | None = None
 
     def _base_url(self) -> str:
         """Create base URL"""
@@ -224,9 +225,11 @@ class VodafoneStationApi:
 
         reply_dict_1 = await self._get_page_result("/data/user_data.json")
         reply_dict_2 = await self._get_page_result("/data/statussupportstatus.json")
-        reply_dict_3 = await self._get_page_result("/data/statussupportrestart.json")
+        self._statusreportrestart = await self._get_page_result(
+            "/data/statussupportrestart.json"
+        )
 
-        return reply_dict_1 | reply_dict_2 | reply_dict_3 | self._overview
+        return reply_dict_1 | reply_dict_2 | self._statusreportrestart | self._overview
 
     async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
         """Get all connected devices."""
@@ -322,9 +325,25 @@ class VodafoneStationApi:
 
         return logged
 
+    async def connection_type(self) -> str:
+        """Get active connection tipology."""
+        if not self._statusreportrestart:
+            self._statusreportrestart = await self._get_page_result(
+                "/data/statussupportrestart.json"
+            )
+
+        if self._statusreportrestart.get("dsl_enable"):
+            return "dsl"
+
+        if self._statusreportrestart.get("fiber_enable"):
+            return "fiber"
+
+        _LOGGER.warning("Connection type unknown: %s", self._statusreportrestart)
+        return "unknown"
+
     async def restart_connection(self) -> None:
         """Internet Connection restart."""
-        payload = {"fiber_reconnect": "1"}
+        payload = {f"{self.connection_type}_reconnect": "1"}
         try:
             await self._post_page_result("/data/statussupportrestart.json", payload)
         except aiohttp.ClientResponseError as ex:
