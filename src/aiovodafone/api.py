@@ -13,7 +13,12 @@ import aiohttp
 import bs4
 
 from .const import _LOGGER, LOGIN
-from .exceptions import AlreadyLogged, CannotAuthenticate, CannotConnect
+from .exceptions import (
+    AlreadyLogged,
+    CannotAuthenticate,
+    CannotConnect,
+    ModelNotSupported,
+)
 
 
 @dataclass
@@ -72,6 +77,8 @@ class VodafoneStationApi:
             ssl=False,
             allow_redirects=True,
         )
+        if reply.status in [403, 404]:
+            raise ModelNotSupported
         reply_text = await reply.text()
         soup = bs4.BeautifulSoup(reply_text, "html.parser")
         meta_refresh = soup.find("meta", {"http-equiv": "Refresh"})
@@ -92,7 +99,10 @@ class VodafoneStationApi:
 
         soup = bs4.BeautifulSoup(reply_text, "html.parser")
         script_tag = soup.find("script", string=True)
-        token = re.findall("(?<=csrf_token)|[^']+", script_tag.string)[1]
+        try:
+            token = re.findall("(?<=csrf_token)|[^']+", script_tag.string)[1]
+        except IndexError:
+            raise ModelNotSupported
         if not token:
             return None
         self.csrf_token = token

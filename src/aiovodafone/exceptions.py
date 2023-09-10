@@ -16,3 +16,7 @@ class CannotAuthenticate(VodafoneError):
 
 class AlreadyLogged(VodafoneError):
     """Exception raised if a user is already logged."""
+
+
+class ModelNotSupported(VodafoneError):
+    """Exception raised when using a model not yet supported."""
