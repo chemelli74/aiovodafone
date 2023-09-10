@@ -2,6 +2,16 @@
 
 <!--next-version-placeholder-->
 
+## v0.2.0 (2023-09-10)
+
+### Feature
+
+* Basic checks to verify if model is supported ([`c3c34ff`](https://github.com/chemelli74/aiovodafone/commit/c3c34ff442008ec009299b882906041c51b3ef14))
+
+### Fix
+
+* Missing wifi band info on some models ([`304c254`](https://github.com/chemelli74/aiovodafone/commit/304c254e7c3895bbc7b636c0a56523fbef4cc3ea))
+
 ## v0.1.0 (2023-09-07)
 
 ### Feature
