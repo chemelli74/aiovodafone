@@ -343,7 +343,13 @@ class VodafoneStationApi:
 
     async def restart_connection(self) -> None:
         """Internet Connection restart."""
-        payload = {f"{self.connection_type}_reconnect": "1"}
+        connection_type = await self.connection_type()
+        _LOGGER.debug(
+            "Restarting %s connection for router %s",
+            connection_type.capitalize(),
+            self.host,
+        )
+        payload = {f"{connection_type}_reconnect": "1"}
         try:
             await self._post_page_result("/data/statussupportrestart.json", payload)
         except aiohttp.ClientResponseError as ex:
@@ -354,6 +360,7 @@ class VodafoneStationApi:
 
     async def restart_router(self) -> None:
         """Router restart."""
+        _LOGGER.debug("Restarting router %s", self.host)
         payload = {"restart_device": "1"}
         try:
             await self._post_page_result(
