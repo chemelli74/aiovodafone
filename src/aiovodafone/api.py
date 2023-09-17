@@ -143,7 +143,7 @@ class VodafoneStationApi:
 
         payload = {"chk_sys_busy": ""}
         reply = await self._post_page_result("/data/reset.json", payload, True)
-        if type(reply) is aiohttp.ClientResponse:
+        if isinstance(reply, aiohttp.ClientResponse):
             return reply.status == 200
 
         return False
