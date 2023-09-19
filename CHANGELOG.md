@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.2.1 (2023-09-19)
+
+### Fix
+
+* Mypy new version's complains ([`b8a552d`](https://github.com/chemelli74/aiovodafone/commit/b8a552d4015995135f1c80faa21fee388985b82e))
+
 ## v0.2.0 (2023-09-10)
 
 ### Feature
