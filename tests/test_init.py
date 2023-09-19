@@ -9,10 +9,10 @@ from aiovodafone.exceptions import (
 
 
 def test_objects_can_be_imported():
-    assert VodafoneStationDevice
-    assert VodafoneStationApi
-    assert VodafoneError
-    assert AlreadyLogged
-    assert CannotConnect
-    assert CannotAuthenticate
-    assert ModelNotSupported
+    assert type(VodafoneStationDevice)
+    assert type(VodafoneStationApi)
+    assert type(VodafoneError)
+    assert type(AlreadyLogged)
+    assert type(CannotConnect)
+    assert type(CannotAuthenticate)
+    assert type(ModelNotSupported)

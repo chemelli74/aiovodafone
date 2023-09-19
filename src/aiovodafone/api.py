@@ -83,9 +83,10 @@ class VodafoneStationApi:
         reply_text = await reply.text()
         soup = bs4.BeautifulSoup(reply_text, "html.parser")
         meta_refresh = soup.find("meta", {"http-equiv": "Refresh"})
-        if meta_refresh is not None:
-            meta_content = meta_refresh["content"]
-            reply_url = urllib.parse.parse_qs(meta_content, separator="; ")["URL"][0]
+        if isinstance(meta_refresh, bs4.Tag) and "content" in meta_refresh:
+            meta_content = meta_refresh.get("content")
+            parsed_qs = urllib.parse.parse_qs(str(meta_content), separator="; ")
+            reply_url: str = parsed_qs["URL"][0]
             redirect_url = urllib.parse.urlparse(reply_url)
             if redirect_url.scheme != self.protocol:
                 self.protocol = redirect_url.scheme
@@ -101,7 +102,7 @@ class VodafoneStationApi:
         soup = bs4.BeautifulSoup(reply_text, "html.parser")
         script_tag = soup.find("script", string=True)
         try:
-            token = re.findall("(?<=csrf_token)|[^']+", script_tag.string)[1]
+            token = re.findall("(?<=csrf_token)|[^']+", str(script_tag))[1]
         except IndexError:
             raise ModelNotSupported
         if not token:
@@ -141,11 +142,11 @@ class VodafoneStationApi:
         """Reset page content before loading."""
 
         payload = {"chk_sys_busy": ""}
-        reply: aiohttp.ClientResponse = await self._post_page_result(
-            "/data/reset.json", payload, True
-        )
+        reply = await self._post_page_result("/data/reset.json", payload, True)
+        if isinstance(reply, aiohttp.ClientResponse):
+            return reply.status == 200
 
-        return reply.status == 200
+        return False
 
     async def _login_json(self, username: str, password: str) -> bool:
         """Login via json page"""
