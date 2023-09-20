@@ -57,7 +57,6 @@ class VodafoneStationApi:
         self._unique_id: str | None = None
         self._overview: dict[str, Any] = {}
         self._devices: dict[str, VodafoneStationDevice] = {}
-        self._statusreportrestart: dict[Any, Any] | None = None
 
     def _base_url(self) -> str:
         """Create base URL"""
@@ -225,11 +224,9 @@ class VodafoneStationApi:
 
         reply_dict_1 = await self._get_page_result("/data/user_data.json")
         reply_dict_2 = await self._get_page_result("/data/statussupportstatus.json")
-        self._statusreportrestart = await self._get_page_result(
-            "/data/statussupportrestart.json"
-        )
+        reply_dict_3 = await self._get_page_result("/data/statussupportrestart.json")
 
-        return reply_dict_1 | reply_dict_2 | self._statusreportrestart | self._overview
+        return reply_dict_1 | reply_dict_2 | reply_dict_3 | self._overview
 
     async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
         """Get all connected devices."""
