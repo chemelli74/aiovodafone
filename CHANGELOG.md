@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.3.0 (2023-09-20)
+
+### Feature
+
+* Connection_type() ([`f0d82a3`](https://github.com/chemelli74/aiovodafone/commit/f0d82a33ca8824bcbb0deb02a1f2c0f13d7f13a3))
+
 ## v0.2.1 (2023-09-19)
 
 ### Fix
