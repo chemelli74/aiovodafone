@@ -325,28 +325,11 @@ class VodafoneStationApi:
 
         return logged
 
-    async def connection_type(self) -> str:
-        """Get active connection tipology."""
-        if not self._statusreportrestart:
-            self._statusreportrestart = await self._get_page_result(
-                "/data/statussupportrestart.json"
-            )
-
-        if self._statusreportrestart.get("dsl_enable"):
-            return "dsl"
-
-        if self._statusreportrestart.get("fiber_enable"):
-            return "fiber"
-
-        _LOGGER.warning("Connection type unknown: %s", self._statusreportrestart)
-        return "unknown"
-
-    async def restart_connection(self) -> None:
+    async def restart_connection(self, connection_type: str) -> None:
         """Internet Connection restart."""
-        connection_type = await self.connection_type()
         _LOGGER.debug(
             "Restarting %s connection for router %s",
-            connection_type.capitalize(),
+            connection_type,
             self.host,
         )
         payload = {f"{connection_type}_reconnect": "1"}
