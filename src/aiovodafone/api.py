@@ -10,7 +10,7 @@ from http.cookies import SimpleCookie
 from typing import Any
 
 import aiohttp
-import bs4
+from bs4 import BeautifulSoup, Tag
 
 from .const import _LOGGER, LOGIN
 from .exceptions import (
@@ -81,9 +81,9 @@ class VodafoneStationApi:
         if reply.status in [403, 404]:
             raise ModelNotSupported
         reply_text = await reply.text()
-        soup = bs4.BeautifulSoup(reply_text, "html.parser")
+        soup = BeautifulSoup(reply_text, "html.parser")
         meta_refresh = soup.find("meta", {"http-equiv": "Refresh"})
-        if isinstance(meta_refresh, bs4.Tag) and "content" in meta_refresh:
+        if isinstance(meta_refresh, Tag) and "content" in meta_refresh:
             meta_content = meta_refresh.get("content")
             parsed_qs = urllib.parse.parse_qs(str(meta_content), separator="; ")
             reply_url: str = parsed_qs["URL"][0]
@@ -99,7 +99,7 @@ class VodafoneStationApi:
     async def _get_csrf_token(self, reply_text: str) -> None:
         """Load login page to get csrf token."""
 
-        soup = bs4.BeautifulSoup(reply_text, "html.parser")
+        soup = BeautifulSoup(reply_text, "html.parser")
         script_tag = soup.find("script", string=True)
         try:
             token = re.findall("(?<=csrf_token)|[^']+", str(script_tag))[1]
