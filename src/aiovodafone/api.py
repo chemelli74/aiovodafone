@@ -34,8 +34,8 @@ class VodafoneStationDevice:
     wifi: str
 
 
-class VodafoneStationApi:
-    """Queries router running Vodafone Station firmware."""
+class VodafoneStationCommonApi:
+    """Common API calls for Vodafone Station routers."""
 
     def __init__(self, host: str, username: str, password: str) -> None:
         """Initialize the scanner."""
@@ -61,6 +61,70 @@ class VodafoneStationApi:
     def _base_url(self) -> str:
         """Create base URL"""
         return f"{self.protocol}://{self.host}"
+
+    async def _set_cookie(self) -> None:
+        """Enable required session cookie."""
+        self.session.cookie_jar.update_cookies(
+            SimpleCookie(f"domain={self.host}; name=login_uid; value=1;")
+        )
+
+    async def _list_2_dict(self, data: dict[Any, Any]) -> dict[Any, Any]:
+        """Transform list in a dict"""
+
+        kv_tuples = [(list(v.keys())[0], (list(v.values())[0])) for v in data]
+        key_values = {}
+        for entry in kv_tuples:
+            key_values[entry[0]] = entry[1]
+
+        _LOGGER.debug("Data retrieved (key_values): %s", key_values)
+        return key_values
+
+    async def _post_page_result(
+        self, page: str, payload: dict[str, Any], raw: bool = False, timeout: int = 10
+    ) -> aiohttp.ClientResponse | dict[Any, Any]:
+        """Get data from a web page via POST."""
+        _LOGGER.debug("POST page  %s from host %s", page, self.host)
+        timestamp = datetime.now().strftime("%s")
+        url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
+        reply = await self.session.post(
+            url,
+            data=payload,
+            headers=self.headers,
+            timeout=timeout,
+            ssl=False,
+            allow_redirects=True,
+        )
+        if raw:
+            _LOGGER.debug("POST reply (%s): %s", page, reply)
+            return reply
+        reply_json = await reply.json(content_type="text/html")
+        _LOGGER.debug("POST reply (%s): %s", page, reply_json)
+        return reply_json
+
+    async def _get_page_result(self, page: str) -> dict[Any, Any]:
+        """Get data from a web page via GET."""
+        _LOGGER.debug("GET page  %s [%s]", page, self.host)
+        timestamp = datetime.now().strftime("%s")
+        url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
+
+        reply = await self.session.get(
+            url,
+            headers=self.headers,
+            timeout=10,
+            ssl=False,
+            allow_redirects=False,
+        )
+        reply_json = await reply.json(content_type="text/html")
+        _LOGGER.debug("GET reply %s: %s", page, reply_json)
+        return await self._list_2_dict(reply_json)
+
+
+class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
+    """Queries Vodafone Station running Technicolor firmware."""
+
+
+class VodafoneStationSercommApi(VodafoneStationCommonApi):
+    """Queries Vodafone Station running Sercomm firmware."""
 
     async def _find_login_url(self) -> str:
         """
@@ -132,12 +196,6 @@ class VodafoneStationApi:
             digestmod=hashlib.sha256,
         ).hexdigest()
 
-    async def _set_cookie(self) -> None:
-        """Enable required session cookie."""
-        self.session.cookie_jar.update_cookies(
-            SimpleCookie(f"domain={self.host}; name=login_uid; value=1;")
-        )
-
     async def _reset(self) -> bool:
         """Reset page content before loading."""
 
@@ -168,56 +226,6 @@ class VodafoneStationApi:
             raise CannotAuthenticate
 
         return False
-
-    async def _list_2_dict(self, data: dict[Any, Any]) -> dict[Any, Any]:
-        """Transform list in a dict"""
-
-        kv_tuples = [(list(v.keys())[0], (list(v.values())[0])) for v in data]
-        key_values = {}
-        for entry in kv_tuples:
-            key_values[entry[0]] = entry[1]
-
-        _LOGGER.debug("Data retrieved (key_values): %s", key_values)
-        return key_values
-
-    async def _post_page_result(
-        self, page: str, payload: dict[str, Any], raw: bool = False, timeout: int = 10
-    ) -> aiohttp.ClientResponse | dict[Any, Any]:
-        """Get data from a web page via POST."""
-        _LOGGER.debug("POST page  %s from host %s", page, self.host)
-        timestamp = datetime.now().strftime("%s")
-        url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
-        reply = await self.session.post(
-            url,
-            data=payload,
-            headers=self.headers,
-            timeout=timeout,
-            ssl=False,
-            allow_redirects=True,
-        )
-        if raw:
-            _LOGGER.debug("POST reply (%s): %s", page, reply)
-            return reply
-        reply_json = await reply.json(content_type="text/html")
-        _LOGGER.debug("POST reply (%s): %s", page, reply_json)
-        return reply_json
-
-    async def _get_page_result(self, page: str) -> dict[Any, Any]:
-        """Get data from a web page via GET."""
-        _LOGGER.debug("GET page  %s [%s]", page, self.host)
-        timestamp = datetime.now().strftime("%s")
-        url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
-
-        reply = await self.session.get(
-            url,
-            headers=self.headers,
-            timeout=10,
-            ssl=False,
-            allow_redirects=False,
-        )
-        reply_json = await reply.json(content_type="text/html")
-        _LOGGER.debug("GET reply %s: %s", page, reply_json)
-        return await self._list_2_dict(reply_json)
 
     async def get_sensor_data(self) -> dict[Any, Any]:
         """Load user_data page information."""

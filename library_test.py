@@ -2,7 +2,7 @@ import argparse
 import asyncio
 import logging
 
-from aiovodafone.api import VodafoneStationApi
+from aiovodafone.api import VodafoneStationSercommApi
 from aiovodafone.exceptions import AlreadyLogged, CannotConnect, ModelNotSupported
 
 
@@ -31,7 +31,7 @@ async def main() -> None:
         exit(1)
 
     print("-" * 20)
-    api = VodafoneStationApi(args.router, args.username, args.password)
+    api = VodafoneStationSercommApi(args.router, args.username, args.password)
     logged = False
     exc = False
     try:
