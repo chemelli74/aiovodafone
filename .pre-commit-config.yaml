@@ -15,7 +15,7 @@ repos:
       - id: no-commit-to-branch
         args: ["--branch", "main"]
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: 3.9.0
+    rev: 3.10.0
     hooks:
       - id: commitizen
         stages: [commit-msg]
@@ -44,7 +44,7 @@ repos:
       - id: prettier
         args: ["--tab-width", "2"]
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.11.0
+    rev: v3.13.0
     hooks:
       - id: pyupgrade
         args: [--py37-plus]
