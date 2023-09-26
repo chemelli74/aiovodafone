@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.3.1 (2023-09-26)
+
+### Fix
+
+* Make BeautifulSoup parsing more robust ([`dc2d47b`](https://github.com/chemelli74/aiovodafone/commit/dc2d47b9aafcb8ada255b05640ae59f1b5cbc98b))
+
 ## v0.3.0 (2023-09-20)
 
 ### Feature
