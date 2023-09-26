@@ -83,7 +83,7 @@ class VodafoneStationApi:
         reply_text = await reply.text()
         soup = BeautifulSoup(reply_text, "html.parser")
         meta_refresh = soup.find("meta", {"http-equiv": "Refresh"})
-        if isinstance(meta_refresh, Tag) and "content" in meta_refresh:
+        if isinstance(meta_refresh, Tag) and "content" in meta_refresh.attrs.keys():
             meta_content = meta_refresh.get("content")
             parsed_qs = urllib.parse.parse_qs(str(meta_content), separator="; ")
             reply_url: str = parsed_qs["URL"][0]
