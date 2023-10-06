@@ -171,7 +171,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         Returns:
             str: the hash for the session API
         """
-        _LOGGER.debug("Calculate hash")
+        _LOGGER.debug("Calculate credential hash")
         a = hashlib.pbkdf2_hmac(
             "sha256",
             bytes(credential, "utf-8"),
