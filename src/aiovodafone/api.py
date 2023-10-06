@@ -3,7 +3,9 @@ import asyncio
 import hashlib
 import hmac
 import re
+import time
 import urllib.parse
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.cookies import SimpleCookie
@@ -34,7 +36,7 @@ class VodafoneStationDevice:
     wifi: str
 
 
-class VodafoneStationCommonApi:
+class VodafoneStationCommonApi(ABC):
     """Common API calls for Vodafone Station routers."""
 
     def __init__(self, host: str, username: str, password: str) -> None:
@@ -118,13 +120,190 @@ class VodafoneStationCommonApi:
         _LOGGER.debug("GET reply %s: %s", page, reply_json)
         return await self._list_2_dict(reply_json)
 
+    @abstractmethod
+    async def convert_uptime(self, uptime: str) -> datetime:
+        pass
+
     async def close(self) -> None:
         """Router close session."""
         await self.session.close()
 
+    @abstractmethod
+    async def login(self) -> bool:
+        pass
+
+    @abstractmethod
+    async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
+        pass
+
+    @abstractmethod
+    async def get_sensor_data(self) -> dict[Any, Any]:
+        pass
+
+    @abstractmethod
+    async def logout(self) -> None:
+        pass
+
 
 class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     """Queries Vodafone Station running Technicolor firmware."""
+
+    def __init__(self, host: str, username: str, password: str) -> None:
+        super().__init__(host, username, password)
+        self.headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "X-CSRF-TOKEN": "",
+            "X-Requested-With": "XMLHttpRequest",
+            "Referer": self.host,
+        }
+
+    async def _encrypt_string(
+        self, credential: str, salt: str, salt_web_ui: str
+    ) -> str:
+        """Calculates login hash from the password, the salt and the salt from the web UI.
+
+        Args:
+            credential (str): login password for the user
+            salt (str): salt given by the login response
+            salt_web_ui (str): salt given by the web UI
+
+        Returns:
+            str: the hash for the session API
+        """
+        _LOGGER.debug("Calculate hash")
+        a = hashlib.pbkdf2_hmac(
+            "sha256",
+            bytes(credential, "utf-8"),
+            bytes(salt, "utf-8"),
+            1000,
+        ).hex()[:32]
+        b = hashlib.pbkdf2_hmac(
+            "sha256",
+            bytes(a, "utf-8"),
+            bytes(salt_web_ui, "utf-8"),
+            1000,
+        ).hex()[:32]
+        return b
+
+    async def login(self) -> bool:
+        """Router login."""
+        _LOGGER.debug("Logging into %s", self.host)
+        _LOGGER.debug("Get salt for login")
+        page = self.host + "/api/v1/session/login"
+        reply = await self.session.post(
+            page,
+            headers=self.headers,
+            data={"username": self.username, "password": "seeksalthash"},
+        )
+        salt_response = await reply.json()
+        _LOGGER.debug("POST reply (%s)", page)
+
+        salt = salt_response["salt"]
+        salt_web_ui = salt_response["saltwebui"]
+
+        # Calculate hash
+        password_hash = await self._encrypt_string(self.password, salt, salt_web_ui)
+
+        # Perform login
+        _LOGGER.debug("Perform login")
+        page = self.host + "/api/v1/session/login"
+        reply = await self.session.post(
+            page,
+            headers=self.headers,
+            data={"username": self.username, "password": password_hash},
+        )
+        login_response = await reply.json()
+        _LOGGER.debug("POST reply (%s)", page)
+
+        if "error" in login_response and login_response["error"] == "error":
+            if login_response["message"] == "MSG_LOGIN_150":
+                raise AlreadyLogged
+            _LOGGER.error(await reply.text())
+            raise CannotAuthenticate
+
+        # Request menu otherwise the next call fails
+        _LOGGER.debug("Get menu")
+        now = int(time.time() * 1000)
+        page = self.host + "/api/v1/session/menu?_=" + str(now)
+        reply = await self.session.get(
+            page,
+            headers=self.headers,
+        )
+        _LOGGER.debug("GET reply (%s)", page)
+        await reply.json()
+
+        return True
+
+    async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
+        """
+        Get all connected devices as a map of MAC address and device object
+
+        Returns:
+            dict[str, VodafoneStationDevice]: MAC address maps to VodafoneStationDevice
+        """
+        _LOGGER.debug("Get hosts")
+        now = int(time.time() * 1000)
+        page = self.host + "/api/v1/host/hostTbl?_=" + str(now)
+        reply = await self.session.get(
+            page,
+            headers=self.headers,
+        )
+        host_response = await reply.json()
+        _LOGGER.debug("GET reply (%s)", page)
+
+        devices_dict = {}
+        for device in host_response["data"]["hostTbl"]:
+            connected = bool(device["active"])
+            connection_type = (
+                "WiFi" if "WiFi" in device["layer1interface"] else "Ethernet"
+            )  # TODO clarify if those are the right values
+            ip_address = device["ipaddress"]
+            name = device["hostname"]
+            mac = device["physaddress"]
+            type = ""  # TODO clarify what type contains
+            wifi = ""  # TODO clarify what is meant
+
+            vdf_device = VodafoneStationDevice(
+                connected=connected,
+                connection_type=connection_type,
+                ip_address=ip_address,
+                name=name,
+                mac=mac,
+                type=type,
+                wifi=wifi,
+            )
+            devices_dict[mac] = vdf_device
+
+        return devices_dict
+
+    async def get_sensor_data(self) -> dict[Any, Any]:
+        now = int(time.time() * 1000)
+        page = self.host + "/api/v1/sta_status?_=" + str(now)
+        reply = await self.session.get(
+            page,
+            headers=self.headers,
+        )
+        status_response = await reply.json()
+        _LOGGER.debug("GET reply (%s)", page)
+
+        data = {}
+        data["sys_serial_number"] = status_response["data"]["serialnumber"]
+        data["sys_firmware_version"] = status_response["data"]["firmwareversion"]
+        data["sys_hardware_version"] = status_response["data"]["hardwaretype"]
+        data["sys_uptime"] = status_response["data"]["uptime"]
+        return data
+
+    async def convert_uptime(self, uptime: str) -> datetime:
+        return datetime.utcnow() - timedelta(seconds=int(uptime))
+
+    async def logout(self) -> None:
+        pass
+        # Logout
+        _LOGGER.debug("Logout")
+        page = self.host + "/api/v1/session/logout"
+        await self.session.post(page, headers=self.headers)
+        _LOGGER.debug("POST reply (%s)", page)
 
 
 class VodafoneStationSercommApi(VodafoneStationCommonApi):
@@ -297,14 +476,6 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
         return self._devices
 
-    async def convert_uptime(self, uptime: str) -> datetime:
-        """Convert router uptime to last boot datetime."""
-        d = int(uptime.split(":")[0])
-        h = int(uptime.split(":")[1])
-        m = int(uptime.split(":")[2])
-
-        return datetime.utcnow() - timedelta(days=d, hours=h, minutes=m)
-
     async def login(self) -> bool:
         """Router login."""
         _LOGGER.debug("Logging into %s", self.host)
@@ -365,3 +536,11 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
     async def logout(self) -> None:
         """Router logout."""
         self.session.cookie_jar.clear()
+
+    async def convert_uptime(self, uptime: str) -> datetime:
+        """Convert router uptime to last boot datetime."""
+        d = int(uptime.split(":")[0])
+        h = int(uptime.split(":")[1])
+        m = int(uptime.split(":")[2])
+
+        return datetime.utcnow() - timedelta(days=d, hours=h, minutes=m)
