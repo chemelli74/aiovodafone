@@ -476,6 +476,14 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
         return self._devices
 
+    async def convert_uptime(self, uptime: str) -> datetime:
+        """Convert router uptime to last boot datetime."""
+        d = int(uptime.split(":")[0])
+        h = int(uptime.split(":")[1])
+        m = int(uptime.split(":")[2])
+
+        return datetime.utcnow() - timedelta(days=d, hours=h, minutes=m)
+
     async def login(self) -> bool:
         """Router login."""
         _LOGGER.debug("Logging into %s", self.host)
@@ -536,11 +544,3 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
     async def logout(self) -> None:
         """Router logout."""
         self.session.cookie_jar.clear()
-
-    async def convert_uptime(self, uptime: str) -> datetime:
-        """Convert router uptime to last boot datetime."""
-        d = int(uptime.split(":")[0])
-        h = int(uptime.split(":")[1])
-        m = int(uptime.split(":")[2])
-
-        return datetime.utcnow() - timedelta(days=d, hours=h, minutes=m)
