@@ -3,7 +3,6 @@ import asyncio
 import hashlib
 import hmac
 import re
-import time
 import urllib.parse
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -82,12 +81,22 @@ class VodafoneStationCommonApi(ABC):
         return key_values
 
     async def _post_page_result(
-        self, page: str, payload: dict[str, Any], raw: bool = False, timeout: int = 10
+        self,
+        page: str,
+        payload: dict[str, Any],
+        raw: bool = False,
+        timeout: int = 10,
+        use_html_content_type: bool = True,
     ) -> aiohttp.ClientResponse | dict[Any, Any]:
-        """Get data from a web page via POST."""
+        """
+        Get data from a web page via POST and parses the response as JSON. If the raw response
+        is needed, pass `raw=True`
+        """
         _LOGGER.debug("POST page  %s from host %s", page, self.host)
+
         timestamp = datetime.now().strftime("%s")
         url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
+
         reply = await self.session.post(
             url,
             data=payload,
@@ -99,11 +108,20 @@ class VodafoneStationCommonApi(ABC):
         if raw:
             _LOGGER.debug("POST reply (%s): %s", page, reply)
             return reply
-        reply_json = await reply.json(content_type="text/html")
+        if use_html_content_type:
+            reply_json = await reply.json(content_type="text/html")
+        else:
+            reply_json = await reply.json()
         _LOGGER.debug("POST reply (%s): %s", page, reply_json)
         return reply_json
 
-    async def _get_page_result(self, page: str) -> dict[Any, Any]:
+    async def _get_page_result(
+        self,
+        page: str,
+        raw: bool = False,
+        use_html_content_type: bool = True,
+        convert_to_dict: bool = True,
+    ) -> dict[Any, Any]:
         """Get data from a web page via GET."""
         _LOGGER.debug("GET page  %s [%s]", page, self.host)
         timestamp = datetime.now().strftime("%s")
@@ -116,9 +134,18 @@ class VodafoneStationCommonApi(ABC):
             ssl=False,
             allow_redirects=False,
         )
-        reply_json = await reply.json(content_type="text/html")
+        if raw:
+            _LOGGER.debug("POST reply (%s): %s", page, reply)
+            return reply
+        if use_html_content_type:
+            reply_json = await reply.json(content_type="text/html")
+        else:
+            reply_json = await reply.json()
         _LOGGER.debug("GET reply %s: %s", page, reply_json)
-        return await self._list_2_dict(reply_json)
+        if convert_to_dict:
+            return await self._list_2_dict(reply_json)
+        else:
+            return reply_json
 
     @abstractmethod
     async def convert_uptime(self, uptime: str) -> datetime:
@@ -190,48 +217,37 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         """Router login."""
         _LOGGER.debug("Logging into %s", self.host)
         _LOGGER.debug("Get salt for login")
-        page = self.host + "/api/v1/session/login"
-        reply = await self.session.post(
-            page,
-            headers=self.headers,
-            data={"username": self.username, "password": "seeksalthash"},
+        page = "/api/v1/session/login"
+        payload = {"username": self.username, "password": "seeksalthash"}
+        salt_response = await self._post_page_result(
+            page=page, payload=payload, use_html_content_type=False
         )
-        salt_response = await reply.json()
-        _LOGGER.debug("POST reply (%s)", page)
 
         salt = salt_response["salt"]
         salt_web_ui = salt_response["saltwebui"]
 
-        # Calculate hash
+        # Calculate credential hash
         password_hash = await self._encrypt_string(self.password, salt, salt_web_ui)
 
         # Perform login
         _LOGGER.debug("Perform login")
-        page = self.host + "/api/v1/session/login"
-        reply = await self.session.post(
-            page,
-            headers=self.headers,
-            data={"username": self.username, "password": password_hash},
+        page = "/api/v1/session/login"
+        login_response = await self._post_page_result(
+            page=page,
+            payload={"username": self.username, "password": password_hash},
+            use_html_content_type=False,
         )
-        login_response = await reply.json()
-        _LOGGER.debug("POST reply (%s)", page)
 
         if "error" in login_response and login_response["error"] == "error":
             if login_response["message"] == "MSG_LOGIN_150":
                 raise AlreadyLogged
-            _LOGGER.error(await reply.text())
+            _LOGGER.error(login_response)
             raise CannotAuthenticate
 
         # Request menu otherwise the next call fails
         _LOGGER.debug("Get menu")
-        now = int(time.time() * 1000)
-        page = self.host + "/api/v1/session/menu?_=" + str(now)
-        reply = await self.session.get(
-            page,
-            headers=self.headers,
-        )
-        _LOGGER.debug("GET reply (%s)", page)
-        await reply.json()
+        page = "/api/v1/session/menu"
+        await self._get_page_result(page, raw=True)
 
         return True
 
@@ -243,14 +259,10 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             dict[str, VodafoneStationDevice]: MAC address maps to VodafoneStationDevice
         """
         _LOGGER.debug("Get hosts")
-        now = int(time.time() * 1000)
-        page = self.host + "/api/v1/host/hostTbl?_=" + str(now)
-        reply = await self.session.get(
-            page,
-            headers=self.headers,
+        page = "/api/v1/host/hostTbl"
+        host_response = await self._get_page_result(
+            page, use_html_content_type=False, convert_to_dict=False
         )
-        host_response = await reply.json()
-        _LOGGER.debug("GET reply (%s)", page)
 
         devices_dict = {}
         for device in host_response["data"]["hostTbl"]:
@@ -278,13 +290,10 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         return devices_dict
 
     async def get_sensor_data(self) -> dict[Any, Any]:
-        now = int(time.time() * 1000)
-        page = self.host + "/api/v1/sta_status?_=" + str(now)
-        reply = await self.session.get(
-            page,
-            headers=self.headers,
+        page = "/api/v1/sta_status"
+        status_response = await self._get_page_result(
+            page, use_html_content_type=False, convert_to_dict=False
         )
-        status_response = await reply.json()
         _LOGGER.debug("GET reply (%s)", page)
 
         data = {}
@@ -298,12 +307,10 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         return datetime.utcnow() - timedelta(seconds=int(uptime))
 
     async def logout(self) -> None:
-        pass
         # Logout
         _LOGGER.debug("Logout")
-        page = self.host + "/api/v1/session/logout"
-        await self.session.post(page, headers=self.headers)
-        _LOGGER.debug("POST reply (%s)", page)
+        page = "/api/v1/session/logout"
+        await self._post_page_result(page, payload={}, raw=True)
 
 
 class VodafoneStationSercommApi(VodafoneStationCommonApi):
