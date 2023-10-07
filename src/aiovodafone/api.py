@@ -118,6 +118,10 @@ class VodafoneStationCommonApi:
         _LOGGER.debug("GET reply %s: %s", page, reply_json)
         return await self._list_2_dict(reply_json)
 
+    async def close(self) -> None:
+        """Router close session."""
+        await self.session.close()
+
 
 class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     """Queries Vodafone Station running Technicolor firmware."""
@@ -361,7 +365,3 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
     async def logout(self) -> None:
         """Router logout."""
         self.session.cookie_jar.clear()
-
-    async def close(self) -> None:
-        """Router close session."""
-        await self.session.close()
