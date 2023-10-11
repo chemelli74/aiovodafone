@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import re
 import urllib.parse
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.cookies import SimpleCookie
@@ -34,7 +35,7 @@ class VodafoneStationDevice:
     wifi: str
 
 
-class VodafoneStationCommonApi:
+class VodafoneStationCommonApi(ABC):
     """Common API calls for Vodafone Station routers."""
 
     def __init__(self, host: str, username: str, password: str) -> None:
@@ -80,12 +81,22 @@ class VodafoneStationCommonApi:
         return key_values
 
     async def _post_page_result(
-        self, page: str, payload: dict[str, Any], raw: bool = False, timeout: int = 10
+        self,
+        page: str,
+        payload: dict[str, Any],
+        raw: bool = False,
+        timeout: int = 10,
+        use_html_content_type: bool = True,
     ) -> aiohttp.ClientResponse | dict[Any, Any]:
-        """Get data from a web page via POST."""
+        """
+        Get data from a web page via POST and parses the response as JSON. If the raw response
+        is needed, pass `raw=True`
+        """
         _LOGGER.debug("POST page  %s from host %s", page, self.host)
+
         timestamp = datetime.now().strftime("%s")
         url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
+
         reply = await self.session.post(
             url,
             data=payload,
@@ -97,11 +108,20 @@ class VodafoneStationCommonApi:
         if raw:
             _LOGGER.debug("POST reply (%s): %s", page, reply)
             return reply
-        reply_json = await reply.json(content_type="text/html")
+        if use_html_content_type:
+            reply_json = await reply.json(content_type="text/html")
+        else:
+            reply_json = await reply.json()
         _LOGGER.debug("POST reply (%s): %s", page, reply_json)
         return reply_json
 
-    async def _get_page_result(self, page: str) -> dict[Any, Any]:
+    async def _get_page_result(
+        self,
+        page: str,
+        raw: bool = False,
+        use_html_content_type: bool = True,
+        convert_to_dict: bool = True,
+    ) -> dict[Any, Any]:
         """Get data from a web page via GET."""
         _LOGGER.debug("GET page  %s [%s]", page, self.host)
         timestamp = datetime.now().strftime("%s")
@@ -114,17 +134,177 @@ class VodafoneStationCommonApi:
             ssl=False,
             allow_redirects=False,
         )
-        reply_json = await reply.json(content_type="text/html")
+        if raw:
+            _LOGGER.debug("POST reply (%s): %s", page, reply)
+            return reply
+        if use_html_content_type:
+            reply_json = await reply.json(content_type="text/html")
+        else:
+            reply_json = await reply.json()
         _LOGGER.debug("GET reply %s: %s", page, reply_json)
-        return await self._list_2_dict(reply_json)
+        if convert_to_dict:
+            return await self._list_2_dict(reply_json)
+        else:
+            return reply_json
+
+    @abstractmethod
+    async def convert_uptime(self, uptime: str) -> datetime:
+        pass
 
     async def close(self) -> None:
         """Router close session."""
         await self.session.close()
 
+    @abstractmethod
+    async def login(self) -> bool:
+        pass
+
+    @abstractmethod
+    async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
+        pass
+
+    @abstractmethod
+    async def get_sensor_data(self) -> dict[Any, Any]:
+        pass
+
+    @abstractmethod
+    async def logout(self) -> None:
+        pass
+
 
 class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     """Queries Vodafone Station running Technicolor firmware."""
+
+    def __init__(self, host: str, username: str, password: str) -> None:
+        super().__init__(host, username, password)
+        self.headers["X-Requested-With"] = "XMLHttpRequest"
+
+    async def _encrypt_string(
+        self, credential: str, salt: str, salt_web_ui: str
+    ) -> str:
+        """Calculates login hash from the password, the salt and the salt from the web UI.
+
+        Args:
+            credential (str): login password for the user
+            salt (str): salt given by the login response
+            salt_web_ui (str): salt given by the web UI
+
+        Returns:
+            str: the hash for the session API
+        """
+        _LOGGER.debug("Calculate credential hash")
+        a = hashlib.pbkdf2_hmac(
+            "sha256",
+            bytes(credential, "utf-8"),
+            bytes(salt, "utf-8"),
+            1000,
+        ).hex()[:32]
+        b = hashlib.pbkdf2_hmac(
+            "sha256",
+            bytes(a, "utf-8"),
+            bytes(salt_web_ui, "utf-8"),
+            1000,
+        ).hex()[:32]
+        return b
+
+    async def login(self) -> bool:
+        """Router login."""
+        _LOGGER.debug("Logging into %s", self.host)
+        _LOGGER.debug("Get salt for login")
+        page = "/api/v1/session/login"
+        payload = {"username": self.username, "password": "seeksalthash"}
+        salt_response = await self._post_page_result(
+            page=page, payload=payload, use_html_content_type=False
+        )
+
+        salt = salt_response["salt"]
+        salt_web_ui = salt_response["saltwebui"]
+
+        # Calculate credential hash
+        password_hash = await self._encrypt_string(self.password, salt, salt_web_ui)
+
+        # Perform login
+        _LOGGER.debug("Perform login")
+        page = "/api/v1/session/login"
+        login_response = await self._post_page_result(
+            page=page,
+            payload={"username": self.username, "password": password_hash},
+            use_html_content_type=False,
+        )
+
+        if "error" in login_response and login_response["error"] == "error":
+            if login_response["message"] == "MSG_LOGIN_150":
+                raise AlreadyLogged
+            _LOGGER.error(login_response)
+            raise CannotAuthenticate
+
+        # Request menu otherwise the next call fails
+        _LOGGER.debug("Get menu")
+        page = "/api/v1/session/menu"
+        await self._get_page_result(page, raw=True)
+
+        return True
+
+    async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
+        """
+        Get all connected devices as a map of MAC address and device object
+
+        Returns:
+            dict[str, VodafoneStationDevice]: MAC address maps to VodafoneStationDevice
+        """
+        _LOGGER.debug("Get hosts")
+        page = "/api/v1/host/hostTbl"
+        host_response = await self._get_page_result(
+            page, use_html_content_type=False, convert_to_dict=False
+        )
+
+        devices_dict = {}
+        for device in host_response["data"]["hostTbl"]:
+            connected = bool(device["active"])
+            connection_type = (
+                "WiFi" if "WiFi" in device["layer1interface"] else "Ethernet"
+            )  # TODO clarify if those are the right values
+            ip_address = device["ipaddress"]
+            name = device["hostname"]
+            mac = device["physaddress"]
+            type = ""  # TODO clarify what type contains
+            wifi = ""  # TODO clarify what is meant
+
+            vdf_device = VodafoneStationDevice(
+                connected=connected,
+                connection_type=connection_type,
+                ip_address=ip_address,
+                name=name,
+                mac=mac,
+                type=type,
+                wifi=wifi,
+            )
+            devices_dict[mac] = vdf_device
+
+        return devices_dict
+
+    async def get_sensor_data(self) -> dict[Any, Any]:
+        page = "/api/v1/sta_status"
+        status_response = await self._get_page_result(
+            page, use_html_content_type=False, convert_to_dict=False
+        )
+        _LOGGER.debug("GET reply (%s)", page)
+
+        data = {}
+        data["sys_serial_number"] = status_response["data"]["serialnumber"]
+        data["sys_firmware_version"] = status_response["data"]["firmwareversion"]
+        data["sys_hardware_version"] = status_response["data"]["hardwaretype"]
+        data["sys_uptime"] = status_response["data"]["uptime"]
+        return data
+
+    async def convert_uptime(self, uptime: str) -> datetime:
+        return datetime.utcnow() - timedelta(seconds=int(uptime))
+
+    async def logout(self) -> None:
+        # Logout
+        _LOGGER.debug("Logout")
+        page = "/api/v1/session/logout"
+        await self._post_page_result(page, payload={}, raw=True)
 
 
 class VodafoneStationSercommApi(VodafoneStationCommonApi):
