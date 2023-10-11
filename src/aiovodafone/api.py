@@ -177,13 +177,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
     def __init__(self, host: str, username: str, password: str) -> None:
         super().__init__(host, username, password)
-        self.headers = {
-            "User-Agent": "Mozilla/5.0",
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            "X-CSRF-TOKEN": "",
-            "X-Requested-With": "XMLHttpRequest",
-            "Referer": self.host,
-        }
+        self.headers["X-Requested-With"] = "XMLHttpRequest"
 
     async def _encrypt_string(
         self, credential: str, salt: str, salt_web_ui: str
