@@ -73,7 +73,7 @@ class VodafoneStationCommonApi:
     ) -> aiohttp.ClientResponse:
         """Get data from a web page via POST."""
         _LOGGER.debug("POST page  %s from host %s", page, self.host)
-        timestamp = datetime.now().strftime("%s")
+        timestamp = int(datetime.now().timestamp())
         url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
         return await self.session.post(
             url,
@@ -87,7 +87,7 @@ class VodafoneStationCommonApi:
     async def _get_page_result(self, page: str) -> aiohttp.ClientResponse:
         """Get data from a web page via GET."""
         _LOGGER.debug("GET page  %s [%s]", page, self.host)
-        timestamp = datetime.now().strftime("%s")
+        timestamp = int(datetime.now().timestamp())
         url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
 
         return await self.session.get(
