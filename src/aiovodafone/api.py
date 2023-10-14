@@ -209,12 +209,12 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             connected = bool(device["active"])
             connection_type = (
                 "WiFi" if "WiFi" in device["layer1interface"] else "Ethernet"
-            )  # TODO clarify if those are the right values
+            )
             ip_address = device["ipaddress"]
             name = device["hostname"]
             mac = device["physaddress"]
-            type = ""  # TODO clarify what type contains
-            wifi = ""  # TODO clarify what is meant
+            type = device["type"]
+            wifi = ""  # Technicolor Vodafone Station does not report wifi band
 
             vdf_device = VodafoneStationDevice(
                 connected=connected,
