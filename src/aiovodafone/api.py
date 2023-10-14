@@ -69,35 +69,14 @@ class VodafoneStationCommonApi(ABC):
             SimpleCookie(f"domain={self.host}; name=login_uid; value=1;")
         )
 
-    async def _list_2_dict(self, data: dict[Any, Any]) -> dict[Any, Any]:
-        """Transform list in a dict"""
-
-        kv_tuples = [(list(v.keys())[0], (list(v.values())[0])) for v in data]
-        key_values = {}
-        for entry in kv_tuples:
-            key_values[entry[0]] = entry[1]
-
-        _LOGGER.debug("Data retrieved (key_values): %s", key_values)
-        return key_values
-
     async def _post_page_result(
-        self,
-        page: str,
-        payload: dict[str, Any],
-        raw: bool = False,
-        timeout: int = 10,
-        use_html_content_type: bool = True,
-    ) -> aiohttp.ClientResponse | dict[Any, Any]:
-        """
-        Get data from a web page via POST and parses the response as JSON. If the raw response
-        is needed, pass `raw=True`
-        """
+        self, page: str, payload: dict[str, Any], timeout: int = 10
+    ) -> aiohttp.ClientResponse:
+        """Get data from a web page via POST."""
         _LOGGER.debug("POST page  %s from host %s", page, self.host)
-
-        timestamp = datetime.now().strftime("%s")
+        timestamp = int(datetime.now().timestamp())
         url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
-
-        reply = await self.session.post(
+        return await self.session.post(
             url,
             data=payload,
             headers=self.headers,
@@ -105,51 +84,21 @@ class VodafoneStationCommonApi(ABC):
             ssl=False,
             allow_redirects=True,
         )
-        if raw:
-            _LOGGER.debug("POST reply (%s): %s", page, reply)
-            return reply
-        if use_html_content_type:
-            reply_json = await reply.json(content_type="text/html")
-        else:
-            reply_json = await reply.json()
-        _LOGGER.debug("POST reply (%s): %s", page, reply_json)
-        return reply_json
 
-    async def _get_page_result(
-        self,
-        page: str,
-        raw: bool = False,
-        use_html_content_type: bool = True,
-        convert_to_dict: bool = True,
-    ) -> dict[Any, Any]:
+    async def _get_page_result(self, page: str) -> aiohttp.ClientResponse:
+
         """Get data from a web page via GET."""
         _LOGGER.debug("GET page  %s [%s]", page, self.host)
-        timestamp = datetime.now().strftime("%s")
+        timestamp = int(datetime.now().timestamp())
         url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
 
-        reply = await self.session.get(
+        return await self.session.get(
             url,
             headers=self.headers,
             timeout=10,
             ssl=False,
             allow_redirects=False,
         )
-        if raw:
-            _LOGGER.debug("POST reply (%s): %s", page, reply)
-            return reply
-        if use_html_content_type:
-            reply_json = await reply.json(content_type="text/html")
-        else:
-            reply_json = await reply.json()
-        _LOGGER.debug("GET reply %s: %s", page, reply_json)
-        if convert_to_dict:
-            return await self._list_2_dict(reply_json)
-        else:
-            return reply_json
-
-    @abstractmethod
-    async def convert_uptime(self, uptime: str) -> datetime:
-        pass
 
     async def close(self) -> None:
         """Router close session."""
@@ -214,7 +163,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         page = "/api/v1/session/login"
         payload = {"username": self.username, "password": "seeksalthash"}
         salt_response = await self._post_page_result(
-            page=page, payload=payload, use_html_content_type=False
+            page=page, payload=payload
         )
 
         salt = salt_response["salt"]
@@ -229,7 +178,6 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         login_response = await self._post_page_result(
             page=page,
             payload={"username": self.username, "password": password_hash},
-            use_html_content_type=False,
         )
 
         if "error" in login_response and login_response["error"] == "error":
@@ -241,7 +189,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         # Request menu otherwise the next call fails
         _LOGGER.debug("Get menu")
         page = "/api/v1/session/menu"
-        await self._get_page_result(page, raw=True)
+        await self._get_page_result(page)
 
         return True
 
@@ -254,9 +202,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         """
         _LOGGER.debug("Get hosts")
         page = "/api/v1/host/hostTbl"
-        host_response = await self._get_page_result(
-            page, use_html_content_type=False, convert_to_dict=False
-        )
+        host_response = await self._get_page_result(page)
 
         devices_dict = {}
         for device in host_response["data"]["hostTbl"]:
@@ -285,9 +231,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
     async def get_sensor_data(self) -> dict[Any, Any]:
         page = "/api/v1/sta_status"
-        status_response = await self._get_page_result(
-            page, use_html_content_type=False, convert_to_dict=False
-        )
+        status_response = await self._get_page_result(page)
         _LOGGER.debug("GET reply (%s)", page)
 
         data = {}
@@ -304,11 +248,40 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         # Logout
         _LOGGER.debug("Logout")
         page = "/api/v1/session/logout"
-        await self._post_page_result(page, payload={}, raw=True)
+        await self._post_page_result(page, payload={})
 
 
 class VodafoneStationSercommApi(VodafoneStationCommonApi):
     """Queries Vodafone Station running Sercomm firmware."""
+
+    async def _list_2_dict(self, data: dict[Any, Any]) -> dict[Any, Any]:
+        """Transform list in a dict"""
+
+        kv_tuples = [(list(v.keys())[0], (list(v.values())[0])) for v in data]
+        key_values = {}
+        for entry in kv_tuples:
+            key_values[entry[0]] = entry[1]
+
+        _LOGGER.debug("Data retrieved (key_values): %s", key_values)
+        return key_values
+
+    async def _get_sercomm_page(self, page: str) -> dict[Any, Any]:
+        """Get html page and process reply."""
+
+        reply = await self._get_page_result(page)
+        reply_json = await reply.json(content_type="text/html")
+        _LOGGER.debug("GET reply (%s): %s", page, reply_json)
+        return await self._list_2_dict(reply_json)
+
+    async def _post_sercomm_page(
+        self, page: str, payload: dict[str, Any], timeout: int = 10
+    ) -> dict[Any, Any]:
+        """Post html page and process reply."""
+
+        reply = await self._post_page_result(page, payload, timeout)
+        reply_json = await reply.json(content_type="text/html")
+        _LOGGER.debug("POST reply (%s): %s", page, reply_json)
+        return reply_json
 
     async def _find_login_url(self) -> str:
         """
@@ -361,7 +334,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
     async def _get_user_lang(self) -> None:
         """Load user_lang page to get."""
 
-        return_dict = await self._get_page_result("/data/user_lang.json")
+        return_dict = await self._get_sercomm_page("/data/user_lang.json")
         self.encryption_key = return_dict["encryption_key"]
         _LOGGER.debug("encryption_key: <%s>", self.encryption_key)
 
@@ -384,7 +357,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         """Reset page content before loading."""
 
         payload = {"chk_sys_busy": ""}
-        reply = await self._post_page_result("/data/reset.json", payload, True)
+        reply = await self._post_page_result("/data/reset.json", payload)
         if isinstance(reply, aiohttp.ClientResponse):
             return reply.status == 200
 
@@ -397,7 +370,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
             "LoginName": username,
             "LoginPWD": password,
         }
-        reply_json = await self._post_page_result("/data/login.json", payload)
+        reply_json = await self._post_sercomm_page("/data/login.json", payload)
         _LOGGER.debug("Login result: %s[%s]", LOGIN[int(str(reply_json))], reply_json)
 
         if reply_json == "1":
@@ -415,9 +388,9 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         """Load user_data page information."""
         _LOGGER.debug("Getting sensor data for host %s", self.host)
 
-        reply_dict_1 = await self._get_page_result("/data/user_data.json")
-        reply_dict_2 = await self._get_page_result("/data/statussupportstatus.json")
-        reply_dict_3 = await self._get_page_result("/data/statussupportrestart.json")
+        reply_dict_1 = await self._get_sercomm_page("/data/user_data.json")
+        reply_dict_2 = await self._get_sercomm_page("/data/statussupportstatus.json")
+        reply_dict_3 = await self._get_sercomm_page("/data/statussupportrestart.json")
 
         return reply_dict_1 | reply_dict_2 | reply_dict_3 | self._overview
 
@@ -425,7 +398,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         """Get all connected devices."""
 
         _LOGGER.debug("Getting all devices for host %s", self.host)
-        return_dict = await self._get_page_result("/data/overview.json")
+        return_dict = await self._get_sercomm_page("/data/overview.json")
 
         # Cleanup sensor data from devices in order to be merged later
         self._overview.update(return_dict)
@@ -524,7 +497,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         )
         payload = {f"{connection_type}_reconnect": "1"}
         try:
-            await self._post_page_result("/data/statussupportrestart.json", payload)
+            await self._post_sercomm_page("/data/statussupportrestart.json", payload)
         except aiohttp.ClientResponseError as ex:
             # Some models dump a text reply with wrong HTML headers as reply to a reconnection request
             if not ex.message.startswith("Invalid header token"):
@@ -536,9 +509,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         _LOGGER.debug("Restarting router %s", self.host)
         payload = {"restart_device": "1"}
         try:
-            await self._post_page_result(
-                "/data/statussupportrestart.json", payload, False, 2
-            )
+            await self._post_sercomm_page("/data/statussupportrestart.json", payload, 2)
         except asyncio.exceptions.TimeoutError:
             pass
 

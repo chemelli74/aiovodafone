@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.3.2 (2023-10-12)
+
+### Fix
+
+* Timestamp formatting works on Windows ([`e614eac`](https://github.com/chemelli74/aiovodafone/commit/e614eacc0f93c638cea64ed0a685d610bd34f14f))
+
 ## v0.3.1 (2023-09-26)
 
 ### Fix
