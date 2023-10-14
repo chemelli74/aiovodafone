@@ -86,7 +86,6 @@ class VodafoneStationCommonApi(ABC):
         )
 
     async def _get_page_result(self, page: str) -> aiohttp.ClientResponse:
-
         """Get data from a web page via GET."""
         _LOGGER.debug("GET page  %s [%s]", page, self.host)
         timestamp = int(datetime.now().timestamp())
@@ -162,9 +161,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         _LOGGER.debug("Get salt for login")
         page = "/api/v1/session/login"
         payload = {"username": self.username, "password": "seeksalthash"}
-        salt_response = await self._post_page_result(
-            page=page, payload=payload
-        )
+        salt_response = await self._post_page_result(page=page, payload=payload)
 
         salt = salt_response["salt"]
         salt_web_ui = salt_response["saltwebui"]
