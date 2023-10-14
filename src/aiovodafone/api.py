@@ -99,6 +99,10 @@ class VodafoneStationCommonApi(ABC):
             allow_redirects=False,
         )
 
+    @abstractmethod
+    async def convert_uptime(self, uptime: str) -> datetime:
+        pass
+
     async def close(self) -> None:
         """Router close session."""
         await self.session.close()
