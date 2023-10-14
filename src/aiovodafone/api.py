@@ -47,9 +47,8 @@ class VodafoneStationCommonApi(ABC):
         self.base_url = self._base_url()
         self.headers = {
             "User-Agent": "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
             "Accept-Language": "en-GB,en;q=0.5",
-            "DNT": "1",
+            "X-Requested-With": "XMLHttpRequest",
         }
         jar = aiohttp.CookieJar(unsafe=True)
         self.session = aiohttp.ClientSession(cookie_jar=jar)
@@ -126,10 +125,6 @@ class VodafoneStationCommonApi(ABC):
 
 class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     """Queries Vodafone Station running Technicolor firmware."""
-
-    def __init__(self, host: str, username: str, password: str) -> None:
-        super().__init__(host, username, password)
-        self.headers["X-Requested-With"] = "XMLHttpRequest"
 
     async def _encrypt_string(
         self, credential: str, salt: str, salt_web_ui: str
