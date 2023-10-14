@@ -163,8 +163,10 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         payload = {"username": self.username, "password": "seeksalthash"}
         salt_response = await self._post_page_result(page=page, payload=payload)
 
-        salt = salt_response["salt"]
-        salt_web_ui = salt_response["saltwebui"]
+        salt_json = await salt_response.json()
+
+        salt = salt_json["salt"]
+        salt_web_ui = salt_json["saltwebui"]
 
         # Calculate credential hash
         password_hash = await self._encrypt_string(self.password, salt, salt_web_ui)
@@ -176,11 +178,11 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             page=page,
             payload={"username": self.username, "password": password_hash},
         )
-
-        if "error" in login_response and login_response["error"] == "error":
-            if login_response["message"] == "MSG_LOGIN_150":
+        login_json = await login_response.json()
+        if "error" in login_json and login_json["error"] == "error":
+            if login_json["message"] == "MSG_LOGIN_150":
                 raise AlreadyLogged
-            _LOGGER.error(login_response)
+            _LOGGER.error(login_json)
             raise CannotAuthenticate
 
         # Request menu otherwise the next call fails
@@ -200,9 +202,10 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         _LOGGER.debug("Get hosts")
         page = "/api/v1/host/hostTbl"
         host_response = await self._get_page_result(page)
+        host_json = await host_response.json()
 
         devices_dict = {}
-        for device in host_response["data"]["hostTbl"]:
+        for device in host_json["data"]["hostTbl"]:
             connected = bool(device["active"])
             connection_type = (
                 "WiFi" if "WiFi" in device["layer1interface"] else "Ethernet"
@@ -229,13 +232,14 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     async def get_sensor_data(self) -> dict[Any, Any]:
         page = "/api/v1/sta_status"
         status_response = await self._get_page_result(page)
+        status_json = await status_response.json()
         _LOGGER.debug("GET reply (%s)", page)
 
         data = {}
-        data["sys_serial_number"] = status_response["data"]["serialnumber"]
-        data["sys_firmware_version"] = status_response["data"]["firmwareversion"]
-        data["sys_hardware_version"] = status_response["data"]["hardwaretype"]
-        data["sys_uptime"] = status_response["data"]["uptime"]
+        data["sys_serial_number"] = status_json["data"]["serialnumber"]
+        data["sys_firmware_version"] = status_json["data"]["firmwareversion"]
+        data["sys_hardware_version"] = status_json["data"]["hardwaretype"]
+        data["sys_uptime"] = status_json["data"]["uptime"]
         return data
 
     async def convert_uptime(self, uptime: str) -> datetime:
