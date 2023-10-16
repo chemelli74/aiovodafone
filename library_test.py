@@ -2,7 +2,11 @@ import argparse
 import asyncio
 import logging
 
-from aiovodafone.api import VodafoneStationSercommApi
+from aiovodafone.api import (
+    VodafoneStationCommonApi,
+    VodafoneStationSercommApi,
+    VodafoneStationTechnicolorApi,
+)
 from aiovodafone.exceptions import AlreadyLogged, CannotConnect, ModelNotSupported
 
 
@@ -16,6 +20,14 @@ def get_arguments() -> tuple[argparse.ArgumentParser, argparse.Namespace]:
         "--username", "-u", type=str, default="vodafone", help="Set router username"
     )
     parser.add_argument("--password", "-p", type=str, help="Set router password")
+
+    parser.add_argument(
+        "--device-type",
+        "-d",
+        type=str,
+        default="Sercomm",
+        help="Set device type, either Sercomm or Technicolor",
+    )
 
     arguments = parser.parse_args()
 
@@ -31,7 +43,12 @@ async def main() -> None:
         exit(1)
 
     print("-" * 20)
-    api = VodafoneStationSercommApi(args.router, args.username, args.password)
+    api: VodafoneStationCommonApi
+    if args.device_type == "Technicolor":
+        api = VodafoneStationTechnicolorApi(args.router, args.username, args.password)
+    else:
+        api = VodafoneStationSercommApi(args.router, args.username, args.password)
+
     logged = False
     exc = False
     try:

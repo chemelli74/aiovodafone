@@ -11,3 +11,5 @@ LOGIN = [
     "credential error",
     "password mismatch",
 ]
+
+USER_ALREADY_LOGGED_IN = "MSG_LOGIN_150"

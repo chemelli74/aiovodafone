@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import re
 import urllib.parse
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.cookies import SimpleCookie
@@ -12,7 +13,7 @@ from typing import Any
 import aiohttp
 from bs4 import BeautifulSoup, Tag
 
-from .const import _LOGGER, LOGIN
+from .const import _LOGGER, LOGIN, USER_ALREADY_LOGGED_IN
 from .exceptions import (
     AlreadyLogged,
     CannotAuthenticate,
@@ -34,7 +35,7 @@ class VodafoneStationDevice:
     wifi: str
 
 
-class VodafoneStationCommonApi:
+class VodafoneStationCommonApi(ABC):
     """Common API calls for Vodafone Station routers."""
 
     def __init__(self, host: str, username: str, password: str) -> None:
@@ -46,9 +47,8 @@ class VodafoneStationCommonApi:
         self.base_url = self._base_url()
         self.headers = {
             "User-Agent": "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
             "Accept-Language": "en-GB,en;q=0.5",
-            "DNT": "1",
+            "X-Requested-With": "XMLHttpRequest",
         }
         jar = aiohttp.CookieJar(unsafe=True)
         self.session = aiohttp.ClientSession(cookie_jar=jar)
@@ -98,13 +98,153 @@ class VodafoneStationCommonApi:
             allow_redirects=False,
         )
 
+    @abstractmethod
+    async def convert_uptime(self, uptime: str) -> datetime:
+        pass
+
     async def close(self) -> None:
         """Router close session."""
         await self.session.close()
 
+    @abstractmethod
+    async def login(self) -> bool:
+        pass
+
+    @abstractmethod
+    async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
+        pass
+
+    @abstractmethod
+    async def get_sensor_data(self) -> dict[Any, Any]:
+        pass
+
+    @abstractmethod
+    async def logout(self) -> None:
+        pass
+
 
 class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     """Queries Vodafone Station running Technicolor firmware."""
+
+    async def _encrypt_string(
+        self, credential: str, salt: str, salt_web_ui: str
+    ) -> str:
+        """Calculates login hash from the password, the salt and the salt from the web UI.
+
+        Args:
+            credential (str): login password for the user
+            salt (str): salt given by the login response
+            salt_web_ui (str): salt given by the web UI
+
+        Returns:
+            str: the hash for the session API
+        """
+        _LOGGER.debug("Calculate credential hash")
+        a = hashlib.pbkdf2_hmac(
+            "sha256",
+            bytes(credential, "utf-8"),
+            bytes(salt, "utf-8"),
+            1000,
+        ).hex()[:32]
+        b = hashlib.pbkdf2_hmac(
+            "sha256",
+            bytes(a, "utf-8"),
+            bytes(salt_web_ui, "utf-8"),
+            1000,
+        ).hex()[:32]
+        return b
+
+    async def login(self) -> bool:
+        """Router login."""
+        _LOGGER.debug("Logging into %s", self.host)
+        _LOGGER.debug("Get salt for login")
+        payload = {"username": self.username, "password": "seeksalthash"}
+        salt_response = await self._post_page_result(
+            page="/api/v1/session/login", payload=payload
+        )
+
+        salt_json = await salt_response.json()
+
+        salt = salt_json["salt"]
+        salt_web_ui = salt_json["saltwebui"]
+
+        # Calculate credential hash
+        password_hash = await self._encrypt_string(self.password, salt, salt_web_ui)
+
+        # Perform login
+        _LOGGER.debug("Perform login")
+        login_response = await self._post_page_result(
+            page="/api/v1/session/login",
+            payload={"username": self.username, "password": password_hash},
+        )
+        login_json = await login_response.json()
+        if "error" in login_json and login_json["error"] == "error":
+            if login_json["message"] == USER_ALREADY_LOGGED_IN:
+                raise AlreadyLogged
+            _LOGGER.error(login_json)
+            raise CannotAuthenticate
+
+        # Request menu otherwise the next call fails
+        _LOGGER.debug("Get menu")
+        await self._get_page_result("/api/v1/session/menu")
+
+        return True
+
+    async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
+        """
+        Get all connected devices as a map of MAC address and device object
+
+        Returns:
+            dict[str, VodafoneStationDevice]: MAC address maps to VodafoneStationDevice
+        """
+        _LOGGER.debug("Get hosts")
+        host_response = await self._get_page_result("/api/v1/host/hostTbl")
+        host_json = await host_response.json()
+
+        devices_dict = {}
+        for device in host_json["data"]["hostTbl"]:
+            connected = bool(device["active"])
+            connection_type = (
+                "WiFi" if "WiFi" in device["layer1interface"] else "Ethernet"
+            )
+            ip_address = device["ipaddress"]
+            name = device["hostname"]
+            mac = device["physaddress"]
+            type = device["type"]
+            wifi = ""  # Technicolor Vodafone Station does not report wifi band
+
+            vdf_device = VodafoneStationDevice(
+                connected=connected,
+                connection_type=connection_type,
+                ip_address=ip_address,
+                name=name,
+                mac=mac,
+                type=type,
+                wifi=wifi,
+            )
+            devices_dict[mac] = vdf_device
+
+        return devices_dict
+
+    async def get_sensor_data(self) -> dict[Any, Any]:
+        status_response = await self._get_page_result("/api/v1/sta_status")
+        status_json = await status_response.json()
+        _LOGGER.debug("GET reply (%s)", status_json)
+
+        data = {}
+        data["sys_serial_number"] = status_json["data"]["serialnumber"]
+        data["sys_firmware_version"] = status_json["data"]["firmwareversion"]
+        data["sys_hardware_version"] = status_json["data"]["hardwaretype"]
+        data["sys_uptime"] = status_json["data"]["uptime"]
+        return data
+
+    async def convert_uptime(self, uptime: str) -> datetime:
+        return datetime.utcnow() - timedelta(seconds=int(uptime))
+
+    async def logout(self) -> None:
+        # Logout
+        _LOGGER.debug("Logout")
+        await self._post_page_result("/api/v1/session/logout", payload={})
 
 
 class VodafoneStationSercommApi(VodafoneStationCommonApi):
