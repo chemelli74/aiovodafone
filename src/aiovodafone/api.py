@@ -159,7 +159,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         _LOGGER.debug("Logging into %s", self.host)
         _LOGGER.debug("Get salt for login")
         payload = {"username": self.username, "password": "seeksalthash"}
-        salt_response = await self._post_page_result(page="/api/v1/session/login", payload=payload)
+        salt_response = await self._post_page_result(
+            page="/api/v1/session/login", payload=payload
+        )
 
         salt_json = await salt_response.json()
 
