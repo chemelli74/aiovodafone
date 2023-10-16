@@ -13,7 +13,7 @@ from typing import Any
 import aiohttp
 from bs4 import BeautifulSoup, Tag
 
-from .const import _LOGGER, LOGIN
+from .const import _LOGGER, LOGIN, USER_ALREADY_LOGGED_IN
 from .exceptions import (
     AlreadyLogged,
     CannotAuthenticate,
@@ -158,9 +158,8 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         """Router login."""
         _LOGGER.debug("Logging into %s", self.host)
         _LOGGER.debug("Get salt for login")
-        page = "/api/v1/session/login"
         payload = {"username": self.username, "password": "seeksalthash"}
-        salt_response = await self._post_page_result(page=page, payload=payload)
+        salt_response = await self._post_page_result(page="/api/v1/session/login", payload=payload)
 
         salt_json = await salt_response.json()
 
@@ -172,22 +171,20 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         # Perform login
         _LOGGER.debug("Perform login")
-        page = "/api/v1/session/login"
         login_response = await self._post_page_result(
-            page=page,
+            page="/api/v1/session/login",
             payload={"username": self.username, "password": password_hash},
         )
         login_json = await login_response.json()
         if "error" in login_json and login_json["error"] == "error":
-            if login_json["message"] == "MSG_LOGIN_150":
+            if login_json["message"] == USER_ALREADY_LOGGED_IN:
                 raise AlreadyLogged
             _LOGGER.error(login_json)
             raise CannotAuthenticate
 
         # Request menu otherwise the next call fails
         _LOGGER.debug("Get menu")
-        page = "/api/v1/session/menu"
-        await self._get_page_result(page)
+        await self._get_page_result("/api/v1/session/menu")
 
         return True
 
@@ -199,8 +196,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             dict[str, VodafoneStationDevice]: MAC address maps to VodafoneStationDevice
         """
         _LOGGER.debug("Get hosts")
-        page = "/api/v1/host/hostTbl"
-        host_response = await self._get_page_result(page)
+        host_response = await self._get_page_result("/api/v1/host/hostTbl")
         host_json = await host_response.json()
 
         devices_dict = {}
@@ -229,10 +225,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         return devices_dict
 
     async def get_sensor_data(self) -> dict[Any, Any]:
-        page = "/api/v1/sta_status"
-        status_response = await self._get_page_result(page)
+        status_response = await self._get_page_result("/api/v1/sta_status")
         status_json = await status_response.json()
-        _LOGGER.debug("GET reply (%s)", page)
+        _LOGGER.debug("GET reply (%s)", status_json)
 
         data = {}
         data["sys_serial_number"] = status_json["data"]["serialnumber"]
@@ -247,8 +242,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     async def logout(self) -> None:
         # Logout
         _LOGGER.debug("Logout")
-        page = "/api/v1/session/logout"
-        await self._post_page_result(page, payload={})
+        await self._post_page_result("/api/v1/session/logout", payload={})
 
 
 class VodafoneStationSercommApi(VodafoneStationCommonApi):
