@@ -2,6 +2,18 @@
 
 <!--next-version-placeholder-->
 
+## v0.4.0 (2023-10-16)
+
+### Feature
+
+* Add device type for Technicolor devices ([`2133eb4`](https://github.com/chemelli74/aiovodafone/commit/2133eb45639f426e12ba61b8f80f9ba0b6424c74))
+* Use generic post and get methods for Technicolor ([`170043f`](https://github.com/chemelli74/aiovodafone/commit/170043f38fffacacfccb2001efa04bfdb53e4752))
+* Support Technicolor Vodafone Stations from Germany ([`09989a6`](https://github.com/chemelli74/aiovodafone/commit/09989a6b83c12347fc1826a5d59da68f2a9f77b7))
+
+### Fix
+
+* Add abstract method for convert_uptime ([`9a2bc9d`](https://github.com/chemelli74/aiovodafone/commit/9a2bc9d2105e39bf390f2101bafdb7a758e4498e))
+
 ## v0.3.2 (2023-10-12)
 
 ### Fix
