@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.4.1 (2023-10-17)
+
+### Fix
+
+* Add timezone to convert_uptime functions ([`d37cdbd`](https://github.com/chemelli74/aiovodafone/commit/d37cdbdca87955d4e0872aad69dd7f98351bcf91))
+
 ## v0.4.0 (2023-10-16)
 
 ### Feature
