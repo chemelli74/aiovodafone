@@ -6,7 +6,7 @@ import re
 import urllib.parse
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from http.cookies import SimpleCookie
 from typing import Any
 
@@ -99,7 +99,7 @@ class VodafoneStationCommonApi(ABC):
         )
 
     @abstractmethod
-    async def convert_uptime(self, uptime: str) -> datetime:
+    def convert_uptime(self, uptime: str) -> datetime:
         pass
 
     async def close(self) -> None:
@@ -238,8 +238,10 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         data["sys_uptime"] = status_json["data"]["uptime"]
         return data
 
-    async def convert_uptime(self, uptime: str) -> datetime:
-        return datetime.utcnow() - timedelta(seconds=int(uptime))
+    def convert_uptime(self, uptime: str) -> datetime:
+        return datetime.utcnow().replace(tzinfo=timezone.utc) - timedelta(
+            seconds=int(uptime)
+        )
 
     async def logout(self) -> None:
         # Logout
@@ -446,13 +448,15 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
         return self._devices
 
-    async def convert_uptime(self, uptime: str) -> datetime:
+    def convert_uptime(self, uptime: str) -> datetime:
         """Convert router uptime to last boot datetime."""
         d = int(uptime.split(":")[0])
         h = int(uptime.split(":")[1])
         m = int(uptime.split(":")[2])
 
-        return datetime.utcnow() - timedelta(days=d, hours=h, minutes=m)
+        return datetime.utcnow().replace(tzinfo=timezone.utc) - timedelta(
+            days=d, hours=h, minutes=m
+        )
 
     async def login(self) -> bool:
         """Router login."""

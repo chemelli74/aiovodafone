@@ -80,7 +80,7 @@ async def main() -> None:
     print("Serial #:", data["sys_serial_number"])
     print("Firmware:", data["sys_firmware_version"])
     print("Hardware:", data["sys_hardware_version"])
-    print("Uptime  :", await api.convert_uptime(data["sys_uptime"]))
+    print("Uptime  :", api.convert_uptime(data["sys_uptime"]))
     print("-" * 20)
     print("Logout & close session")
     await api.logout()
