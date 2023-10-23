@@ -35,18 +35,23 @@ class VodafoneStationDevice:
     type: str
     wifi: str
 
+
 class VodafoneStationCommonApi(ABC):
     """Common API calls for Vodafone Station routers."""
 
+    @staticmethod
     async def get_device_type(host: str) -> DeviceType:
         """Finds out the device type of a Vodafone Stations and returns it as enum.
-        The Technicolor devices always answer with a valid HTTP response, the Sercomm returns 404 on a missing page. This helps to determine which we are talking with.
+        The Technicolor devices always answer with a valid HTTP response, the
+        Sercomm returns 404 on a missing page. This helps to determine which we are
+        talking with.
 
         Args:
             host (str): The router's address, e.g. `192.168.1.1`
 
         Returns:
-            DeviceType: If the device is a Technicolor, it returns `DeviceType.TECHNICOLOR` otherwise `DeviceType.SERCOMM`.
+            DeviceType: If the device is a Technicolor, it returns
+            `DeviceType.TECHNICOLOR` otherwise `DeviceType.SERCOMM`.
         """
         async with aiohttp.ClientSession() as session:
             async with session.get(f"http://{host}/api/v1/login_conf") as response:
