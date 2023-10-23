@@ -5,7 +5,6 @@ import hmac
 import re
 import urllib.parse
 from abc import ABC, abstractmethod
-from .const import DeviceType
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from http.cookies import SimpleCookie
@@ -14,7 +13,7 @@ from typing import Any
 import aiohttp
 from bs4 import BeautifulSoup, Tag
 
-from .const import _LOGGER, LOGIN, USER_ALREADY_LOGGED_IN
+from .const import _LOGGER, LOGIN, USER_ALREADY_LOGGED_IN, DeviceType
 from .exceptions import (
     AlreadyLogged,
     CannotAuthenticate,
@@ -34,6 +33,7 @@ class VodafoneStationDevice:
     mac: str
     type: str
     wifi: str
+
 
 class VodafoneStationCommonApi(ABC):
     """Common API calls for Vodafone Station routers."""
