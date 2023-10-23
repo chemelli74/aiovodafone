@@ -5,6 +5,7 @@ import hmac
 import re
 import urllib.parse
 from abc import ABC, abstractmethod
+from .const import DeviceType
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from http.cookies import SimpleCookie
@@ -34,9 +35,26 @@ class VodafoneStationDevice:
     type: str
     wifi: str
 
-
 class VodafoneStationCommonApi(ABC):
     """Common API calls for Vodafone Station routers."""
+
+    async def get_device_type(host: str) -> DeviceType:
+        """Finds out the device type of a Vodafone Stations and returns it as enum.
+        The Technicolor devices always answer with a valid HTTP response, the Sercomm returns 404 on a missing page. This helps to determine which we are talking with.
+
+        Args:
+            host (str): The router's address, e.g. `192.168.1.1`
+
+        Returns:
+            DeviceType: If the device is a Technicolor, it returns `DeviceType.TECHNICOLOR` otherwise `DeviceType.SERCOMM`.
+        """
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"http://{host}/api/v1/login_conf") as response:
+                if response.status == 200:
+                    response_json = await response.json()
+                    if "data" in response_json and "ModelName" in response_json["data"]:
+                        return DeviceType.TECHNICOLOR
+                return DeviceType.SERCOMM
 
     def __init__(self, host: str, username: str, password: str) -> None:
         """Initialize the scanner."""

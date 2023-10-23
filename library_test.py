@@ -42,6 +42,9 @@ async def main() -> None:
         print("You have to specify a password")
         exit(1)
 
+    print("Determining device type")
+    print(await VodafoneStationCommonApi.get_device_type(args.router))
+
     print("-" * 20)
     api: VodafoneStationCommonApi
     if args.device_type == "Technicolor":
