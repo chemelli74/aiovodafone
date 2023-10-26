@@ -6,8 +6,8 @@ class VodafoneError(Exception):
     """Base class for aiovodafone errors."""
 
 
-class GenericLoginError(Exception):
-    """Base class for aiovodafone errors."""
+class GenericLoginError(VodafoneError):
+    """Exception raised when login fails."""
 
 
 class CannotConnect(VodafoneError):
