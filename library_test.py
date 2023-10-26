@@ -9,6 +9,7 @@ from aiovodafone.api import (
 )
 from aiovodafone.exceptions import (
     AlreadyLogged,
+    CannotAuthenticate,
     CannotConnect,
     GenericLoginError,
     ModelNotSupported,
@@ -60,12 +61,19 @@ async def main() -> None:
             await api.login()
         except ModelNotSupported:
             print("Model is not supported yet for router", api.host)
+            raise
+        except CannotAuthenticate:
+            print("Cannot authenticate to router", api.host)
+            raise
         except CannotConnect:
             print("Cannot connect to router", api.host)
+            raise
         except AlreadyLogged:
             print("Only one user at a time can connect to router", api.host)
+            raise
         except GenericLoginError:
             print("Unable to login to router", api.host)
+            raise
     except VodafoneError:
         await api.close()
         exit(1)
