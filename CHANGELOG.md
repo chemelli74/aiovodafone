@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.4.2 (2023-10-26)
+
+### Fix
+
+* Improve failed login handling ([`c39ffd1`](https://github.com/chemelli74/aiovodafone/commit/c39ffd1439dd7d5008945fcb5946e96402429239))
+
 ## v0.4.1 (2023-10-17)
 
 ### Fix
