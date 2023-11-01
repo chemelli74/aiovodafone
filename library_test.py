@@ -2,6 +2,8 @@ import argparse
 import asyncio
 import logging
 
+import aiohttp
+
 from aiovodafone.api import (
     VodafoneStationCommonApi,
     VodafoneStationSercommApi,
@@ -36,8 +38,11 @@ async def main() -> None:
         exit(1)
 
     print("Determining device type")
-    device_type = await VodafoneStationCommonApi.get_device_type(args.router)
-    print(device_type)
+    async with aiohttp.ClientSession() as session:
+        device_type = await VodafoneStationCommonApi.get_device_type(
+            args.router, session
+        )
+        print(device_type)
 
     print("-" * 20)
     api: VodafoneStationCommonApi
