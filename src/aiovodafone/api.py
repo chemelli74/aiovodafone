@@ -39,7 +39,7 @@ class VodafoneStationCommonApi(ABC):
     """Common API calls for Vodafone Station routers."""
 
     @staticmethod
-    async def get_device_type(host: str) -> DeviceType:
+    async def get_device_type(host: str) -> DeviceType | None:
         """Finds out the device type of a Vodafone Stations and returns it as enum.
         The Technicolor devices always answer with a valid HTTP response, the
         Sercomm returns 404 on a missing page. This helps to determine which we are
@@ -50,7 +50,8 @@ class VodafoneStationCommonApi(ABC):
 
         Returns:
             DeviceType: If the device is a Technicolor, it returns
-            `DeviceType.TECHNICOLOR` otherwise `DeviceType.SERCOMM`.
+            `DeviceType.TECHNICOLOR`. If the device is a Sercomm, it returns `DeviceType.SERCOMM`.
+            If neither of the device types match, it returns `None`.
         """
         async with aiohttp.ClientSession() as session:
             async with session.get(f"http://{host}/api/v1/login_conf") as response:
@@ -58,7 +59,10 @@ class VodafoneStationCommonApi(ABC):
                     response_json = await response.json()
                     if "data" in response_json and "ModelName" in response_json["data"]:
                         return DeviceType.TECHNICOLOR
-                return DeviceType.SERCOMM
+            async with session.get(f"http://{host}/login.html") as response:
+                if response.status == 200:
+                    return DeviceType.SERCOMM
+            return None
 
     def __init__(self, host: str, username: str, password: str) -> None:
         """Initialize the scanner."""
