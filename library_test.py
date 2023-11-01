@@ -7,6 +7,7 @@ from aiovodafone.api import (
     VodafoneStationSercommApi,
     VodafoneStationTechnicolorApi,
 )
+from aiovodafone.const import DeviceType
 from aiovodafone.exceptions import AlreadyLogged, CannotConnect, ModelNotSupported
 
 
@@ -20,14 +21,6 @@ def get_arguments() -> tuple[argparse.ArgumentParser, argparse.Namespace]:
         "--username", "-u", type=str, default="vodafone", help="Set router username"
     )
     parser.add_argument("--password", "-p", type=str, help="Set router password")
-
-    parser.add_argument(
-        "--device-type",
-        "-d",
-        type=str,
-        default="Sercomm",
-        help="Set device type, either Sercomm or Technicolor",
-    )
 
     arguments = parser.parse_args()
 
@@ -43,11 +36,12 @@ async def main() -> None:
         exit(1)
 
     print("Determining device type")
-    print(await VodafoneStationCommonApi.get_device_type(args.router))
+    device_type = await VodafoneStationCommonApi.get_device_type(args.router)
+    print(device_type)
 
     print("-" * 20)
     api: VodafoneStationCommonApi
-    if args.device_type == "Technicolor":
+    if device_type == DeviceType.TECHNICOLOR:
         api = VodafoneStationTechnicolorApi(args.router, args.username, args.password)
     else:
         api = VodafoneStationSercommApi(args.router, args.username, args.password)
