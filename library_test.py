@@ -10,7 +10,14 @@ from aiovodafone.api import (
     VodafoneStationTechnicolorApi,
 )
 from aiovodafone.const import DeviceType
-from aiovodafone.exceptions import AlreadyLogged, CannotConnect, ModelNotSupported
+from aiovodafone.exceptions import (
+    AlreadyLogged,
+    CannotAuthenticate,
+    CannotConnect,
+    GenericLoginError,
+    ModelNotSupported,
+    VodafoneError,
+)
 
 
 def get_arguments() -> tuple[argparse.ArgumentParser, argparse.Namespace]:
@@ -51,26 +58,29 @@ async def main() -> None:
     else:
         api = VodafoneStationSercommApi(args.router, args.username, args.password)
 
-    logged = False
-    exc = False
     try:
-        logged = await api.login()
-    except ModelNotSupported:
-        print("Model is not supported yet for router", api.host)
-        exc = True
-    except CannotConnect:
-        print("Cannot connect to router", api.host)
-        exc = True
-    except AlreadyLogged:
-        print("Only one user at a time can connect to router", api.host)
-        exc = True
-    finally:
-        if not logged:
-            if not exc:
-                print("Unable to login to router", api.host)
-            await api.close()
-            exit(1)
-    print("Logged:", logged)
+        try:
+            await api.login()
+        except ModelNotSupported:
+            print("Model is not supported yet for router", api.host)
+            raise
+        except CannotAuthenticate:
+            print("Cannot authenticate to router", api.host)
+            raise
+        except CannotConnect:
+            print("Cannot connect to router", api.host)
+            raise
+        except AlreadyLogged:
+            print("Only one user at a time can connect to router", api.host)
+            raise
+        except GenericLoginError:
+            print("Unable to login to router", api.host)
+            raise
+    except VodafoneError:
+        await api.close()
+        exit(1)
+
+    print("Logged-in.")
 
     print("-" * 20)
     devices = await api.get_devices_data()

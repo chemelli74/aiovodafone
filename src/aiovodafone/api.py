@@ -18,6 +18,7 @@ from .exceptions import (
     AlreadyLogged,
     CannotAuthenticate,
     CannotConnect,
+    GenericLoginError,
     ModelNotSupported,
 )
 
@@ -408,7 +409,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         if reply_json in ["3", "4", "5"]:
             raise CannotAuthenticate
 
-        return False
+        raise GenericLoginError
 
     async def get_sensor_data(self) -> dict[Any, Any]:
         """Load user_data page information."""
