@@ -51,13 +51,20 @@ class VodafoneStationCommonApi(ABC):
             "Accept-Language": "en-GB,en;q=0.5",
             "X-Requested-With": "XMLHttpRequest",
         }
-        jar = aiohttp.CookieJar(unsafe=True)
-        self.session = aiohttp.ClientSession(cookie_jar=jar)
+        self.session: aiohttp.ClientSession
         self.csrf_token: str = ""
         self.encryption_key: str = ""
         self._unique_id: str | None = None
         self._overview: dict[str, Any] = {}
         self._devices: dict[str, VodafoneStationDevice] = {}
+
+    def _client_session(self) -> None:
+        """Create aiohttp ClientSession"""
+
+        if not hasattr(self, "session") or self.session.closed:
+            _LOGGER.debug("Creating HTTP ClientSession")
+            jar = aiohttp.CookieJar(unsafe=True)
+            self.session = aiohttp.ClientSession(cookie_jar=jar)
 
     def _base_url(self) -> str:
         """Create base URL"""
@@ -105,7 +112,8 @@ class VodafoneStationCommonApi(ABC):
 
     async def close(self) -> None:
         """Router close session."""
-        await self.session.close()
+        if hasattr(self, "session"):
+            await self.session.close()
 
     @abstractmethod
     async def login(self) -> bool:
@@ -158,6 +166,8 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     async def login(self) -> bool:
         """Router login."""
         _LOGGER.debug("Logging into %s", self.host)
+        self._client_session()
+
         _LOGGER.debug("Get salt for login")
         payload = {"username": self.username, "password": "seeksalthash"}
         salt_response = await self._post_page_result(
@@ -463,6 +473,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         """Router login."""
         _LOGGER.debug("Logging into %s", self.host)
         try:
+            self._client_session()
             html_page = await self._find_login_url()
         except (asyncio.exceptions.TimeoutError, aiohttp.ClientConnectorError) as exc:
             _LOGGER.warning("Connection error for %s", self.host)
@@ -516,4 +527,5 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
     async def logout(self) -> None:
         """Router logout."""
-        self.session.cookie_jar.clear()
+        if hasattr(self, "session"):
+            self.session.cookie_jar.clear()
