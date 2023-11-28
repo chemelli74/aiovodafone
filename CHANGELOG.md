@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.4.3 (2023-11-28)
+
+### Fix
+
+* Recreate closed aiohttp session ([`a2ec07b`](https://github.com/chemelli74/aiovodafone/commit/a2ec07b150118a64323e82a0d17b079603b73a03))
+
 ## v0.4.2 (2023-10-26)
 
 ### Fix
