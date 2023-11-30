@@ -64,7 +64,8 @@ class VodafoneStationCommonApi(ABC):
                     return DeviceType.TECHNICOLOR
         async with session.get(f"http://{host}/login.html") as response:
             if response.status == 200:
-                return DeviceType.SERCOMM
+                if "var csrf_token = " in response.text():
+                    return DeviceType.SERCOMM
         return None
 
     def __init__(self, host: str, username: str, password: str) -> None:
