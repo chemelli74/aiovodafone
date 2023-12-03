@@ -47,6 +47,7 @@ class VodafoneStationCommonApi(ABC):
         The Technicolor devices always answer with a valid HTTP response, the
         Sercomm returns 404 on a missing page. This helps to determine which we are
         talking with.
+        For detecting the Sercomm devices, a look up for a CSRF token is used.
 
         Args:
             host (str): The router's address, e.g. `192.168.1.1`
@@ -64,6 +65,8 @@ class VodafoneStationCommonApi(ABC):
                     return DeviceType.TECHNICOLOR
         async with session.get(f"http://{host}/login.html") as response:
             if response.status == 200:
+                # To identify the Sercomm devices before the login
+                # There's no other sure way to identify a Sercomm device without login
                 if "var csrf_token = " in response.text():
                     return DeviceType.SERCOMM
         return None
