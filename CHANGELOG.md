@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.5.1 (2023-12-03)
+
+### Fix
+
+* Interpret connected state correctly ([`686e19a`](https://github.com/chemelli74/aiovodafone/commit/686e19a70ce31cbec55f809eb48f6a2bceef5ff7))
+
 ## v0.5.0 (2023-12-03)
 
 ### Feature
