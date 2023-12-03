@@ -2,6 +2,20 @@
 
 <!--next-version-placeholder-->
 
+## v0.5.0 (2023-12-03)
+
+### Feature
+
+* Add specific check for sercom CSRF token ([`a8f1780`](https://github.com/chemelli74/aiovodafone/commit/a8f178012ec5e1679cdb44ba080cee64ad27fa23))
+* Device detection, consider None as result ([`bb5204a`](https://github.com/chemelli74/aiovodafone/commit/bb5204ab1808b40b268f0c75c272a96c5f31281d))
+* Require aiohttp.ClientSession to determine device type ([`cdb4637`](https://github.com/chemelli74/aiovodafone/commit/cdb46375d3c04b50dfb01c18ab82f1dc70607048))
+* Add additional detection for Sercomm devices ([`6a3f4c0`](https://github.com/chemelli74/aiovodafone/commit/6a3f4c03af738705c8181a0126bf891527bd66fa))
+* Add method to determine a device type ([`eb4f9c5`](https://github.com/chemelli74/aiovodafone/commit/eb4f9c50f1bd78c8b05fbadcf7bf0cc6b5ea529b))
+
+### Documentation
+
+* Explain why code lookup is needed for Sercomm devices ([`b137975`](https://github.com/chemelli74/aiovodafone/commit/b137975610697db46094f19c465b7f8ec07aa7fd))
+
 ## v0.4.3 (2023-11-28)
 
 ### Fix
