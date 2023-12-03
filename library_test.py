@@ -2,11 +2,14 @@ import argparse
 import asyncio
 import logging
 
+import aiohttp
+
 from aiovodafone.api import (
     VodafoneStationCommonApi,
     VodafoneStationSercommApi,
     VodafoneStationTechnicolorApi,
 )
+from aiovodafone.const import DeviceType
 from aiovodafone.exceptions import (
     AlreadyLogged,
     CannotAuthenticate,
@@ -28,14 +31,6 @@ def get_arguments() -> tuple[argparse.ArgumentParser, argparse.Namespace]:
     )
     parser.add_argument("--password", "-p", type=str, help="Set router password")
 
-    parser.add_argument(
-        "--device-type",
-        "-d",
-        type=str,
-        default="Sercomm",
-        help="Set device type, either Sercomm or Technicolor",
-    )
-
     arguments = parser.parse_args()
 
     return parser, arguments
@@ -49,12 +44,22 @@ async def main() -> None:
         print("You have to specify a password")
         exit(1)
 
+    print("Determining device type")
+    async with aiohttp.ClientSession() as session:
+        device_type = await VodafoneStationCommonApi.get_device_type(
+            args.router, session
+        )
+        print(device_type)
+
     print("-" * 20)
     api: VodafoneStationCommonApi
-    if args.device_type == "Technicolor":
+    if device_type == DeviceType.TECHNICOLOR:
         api = VodafoneStationTechnicolorApi(args.router, args.username, args.password)
-    else:
+    elif device_type == DeviceType.SERCOMM:
         api = VodafoneStationSercommApi(args.router, args.username, args.password)
+    else:
+        print("The device is not a supported Vodafone Station.")
+        exit(1)
 
     try:
         try:
