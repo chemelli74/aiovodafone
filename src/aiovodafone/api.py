@@ -246,7 +246,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         devices_dict = {}
         for device in host_json["data"]["hostTbl"]:
-            connected = bool(device["active"])
+            connected = device["active"] == "true"
             connection_type = (
                 "WiFi" if "WiFi" in device["layer1interface"] else "Ethernet"
             )
