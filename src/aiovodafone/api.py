@@ -320,8 +320,9 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         """Post html page and process reply."""
 
         reply = await self._post_page_result(page, payload, timeout)
+        _LOGGER.debug("POST raw reply (%s): %s", page, await reply.text())
         reply_json = await reply.json(content_type="text/html")
-        _LOGGER.debug("POST reply (%s): %s", page, reply_json)
+        _LOGGER.debug("POST json reply (%s): %s", page, reply_json)
         return reply_json
 
     async def _find_login_url(self) -> str:
@@ -543,6 +544,9 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         try:
             await self._post_sercomm_page("/data/statussupportrestart.json", payload)
         except aiohttp.ClientResponseError as ex:
+            _LOGGER.debug(
+                'Client response error for "restart_connection" is: %s', ex.message
+            )
             # Some models dump a text reply with wrong HTML headers as reply to a reconnection request
             if not ex.message.startswith("Invalid header token"):
                 raise ex
