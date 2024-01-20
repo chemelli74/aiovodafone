@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.5.3 (2024-01-20)
+
+### Unknown
+
 ## v0.5.2 (2024-01-20)
 
 ### Unknown
@@ -17,6 +21,7 @@
 
 ### Fix
 
+- Improve logging ([`782537e`](https://github.com/chemelli74/aiovodafone/commit/782537e50d7aef9cc4e287f6e9bcc88fea2691f1))
 - Various fixes for get_device_type ([`ec8f01f`](https://github.com/chemelli74/aiovodafone/commit/ec8f01fc4be5ea22927b985f8148002b11419e85))
 
 
