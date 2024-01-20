@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Python: Current File",
+      "name": "Python: Library test",
       "type": "python",
       "request": "launch",
       "program": "library_test.py",

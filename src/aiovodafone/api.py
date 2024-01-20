@@ -13,7 +13,7 @@ from typing import Any
 import aiohttp
 from bs4 import BeautifulSoup, Tag
 
-from .const import _LOGGER, LOGIN, USER_ALREADY_LOGGED_IN, DeviceType
+from .const import _LOGGER, HEADERS, LOGIN, USER_ALREADY_LOGGED_IN, DeviceType
 from .exceptions import (
     AlreadyLogged,
     CannotAuthenticate,
@@ -58,16 +58,20 @@ class VodafoneStationCommonApi(ABC):
             `DeviceType.TECHNICOLOR`. If the device is a Sercomm, it returns `DeviceType.SERCOMM`.
             If neither of the device types match, it returns `None`.
         """
-        async with session.get(f"http://{host}/api/v1/login_conf") as response:
+        async with session.get(
+            f"http://{host}/api/v1/login_conf", headers=HEADERS
+        ) as response:
             if response.status == 200:
                 response_json = await response.json()
                 if "data" in response_json and "ModelName" in response_json["data"]:
                     return DeviceType.TECHNICOLOR
-        async with session.get(f"http://{host}/login.html") as response:
+        async with session.get(
+            f"https://{host}/login.html", headers=HEADERS, ssl=False
+        ) as response:
             if response.status == 200:
                 # To identify the Sercomm devices before the login
                 # There's no other sure way to identify a Sercomm device without login
-                if "var csrf_token = " in response.text():
+                if "var csrf_token = " in await response.text():
                     return DeviceType.SERCOMM
         return None
 
@@ -78,11 +82,7 @@ class VodafoneStationCommonApi(ABC):
         self.username = username
         self.password = password
         self.base_url = self._base_url()
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0",
-            "Accept-Language": "en-GB,en;q=0.5",
-            "X-Requested-With": "XMLHttpRequest",
-        }
+        self.headers = HEADERS
         self.session: aiohttp.ClientSession
         self.csrf_token: str = ""
         self.encryption_key: str = ""
