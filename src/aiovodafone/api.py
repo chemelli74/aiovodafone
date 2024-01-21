@@ -712,6 +712,15 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         _LOGGER.debug("POST json reply (%s): %s", page, reply_json)
         return reply_json
 
+    async def _check_logged_in(self) -> bool:
+        """Check if logged in or not."""
+        reply = await self._post_sercomm_page(
+            "/data/login.json", {"loginUserChkLoginTimeout": self.username}
+        )
+        index = int(str(reply)) if reply else 0
+        _LOGGER.debug("Login status: %s[%s]", LOGIN[index], reply)
+        return bool(reply)
+
     async def _find_login_url(self) -> str:
         """
         Find the login page
@@ -929,6 +938,8 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         )
         payload = {f"{connection_type}_reconnect": "1"}
         try:
+            if not await self._check_logged_in():
+                await self.login()
             await self._post_sercomm_page("/data/statussupportrestart.json", payload)
         except aiohttp.ClientResponseError as ex:
             _LOGGER.debug(
@@ -944,6 +955,8 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         _LOGGER.debug("Restarting router %s", self.host)
         payload = {"restart_device": "1"}
         try:
+            if not await self._check_logged_in():
+                await self.login()
             await self._post_sercomm_page("/data/statussupportrestart.json", payload, 2)
         except asyncio.exceptions.TimeoutError:
             pass

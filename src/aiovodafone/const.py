@@ -11,7 +11,7 @@ HEADERS = {
 }
 
 LOGIN = [
-    "-",
+    "not logged",
     "logged",
     "already logged",
     "credential error",
