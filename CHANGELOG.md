@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.5.4 (2024-01-21)
+
+### Unknown
+
+### Fix
+
+- Check logged-in before resatrt connection/router ([`ea994a9`](https://github.com/chemelli74/aiovodafone/commit/ea994a9485312c3c1da13a75b2bd4023937e7629))
+
+
 ## v0.5.3 (2024-01-20)
 
 ### Unknown
