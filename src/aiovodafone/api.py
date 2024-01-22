@@ -217,7 +217,7 @@ class VodafoneStationArrisApi(VodafoneStationCommonApi):
     the PHP endpoints to access the API.  It is a bit odd, but it gives 
     us structured information with well-defined keys.  It is perfectly
     workable and much preferable to scraping the web UI's HTML, which 
-    is only generated in the and therefore inaccessible.
+    is only generated in the browser and therefore inaccessible.
     
     The code is based on : 
     - https://github.com/nox-x/TG3442DE-Teardown/
