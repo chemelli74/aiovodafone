@@ -2,8 +2,10 @@
 import asyncio
 import hashlib
 import binascii
+import binascii
 import hmac
 import re
+import json
 import json
 import urllib.parse
 from abc import ABC, abstractmethod
@@ -11,6 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from http.cookies import SimpleCookie
 from typing import Any
+from Crypto.Cipher import AES
 from Crypto.Cipher import AES
 
 import aiohttp
@@ -52,6 +55,8 @@ class VodafoneStationCommonApi(ABC):
         talking with.
         Arris firmware is identifiable through its PHP interface that returns JavaScript
         with the firmware version.
+        Arris firmware is identifiable through its PHP interface that returns JavaScript
+        with the firmware version.
         For detecting the Sercomm devices, a look up for a CSRF token is used.
 
         Args:
@@ -60,6 +65,9 @@ class VodafoneStationCommonApi(ABC):
 
         Returns:
             DeviceType: If the device is a Technicolor, it returns
+            `DeviceType.TECHNICOLOR`. 
+            If the device is an Arris, it returns `DeviceType.ARRIS`.
+            If the device is a Sercomm, it returns `DeviceType.SERCOMM`.
             `DeviceType.TECHNICOLOR`. 
             If the device is an Arris, it returns `DeviceType.ARRIS`.
             If the device is a Sercomm, it returns `DeviceType.SERCOMM`.
@@ -72,6 +80,12 @@ class VodafoneStationCommonApi(ABC):
                 response_json = await response.json()
                 if "data" in response_json and "ModelName" in response_json["data"]:
                     return DeviceType.TECHNICOLOR
+        async with session.get(
+            f"http://{host}/index.php", headers=HEADERS
+        ) as response:
+            if response.status == 200:
+                if "_ga.swVersion = " in await response.text():
+                    return DeviceType.ARRIS
         async with session.get(
             f"http://{host}/index.php", headers=HEADERS
         ) as response:
@@ -218,7 +232,7 @@ class VodafoneStationArrisApi(VodafoneStationCommonApi):
     the PHP endpoints to access the API.  It is a bit odd, but it gives 
     us structured information with well-defined keys.  It is perfectly
     workable and much preferable to scraping the web UI's HTML, which 
-    is only generated in the browser and therefore inaccessible.
+    is only generated in the and therefore inaccessible.
     
     The code is based on : 
     - https://github.com/nox-x/TG3442DE-Teardown/
@@ -229,8 +243,8 @@ class VodafoneStationArrisApi(VodafoneStationCommonApi):
     TODO: publish a full list of PHP endpoints and variables/JSON objects.    
     """
     
-    class ArrisGenericEndpoint:
-        """Extract JavaScript data from the Arris Vodafone Station.
+    class _ArrisGenericEndpoint:
+        """Retrieve JavaScript data from the Arris Vodafone Station.
         
         The generic endpoint works for JavaScript values and JSON objects 
         that require no postprocessing. 
@@ -255,27 +269,27 @@ class VodafoneStationArrisApi(VodafoneStationCommonApi):
             # Build empty dictionary for all values we are expected to generate
             self.data = dict.fromkeys([*self.vars] + [*self.jsons]) 
             
-        async def extract(self) -> None:
-            """Extract JavaScript variables and JSON data."""
+        async def retrieve(self) -> None:
+            """Retrieve JavaScript variables and JSON data."""
             response = await self.api._get_page_result(self.page)
             raw_data = await response.text()
             # _LOGGER.debug(f"Here's our raw page <{self.page}>:\n{raw_data}")
             for _var in self.vars.keys(): 
                 # Single values (`var js_SomeVar = 'value'`).
-                raw = await self.re_search(r".*var "+self.vars[_var]+r" = '(.*)';.*",raw_data)
+                raw = await self._search(r".*var "+self.vars[_var]+r" = '(.*)';.*",raw_data)
                 self.data[_var] = raw[0]
             for _json in self.jsons.keys():
                 # JSON objects (`json_SomeData = {...}`).
-                raw = await self.re_search(r".*"+self.jsons[_json]+r" = (.+);.*",raw_data)
+                raw = await self._search(r".*"+self.jsons[_json]+r" = (.+);.*",raw_data)
                 self.data[_json] = json.loads(raw[0])
-            await self.post_process()                             
+            await self._post_process()                
 
-        async def re_search(self, pattern: str, text: str, no: int=1, default='Unknown') -> [str]:
+        async def _search(self, pattern: str, text: str, no: int=1, default='Unknown') -> [str]:
             """Search for data and optionally insert defaults.
 
             Args:
                 pattern (str): the search pattern (here: `var js_variable = 'value';`)
-                text (str): where to extract it from
+                text (str): where to retrieve it from
                 no (str): number of patterns, usually 1, but can be more for complex data
                 default: what to return if expected number of patterns is not found
 
@@ -290,7 +304,7 @@ class VodafoneStationArrisApi(VodafoneStationCommonApi):
                 return [default]*(no)
             return(result.groups())
         
-        async def post_process(self):
+        async def _post_process(self):
             """Overload this in derived classes if you need to do postprocessing."""
             pass
 
@@ -491,12 +505,12 @@ class VodafoneStationArrisApi(VodafoneStationCommonApi):
             dict[str, VodafoneStationDevice]: MAC address maps to VodafoneStationDevice
         """
         raw = {}        
-        device_endpoint = self.ArrisGenericEndpoint(self, "Attached Devices", "/php/overview_data.php", 
+        device_endpoint = self._ArrisGenericEndpoint(self, "Attached Devices", "/php/overview_data.php", 
                                                     jsons = {"lan_devices": "json_lanAttachedDevice",
                                                              "wlan_devices": "json_primaryWlanAttachedDevice",
                                                              "guest_wlan_devices": "json_guestWlanAttachedDevice"
                                                              })
-        await device_endpoint.extract()
+        await device_endpoint.retrieve()
         raw.update(device_endpoint.data)
         
         _LOGGER.debug(f"Found devices: {len(raw['lan_devices'])} on LAN, {len(raw['wlan_devices'])} on Wifi, {len(raw['guest_wlan_devices'])} on Guest Wifi")
@@ -513,13 +527,13 @@ class VodafoneStationArrisApi(VodafoneStationCommonApi):
         """Read status data from Vodafone Station with Arris firmware."""
 
         data = {}        
-        status_endpoint = self.ArrisGenericEndpoint(self, "Status", "/php/status_status_data.php", 
+        status_endpoint = self._ArrisGenericEndpoint(self, "Status", "/php/status_status_data.php", 
                                                     vars = {"sys_serial_number"   : "js_SerialNumber",
                                                             "sys_firmware_version": "js_FWVersion",
                                                             "sys_hardware_version": "js_HWTypeVersion",
                                                             "sys_uptime"          : "js_UptimeSinceReboot"
                                                             })
-        # overview_endpoint = self.ArrisGenericEndpoint(self, "Overview", "/php/overview_data.php", 
+        # overview_endpoint = self._ArrisGenericEndpoint(self, "Overview", "/php/overview_data.php", 
         #                                               vars = {"conn_lan_host_count"       : "js_lanHostNums",
         #                                                       "conn_wlan_host_count"      : "js_primaryWlanHostNums",
         #                                                       "conn_guest_wlan_host_count": "js_guestWlanHostNums",
@@ -530,14 +544,14 @@ class VodafoneStationArrisApi(VodafoneStationCommonApi):
         #                                                       "net_schedule_enabled"  : "js_scheduleEnable",
         #                                                       "isp_gateway_mode"      : "_ga.gwMode"
         #                                                       })
-        # docsis_endpoint = self.ArrisGenericEndpoint(self, "DOCSIS", "/php/status_docsis_data.php", 
+        # docsis_endpoint = self._ArrisGenericEndpoint(self, "DOCSIS", "/php/status_docsis_data.php", 
         #                                             jsons = {"docsis_downstream": "json_dsData",
         #                                                      "docsis_upstream"  : "json_usData"
         #                                                      })
                                                     
-        await status_endpoint.extract()
-        # await overview_endpoint.extract()
-        # await docsis_endpoint.extract()
+        await status_endpoint.retrieve()
+        # await overview_endpoint.retrieve()
+        # await docsis_endpoint.retrieve()
         data.update(status_endpoint.data)
         # data.update(overview_endpoint.data)
         # data.update(docsis_endpoint.data)
