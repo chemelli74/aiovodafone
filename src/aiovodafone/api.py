@@ -1,14 +1,17 @@
 """Support for Vodafone Station."""
 import asyncio
 import hashlib
+import binascii
 import hmac
 import re
+import json
 import urllib.parse
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from http.cookies import SimpleCookie
 from typing import Any
+from Crypto.Cipher import AES
 
 import aiohttp
 from bs4 import BeautifulSoup, Tag
@@ -47,6 +50,8 @@ class VodafoneStationCommonApi(ABC):
         The Technicolor devices always answer with a valid HTTP response, the
         Sercomm returns 404 on a missing page. This helps to determine which we are
         talking with.
+        Arris firmware is identifiable through its PHP interface that returns JavaScript
+        with the firmware version.
         For detecting the Sercomm devices, a look up for a CSRF token is used.
 
         Args:
@@ -55,7 +60,9 @@ class VodafoneStationCommonApi(ABC):
 
         Returns:
             DeviceType: If the device is a Technicolor, it returns
-            `DeviceType.TECHNICOLOR`. If the device is a Sercomm, it returns `DeviceType.SERCOMM`.
+            `DeviceType.TECHNICOLOR`. 
+            If the device is an Arris, it returns `DeviceType.ARRIS`.
+            If the device is a Sercomm, it returns `DeviceType.SERCOMM`.
             If neither of the device types match, it returns `None`.
         """
         async with session.get(f"http://{host}/api/v1/login_conf") as response:
@@ -63,6 +70,11 @@ class VodafoneStationCommonApi(ABC):
                 response_json = await response.json()
                 if "data" in response_json and "ModelName" in response_json["data"]:
                     return DeviceType.TECHNICOLOR
+        arris_headers = { 'Accept:' : 'text/html,application/xhtml+xml,application/xml' }     
+        async with session.get(f"http://{host}/index.php", headers=arris_headers) as response:
+            if response.status == 200:
+                if "_ga.swVersion = " in await response.text():
+                    return DeviceType.ARRIS
         async with session.get(f"http://{host}/login.html") as response:
             if response.status == 200:
                 # To identify the Sercomm devices before the login
@@ -163,6 +175,380 @@ class VodafoneStationCommonApi(ABC):
     async def logout(self) -> None:
         pass
 
+
+class VodafoneStationArrisApi(VodafoneStationCommonApi):
+    """Queries Vodafone Station running Arris firmware.
+    
+    This Vodafone Station is internally a rebranded Arris Touchstone TG3442
+    VoIP cable router.  It is capable of DOCSIS 3.1 and is sold by Vodafone
+    in Germany under the name TG3442DE.  It is sold also at least in Hungary, 
+    Romania and Czechia.
+    
+    The Arris firmware is an odd beast. The station runs `lighthttpd` and
+    PHP.  It does not provide a "proper" JSON API, but it provides its own
+    API that serves structured JavaScript data and JSON objects through 
+    a PHP endpoint in the backend of the web interface. 
+    
+    The web frontend consists of a single HTML page `/index.php` with an
+    empty body and a lot of JavaScript.  When accessing this in the browser, 
+    an Arris formatter and a Vodafone theming script build a DOM for a 
+    pretty user interface.  Different pages are generated through URLs 
+    of the type `/index.php?status_status`.  The actual data comes from a 
+    backend API that provides a number of topic-specific endpoints 
+    `/php/*_data.php`.  These are PHP pages that serve up a <script> tag 
+    with a list of JavaScript variables and JSON objects, like this 
+    (from `/php/status_status_data.php`):
+
+        ```
+        <script type="text/javascript">
+        
+        var js_SerialNumber = '1234567890';
+        var js_FWVersion = 'AR01.04.046.25_091322_7244.PC20.10.X1';
+        var js_HWTypeVersion = '8'; 
+        [...]
+        var js_ethernet_port4_status  = 'Active';
+        var js_ethernet_port4_bitrate = '1 Gbps';
+        [...]
+        
+        </script>
+        ```
+
+    As long as we can obtain and maintain a login session, we can use 
+    the PHP endpoints to access the API.  It is a bit odd, but it gives 
+    us structured information with well-defined keys.  It is perfectly
+    workable and much preferable to scraping the web UI's HTML, which 
+    is only generated in the and therefore inaccessible.
+    
+    The code is based on : 
+    - https://github.com/nox-x/TG3442DE-Teardown/
+    - https://github.com/heeplr/munin-arris/ (Public domain)
+    - https://github.com/totev/vodafone-station-cli (MIT license)
+    - https://github.com/fsck-block/arris-tg3442de-exporter/ (Apache 2.0 license)
+    
+    TODO: publish a full list of PHP endpoints and variables/JSON objects.    
+    """
+    
+    class ArrisGenericEndpoint:
+        """Extract JavaScript data from the Arris Vodafone Station.
+        
+        The generic endpoint works for JavaScript values and JSON objects 
+        that require no postprocessing. 
+        """        
+        def __init__(self, api: VodafoneStationCommonApi, name: str, page: str, 
+                     vars: {str: str} = {}, jsons: {str: str} = {}) -> None:
+            """Initialize Arris endpoint.
+            
+            Args:
+                api (VodafoneStationCommonApi): the outer class instance used for session management 
+                name (str): descriptive name of the endpoint for logging
+                page (str): the endpoint address in the Vodafone Station web UI
+                vars ({str: str}): mapping of sensor names to Vodafone Station JavaScript variable names
+                jsons ({str: str}): mapping of sensor names to Vodafone Station JSON object names
+            """
+            _LOGGER.debug(f"Initializing endpoint <{name}> for retrieval from <{page}>")
+            self.api = api
+            self.name = name
+            self.page = page
+            self.vars = vars
+            self.jsons = jsons
+            # Build empty dictionary for all values we are expected to generate
+            self.data = dict.fromkeys([*self.vars] + [*self.jsons]) 
+            
+        async def extract(self) -> None:
+            """Extract JavaScript variables and JSON data."""
+            response = await self.api._get_page_result(self.page)
+            raw_data = await response.text()
+            # _LOGGER.debug(f"Here's our raw page <{self.page}>:\n{raw_data}")
+            for _var in self.vars.keys(): 
+                # Single values (`var js_SomeVar = 'value'`).
+                raw = await self.re_search(r".*var "+self.vars[_var]+r" = '(.*)';.*",raw_data)
+                self.data[_var] = raw[0]
+            for _json in self.jsons.keys():
+                # JSON objects (`json_SomeData = {...}`).
+                raw = await self.re_search(r".*"+self.jsons[_json]+r" = (.+);.*",raw_data)
+                self.data[_json] = json.loads(raw[0])
+            await self.post_process()                             
+
+        async def re_search(self, pattern: str, text: str, no: int=1, default='Unknown') -> [str]:
+            """Search for data and optionally insert defaults.
+
+            Args:
+                pattern (str): the search pattern (here: `var js_variable = 'value';`)
+                text (str): where to extract it from
+                no (str): number of patterns, usually 1, but can be more for complex data
+                default: what to return if expected number of patterns is not found
+
+            Returns:
+                [str]: array with retrieved values
+            """
+            result = re.search(pattern,text)
+            if result != None:
+                if len(result.groups()) != no:
+                    return [default]*(no)
+            else:
+                return [default]*(no)
+            return(result.groups())
+        
+        async def post_process(self):
+            """Overload this in derived classes if you need to do postprocessing."""
+            pass
+
+    
+    async def _generate_hash(self, credential: str, salt: str) -> str:
+        """Generate login hash from password and the salt from the web UI.
+
+        Args:
+            credential (str): login password for the user
+            salt (str): salt given by the web UI
+
+        Returns:
+            str: the hash for the session API
+        """
+        _LOGGER.debug("Calculate credential hash")
+        return hashlib.pbkdf2_hmac(
+            "sha256",
+            bytes(credential.encode("ascii")),
+            binascii.unhexlify(salt),
+            iterations=1000,
+            dklen=16
+        )
+        
+    async def _encrypt(self, plaintext: bytes, associated_data: str, key: str, iv: str) -> str:
+        """Encrypt plaintext for communicating with the Arris firmware.
+
+        Args:
+            plaintext (bytes): text to be encrypted (usually a JSON dictionary)
+            associated_data (str): associated data to be encrypted (e.g. "LoginPassword")
+            key (str): encryption key generated from the credentials and salt
+            iv (str): iv given by the web UI
+            
+        Returns:
+            str: the encrypted ciphertext
+        """
+        # Do not log plaintext, it may contain user credentials
+        _LOGGER.debug(f"Encrypt plaintext")        
+        cipher = AES.new(key, AES.MODE_CCM, binascii.unhexlify(iv))
+        cipher.update(bytes(associated_data.encode("ascii")))
+        ciphertext = cipher.encrypt(plaintext)
+        ciphertext += cipher.digest()
+        return binascii.hexlify(ciphertext).decode("ascii")       
+
+
+    async def _decrypt(self, ciphertext: str, key: str, iv: str) -> bytes:
+        """Decrypt ciphertext for communicating with the Arris firmware.
+
+        Args:
+            ciphertext (bytes): text to be encrypted (usually a JSON dictionary)
+            key (str): encryption key generated from the credentials and salt
+            iv (str): iv given by the web UI
+            
+        Returns:
+            bytes: the decrypted plaintext
+        """
+        _LOGGER.debug(f"Decrypt ciphertext <{ciphertext}>")
+        cipher = AES.new(key, AES.MODE_CCM, binascii.unhexlify(iv))
+        plaintext = cipher.decrypt(binascii.unhexlify(ciphertext))
+        return plaintext
+    
+
+    async def _keepalive(self) -> None:
+        """Maintain an active login session."""
+        # Send active notification
+        response = await self._post_page_result(
+            page="/php/ajaxSet_Session.php", payload={}
+        )
+        assert response.status == 200
+          
+    async def login(self) -> bool:
+        """
+        Login to Vodafone Station with Arris firmware.
+        
+        Emulate the station's convoluted login process with
+        encrypted negotiation between browser and firmware.
+        """
+        _LOGGER.debug(f"Attempting to log into Arris Vodafone Station at {self.host}")
+        self._client_session()
+
+        _LOGGER.debug("Get login encryption parameters")
+        response = await self._get_page_result(
+            page="/index.php"
+        )
+        
+        startpage = await response.text()
+        
+        sys_firmware_version = re.search(r".*_ga\.swVersion = '(.+)';.*", startpage)[1]
+        current_session_id = re.search(r".*var currentSessionId = '(.+)';.*", startpage)[1]    
+        iv = re.search(r".*var myIv = '(.+)';.*",startpage)[1]
+        salt = re.search(r".*var mySalt = '(.+)';.*",startpage)[1]
+        
+        _LOGGER.debug(f"Arris firmware: <{sys_firmware_version}>, session ID: <{current_session_id}>, iv: <{iv}>, salt: <{salt}>")
+
+        hash = await self._generate_hash(self.password, salt)
+        
+        secret = { "Password": self.password, "Nonce": current_session_id }
+        # Use UTF-8 encoding because passwords may contain special characters
+        plaintext = bytes(json.dumps(secret).encode("utf-8")) 
+        associated_data = "loginPassword"
+        
+        login_data = {
+            "EncryptData": await self._encrypt(plaintext, associated_data, hash, iv),
+            "Name": self.username,
+            "AuthData": associated_data
+        }
+
+        # Check login, following the procedure in `/base_95x.js` in the firmware.
+        # For this step the firmware is picky with headers. 
+        orig_headers = self.headers;
+        self.headers.update({ "Content-Type": "application/json" })
+        response = await self._post_page_result("/php/ajaxSet_Password.php", json.dumps(login_data))
+        self.headers = orig_headers;
+
+        assert response.status == 200
+        # The firmware may return plaintext or JSON. Success is indicated
+        # by a JSON dictionary that contains {'p_status': 'AdminMatch'}.
+        # TODO: consider working with JSON directly, catch conversion errors
+        login = await response.text()        
+        if "p_status" not in login or "AdminMatch" not in login:
+            _LOGGER.error(login)
+            raise CannotAuthenticate
+
+        login_json=json.loads(login)
+
+        # Decrypt CSRF token
+        encrypt_data = login_json['encryptData']       
+        plain_data = await self._decrypt(encrypt_data, hash, iv)
+        self.csrf_token = plain_data[:32].decode("ascii")
+
+        # Prepare headers
+        self.headers.update({
+            "X-Requested-With": "XMLHttpRequest",
+            "csrfNonce": self.csrf_token,
+            "Origin": f"{self.base_url}/",
+            "Referer": f"{self.base_url}/",
+        })
+        
+        # Set credentials cookie
+        # TODO: get credentials from `/base_95x.js`
+
+        # Send active notification, otherwise we timeout on the next request
+        await self._keepalive()
+        
+        return True
+       
+    def convert_uptime(self, uptime: str) -> datetime:
+        """
+        Convert router uptime to last boot datetime.
+        
+        Args:
+            uptime(str): uptime as reported by the firmware: `(h,m,s)`
+            
+        Returns:
+            datetime: time of last boot
+        """
+        d = int(uptime.split(",")[0])
+        h = int(uptime.split(",")[1])
+        m = int(uptime.split(",")[2])
+
+        return datetime.utcnow().replace(tzinfo=timezone.utc) - timedelta(
+            days=d, hours=h, minutes=m
+        )
+
+    async def _process_devices(self, devices: [Any], conn_type: str, link_speed: str) -> dict[str, VodafoneStationDevice]:
+        """
+        Process JSON device array into a map of MAC address and device object
+
+        Args:
+            devices([Any]): JSON array of raw devices
+            conn_type(str): "Ethernet", "Wifi (Main)", "Wifi (Guest)"
+            link_speed(str): "Speed" for wired and "LinkRate" for wireless devices
+            
+        Returns:
+            dict[str, VodafoneStationDevice]: MAC address maps to VodafoneStationDevice
+        """
+        devices_dict = {}
+        for device in devices:
+            vdf_device = VodafoneStationDevice(
+                connected=True,
+                connection_type=conn_type,
+                # TODO: we also have IPv6 addresses
+                ip_address=device["IPv4"],
+                name=device["HostName"],
+                mac=device["MAC"],
+                type = "", # Arris Vodafone Station does not report type
+                wifi = ""  # Arris Vodafone Station does not report wifi band
+                # TODO: insert speed here (compare arris-tg3442de-exporter's Overview exporter)
+            )
+            devices_dict[device["MAC"]] = vdf_device
+
+        return devices_dict
+        
+    async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
+        """
+        Get all connected devices as a map of MAC address and device object
+
+        Returns:
+            dict[str, VodafoneStationDevice]: MAC address maps to VodafoneStationDevice
+        """
+        raw = {}        
+        device_endpoint = self.ArrisGenericEndpoint(self, "Attached Devices", "/php/overview_data.php", 
+                                                    jsons = {"lan_devices": "json_lanAttachedDevice",
+                                                             "wlan_devices": "json_primaryWlanAttachedDevice",
+                                                             "guest_wlan_devices": "json_guestWlanAttachedDevice"
+                                                             })
+        await device_endpoint.extract()
+        raw.update(device_endpoint.data)
+        
+        _LOGGER.debug(f"Found devices: {len(raw['lan_devices'])} on LAN, {len(raw['wlan_devices'])} on Wifi, {len(raw['guest_wlan_devices'])} on Guest Wifi")
+        
+        devices_dict = {}
+        devices_dict.update(await self._process_devices(raw["lan_devices"], "Ethernet", "Speed"))
+        devices_dict.update(await self._process_devices(raw["wlan_devices"], "Wifi (Main)", "LinkRate"))
+        devices_dict.update(await self._process_devices(raw["guest_wlan_devices"], "Wifi (Guest)", "LinkRate"))
+
+        await self._keepalive()
+        return devices_dict
+
+    async def get_sensor_data(self) -> dict[Any, Any]:
+        """Read status data from Vodafone Station with Arris firmware."""
+
+        data = {}        
+        status_endpoint = self.ArrisGenericEndpoint(self, "Status", "/php/status_status_data.php", 
+                                                    vars = {"sys_serial_number"   : "js_SerialNumber",
+                                                            "sys_firmware_version": "js_FWVersion",
+                                                            "sys_hardware_version": "js_HWTypeVersion",
+                                                            "sys_uptime"          : "js_UptimeSinceReboot"
+                                                            })
+        # overview_endpoint = self.ArrisGenericEndpoint(self, "Overview", "/php/overview_data.php", 
+        #                                               vars = {"conn_lan_host_count"       : "js_lanHostNums",
+        #                                                       "conn_wlan_host_count"      : "js_primaryWlanHostNums",
+        #                                                       "conn_guest_wlan_host_count": "js_guestWlanHostNums",
+        #                                                       "net_modem_operational" : "js_isCmOperational",
+        #                                                       "net_wifi_enabled"      : "js_wifiEnable",
+        #                                                       "net_guest_wifi_enabled": "js_guestWifiEnable",
+        #                                                       "net_wps_enabled"       : "js_wpsEnable",
+        #                                                       "net_schedule_enabled"  : "js_scheduleEnable",
+        #                                                       "isp_gateway_mode"      : "_ga.gwMode"
+        #                                                       })
+        # docsis_endpoint = self.ArrisGenericEndpoint(self, "DOCSIS", "/php/status_docsis_data.php", 
+        #                                             jsons = {"docsis_downstream": "json_dsData",
+        #                                                      "docsis_upstream"  : "json_usData"
+        #                                                      })
+                                                    
+        await status_endpoint.extract()
+        # await overview_endpoint.extract()
+        # await docsis_endpoint.extract()
+        data.update(status_endpoint.data)
+        # data.update(overview_endpoint.data)
+        # data.update(docsis_endpoint.data)
+
+        await self._keepalive()
+        return data
+        
+    async def logout(self) -> None:
+        """Logout from Vodafone Station with Arris firmware."""
+        _LOGGER.debug("Arris Vodafone Station logout")
+        await self._post_page_result("/php/logout.php", payload={})
+    
 
 class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     """Queries Vodafone Station running Technicolor firmware."""

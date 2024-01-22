@@ -19,3 +19,4 @@ USER_ALREADY_LOGGED_IN = "MSG_LOGIN_150"
 class DeviceType(str, Enum):
     SERCOMM = "Sercomm"
     TECHNICOLOR = "Technicolor"
+    ARRIS = "Arris"

@@ -8,6 +8,7 @@ from aiovodafone.api import (
     VodafoneStationCommonApi,
     VodafoneStationSercommApi,
     VodafoneStationTechnicolorApi,
+    VodafoneStationArrisApi,
 )
 from aiovodafone.const import DeviceType
 from aiovodafone.exceptions import (
@@ -55,6 +56,8 @@ async def main() -> None:
     api: VodafoneStationCommonApi
     if device_type == DeviceType.TECHNICOLOR:
         api = VodafoneStationTechnicolorApi(args.router, args.username, args.password)
+    elif device_type == DeviceType.ARRIS:
+        api = VodafoneStationArrisApi(args.router, args.username, args.password)
     elif device_type == DeviceType.SERCOMM:
         api = VodafoneStationSercommApi(args.router, args.username, args.password)
     else:
