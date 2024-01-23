@@ -7,6 +7,7 @@ import os
 import aiohttp
 
 from aiovodafone.api import (
+    VodafoneStationArrisApi,
     VodafoneStationCommonApi,
     VodafoneStationSercommApi,
     VodafoneStationTechnicolorApi,
@@ -71,6 +72,8 @@ async def main() -> None:
     api: VodafoneStationCommonApi
     if device_type == DeviceType.TECHNICOLOR:
         api = VodafoneStationTechnicolorApi(args.router, args.username, args.password)
+    elif device_type == DeviceType.ARRIS:
+        api = VodafoneStationArrisApi(args.router, args.username, args.password)
     elif device_type == DeviceType.SERCOMM:
         api = VodafoneStationSercommApi(args.router, args.username, args.password)
     else:

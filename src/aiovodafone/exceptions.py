@@ -22,5 +22,9 @@ class AlreadyLogged(VodafoneError):
     """Exception raised if a user is already logged."""
 
 
+class SessionLost(VodafoneError):
+    """Exception raised if an earlier login session is lost."""
+
+
 class ModelNotSupported(VodafoneError):
     """Exception raised when using a model not yet supported."""
