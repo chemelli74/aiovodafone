@@ -1,6 +1,8 @@
 import argparse
 import asyncio
+import json
 import logging
+import os
 
 import aiohttp
 
@@ -30,8 +32,21 @@ def get_arguments() -> tuple[argparse.ArgumentParser, argparse.Namespace]:
         "--username", "-u", type=str, default="vodafone", help="Set router username"
     )
     parser.add_argument("--password", "-p", type=str, help="Set router password")
+    parser.add_argument(
+        "--configfile",
+        "-f",
+        type=str,
+        help="Load options from JSON config file. Command line options override those in the file.",
+    )
 
     arguments = parser.parse_args()
+    if arguments.configfile:
+        # Re-parse the command line, taking the options in the optional JSON file as a basis
+        if os.path.exists(arguments.configfile):
+            with open(arguments.configfile) as f:
+                arguments = parser.parse_args(
+                    namespace=argparse.Namespace(**json.load(f))
+                )
 
     return parser, arguments
 
@@ -42,6 +57,7 @@ async def main() -> None:
 
     if not args.password:
         print("You have to specify a password")
+        parser.print_help()
         exit(1)
 
     print("Determining device type")

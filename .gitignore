@@ -138,3 +138,6 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# Configuration file with parameters such as router addresses and passwords
+library_test.json
