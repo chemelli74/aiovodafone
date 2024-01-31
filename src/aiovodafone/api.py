@@ -74,7 +74,7 @@ class VodafoneStationCommonApi(ABC):
                 if "data" in response_json and "ModelName" in response_json["data"]:
                     return DeviceType.TECHNICOLOR
         async with session.get(
-            f"http://{host}/login.html", headers=HEADERS, ssl=False
+            f"https://{host}/login.html", headers=HEADERS, ssl=False
         ) as response:
             if response.status == 200:
                 # To identify the Sercomm devices before the login
