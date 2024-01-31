@@ -215,9 +215,9 @@ class VodafoneStationArrisApi(VodafoneStationCommonApi):
 
     As long as we can obtain and maintain a login session, we can use
     the PHP endpoints to access the API.  It is a bit odd, but it gives
-    us structured information with well-defined keys.  It is perfectly
-    workable and much preferable to scraping the web UI's HTML, which
-    is only generated in the and therefore inaccessible.
+    us structured information with well-defined keys.  In this way, the API
+    allows us to avoid scraping the web UI's HTML, which is only generated
+    in the browser and therefore inaccessible anyway.
 
     The code is based on :
     - https://github.com/nox-x/TG3442DE-Teardown/
@@ -239,7 +239,7 @@ class VodafoneStationArrisApi(VodafoneStationCommonApi):
             self,
             api: VodafoneStationCommonApi,
             name: str,
-            page: str,
+            address: str,
             vars: dict[str, str] = {},
             jsons: dict[str, str] = {},
         ) -> None:
@@ -248,14 +248,16 @@ class VodafoneStationArrisApi(VodafoneStationCommonApi):
             Args:
                 api (VodafoneStationCommonApi): the outer class instance used for session management
                 name (str): descriptive name of the endpoint for logging
-                page (str): the endpoint address in the Vodafone Station web UI
+                address (str): the endpoint address in the Vodafone Station web UI
                 vars ({str: str}): mapping of sensor names to Vodafone Station JavaScript variable names
                 jsons ({str: str}): mapping of sensor names to Vodafone Station JSON object names
             """
-            _LOGGER.debug(f"Initializing {name!r} endpoint for retrieval from {page!s}")
+            _LOGGER.debug(
+                "Initializing %s endpoint for retrieval from %s", name, address
+            )
             self.api = api
             self.name = name
-            self.page = page
+            self.address = address
             self.vars = vars
             self.jsons = jsons
             # Build empty dictionary for all values we are expected to generate
@@ -263,17 +265,19 @@ class VodafoneStationArrisApi(VodafoneStationCommonApi):
 
         async def retrieve(self) -> None:
             """Retrieve JavaScript variables and JSON data."""
-            response = await self.api._get_page_result(self.page)
+            response = await self.api._get_page_result(self.address)
             raw_data = await response.text()
-            # _LOGGER.debug(f"Here's our raw page <{self.page}>:\n{raw_data}")
+            # _LOGGER.debug("Here's our raw response <%s>:\n%s", self.address, raw_data)
             for _var in self.vars.keys():
-                # Single values (`var js_SomeVar = 'value'`).
+                # Retrieve single JavaScript variable values from router response
+                # (format `var js_SomeVar = 'value'`).
                 raw = await self._search(
                     r".*var " + self.vars[_var] + r" = '(.*)';.*", raw_data
                 )
                 self.data[_var] = raw[0]
             for _json in self.jsons.keys():
-                # JSON objects (`json_SomeData = {...}`).
+                # Retrieve JSON objects from router response
+                # (format `json_SomeData = {...}`).
                 raw = await self._search(
                     r".*" + self.jsons[_json] + r" = (.+);.*", raw_data
                 )
@@ -281,20 +285,20 @@ class VodafoneStationArrisApi(VodafoneStationCommonApi):
             await self._post_process()
 
         async def _search(
-            self, pattern: str, text: str, no: int = 1, default: str = "Unknown"
+            self, var: str, text: str, no: int = 1, default: str = "Unknown"
         ) -> list[str]:
-            """Search for data and optionally insert defaults.
+            """Retrieve data from JavaScript variables and optionally insert defaults.
 
             Args:
-                pattern (str): the search pattern (here: `var js_variable = 'value';`)
-                text (str): where to retrieve it from
-                no (str): number of patterns, usually 1, but can be more for complex data
-                default: what to return if expected number of patterns is not found
+                var (str): the variable name (in the Arris API: `var js_variable = 'value';`)
+                text (str): the router response from where to retrieve it
+                no (str): number of values, here 1 for a variable or JSON object
+                default: what to return if expected number of values is not found
 
             Returns:
                 [str]: array with retrieved values
             """
-            result = re.search(pattern, text)
+            result = re.search(var, text)
             if result is not None:
                 if len(result.groups()) != no:
                     return [default] * (no)
@@ -358,7 +362,7 @@ class VodafoneStationArrisApi(VodafoneStationCommonApi):
         Returns:
             bytes: the decrypted plaintext
         """
-        _LOGGER.debug(f"Decrypt ciphertext {ciphertext!r}")
+        _LOGGER.debug("Decrypt ciphertext %s", ciphertext)
         cipher = AES.new(key, AES.MODE_CCM, binascii.unhexlify(iv))
         plaintext = cipher.decrypt(binascii.unhexlify(ciphertext))
         return plaintext
@@ -379,7 +383,7 @@ class VodafoneStationArrisApi(VodafoneStationCommonApi):
         Emulate the station's convoluted login process with
         encrypted negotiation between browser and firmware.
         """
-        _LOGGER.debug(f"Attempting to log into Arris Vodafone Station at {self.host}")
+        _LOGGER.debug("Attempting to log into Arris Vodafone Station at %s", self.host)
         self._client_session()
 
         _LOGGER.debug("Get login encryption parameters")
@@ -402,7 +406,11 @@ class VodafoneStationArrisApi(VodafoneStationCommonApi):
             )
 
         _LOGGER.debug(
-            f"Arris firmware {fw_version!r}, session ID {session_id!r}>, iv {iv!r}>, salt <{salt!r}>"
+            "Arris firmware %s, session ID %s, iv %s, salt %s",
+            fw_version,
+            session_id,
+            iv,
+            salt,
         )
 
         hash = await self._generate_hash(
