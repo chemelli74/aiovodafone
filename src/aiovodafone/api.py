@@ -73,18 +73,15 @@ class VodafoneStationCommonApi(ABC):
                 response_json = await response.json()
                 if "data" in response_json and "ModelName" in response_json["data"]:
                     return DeviceType.TECHNICOLOR
-        async with session.get(f"http://{host}/login.html") as response:
+        async with session.get(
+            f"http://{host}/login.html", headers=HEADERS, ssl=False
+        ) as response:
             if response.status == 200:
                 # To identify the Sercomm devices before the login
                 # There's no other sure way to identify a Sercomm device without login
                 if "var csrf_token = " in await response.text():
                     return DeviceType.SERCOMM
-        async with session.get(
-            f"http://{host}/index.php",
-            headers=HEADERS.update(
-                {"Accept:": "text/html,application/xhtml+xml,application/xml"}
-            ),
-        ) as response:
+        async with session.get(f"http://{host}/index.php", headers=HEADERS) as response:
             if response.status == 200:
                 if "_ga.swVersion = " in await response.text():
                     return DeviceType.ARRIS
