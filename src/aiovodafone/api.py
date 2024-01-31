@@ -45,7 +45,7 @@ class VodafoneStationCommonApi(ABC):
 
     @staticmethod
     async def get_device_type(
-        host: str, session: aiohttp.ClientSession
+        host: str, session: aiohttp.ClientSession, allow_scraping: bool = False
     ) -> DeviceType | None:
         """Finds out the device type of a Vodafone Stations and returns it as enum.
         The Technicolor devices always answer with a valid HTTP response, the
@@ -58,6 +58,8 @@ class VodafoneStationCommonApi(ABC):
         Args:
             host (str): The router's address, e.g. `192.168.1.1`
             session (aiohttp.ClientSession): the client session to issue HTTP request with
+            allow_scraping (bool): whether we allow devices that require scraping the
+                                   web interface (Home Assistant forbids this)
 
         Returns:
             DeviceType: If the device is a Technicolor, it returns
@@ -81,10 +83,16 @@ class VodafoneStationCommonApi(ABC):
                 # There's no other sure way to identify a Sercomm device without login
                 if "var csrf_token = " in await response.text():
                     return DeviceType.SERCOMM
-        async with session.get(f"http://{host}/index.php", headers=HEADERS) as response:
-            if response.status == 200:
-                if "_ga.swVersion = " in await response.text():
-                    return DeviceType.ARRIS
+        # Home Assistant Core integrations must not use web scraping or related technologies
+        if allow_scraping:
+            # The Arris modem requires parsing endpoints that are meant for processing
+            # by a web browser
+            async with session.get(
+                f"http://{host}/index.php", headers=HEADERS
+            ) as response:
+                if response.status == 200:
+                    if "_ga.swVersion = " in await response.text():
+                        return DeviceType.ARRIS
         return None
 
     def __init__(self, host: str, username: str, password: str) -> None:
