@@ -6,7 +6,7 @@
       "type": "python",
       "request": "launch",
       "program": "library_test.py",
-      "args": ["-p", "<your password>"],
+      "args": ["-cf", "library_test.json"],
       "console": "integratedTerminal",
       "justMyCode": true
     }
