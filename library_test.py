@@ -34,7 +34,7 @@ def get_arguments() -> tuple[argparse.ArgumentParser, argparse.Namespace]:
     parser.add_argument("--password", "-p", type=str, help="Set router password")
     parser.add_argument(
         "--configfile",
-        "-f",
+        "-cf",
         type=str,
         help="Load options from JSON config file. Command line options override those in the file.",
     )
