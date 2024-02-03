@@ -73,6 +73,9 @@ async def main() -> None:
         api = VodafoneStationTechnicolorApi(args.router, args.username, args.password)
     elif device_type == DeviceType.SERCOMM:
         api = VodafoneStationSercommApi(args.router, args.username, args.password)
+    elif device_type == DeviceType.ARRIS:
+        print("Arris devices are not supported by aiovodafone.")
+        exit(1)
     else:
         print("The device is not a supported Vodafone Station.")
         exit(1)

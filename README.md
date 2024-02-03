@@ -35,6 +35,19 @@ Install this via pip (or your favourite package manager):
 
 `pip install aiovodafone`
 
+## Device Support
+
+The library currently supports Vodafone Stations by the following manufacturers:
+
+- Sercomm (includes devices with identical firmware by Huawei and ADB)
+- Technicolor
+
+The library does not support Vodafone Stations by the following manufacturers, but is capable of identifying them:
+
+- Arris (German Vodafone Station TG3442DE)
+
+Device support is limited by a Home Assistant restriction that supported devices not require web scraping, except for login.
+
 ## Contributors ✨
 
 Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):

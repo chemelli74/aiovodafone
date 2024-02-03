@@ -73,6 +73,12 @@ class VodafoneStationCommonApi(ABC):
                 # There's no other sure way to identify a Sercomm device without login
                 if "var csrf_token = " in await response.text():
                     return DeviceType.SERCOMM
+        async with session.get(f"http://{host}/index.php", headers=HEADERS) as response:
+            if response.status == 200:
+                if "_ga.swVersion = " in await response.text():
+                    # Arris modems are unsupported by the library, but we can
+                    # at least detect them
+                    return DeviceType.ARRIS
         return None
 
     def __init__(self, host: str, username: str, password: str) -> None:
