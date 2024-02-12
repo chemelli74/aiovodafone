@@ -1,4 +1,5 @@
 """Collect html pages for Vodafone Station."""
+
 import argparse
 import asyncio
 import logging

@@ -1,4 +1,5 @@
 """Support for Vodafone Station."""
+
 import asyncio
 import hashlib
 import hmac

@@ -6,18 +6,18 @@
     "args": {
       "VARIANT": "3.11",
       "INSTALL_NODE": "false",
-      "NODE_VERSION": "lts/*"
-    }
+      "NODE_VERSION": "lts/*",
+    },
   },
   "customizations": {
     "vscode": {
       "extensions": [
         "ms-python.python",
         "ms-python.vscode-pylance",
-        "ms-azuretools.vscode-docker"
-      ]
-    }
+        "ms-azuretools.vscode-docker",
+      ],
+    },
   },
   "postCreateCommand": "pre-commit install",
-  "remoteUser": "vscode"
+  "remoteUser": "vscode",
 }
