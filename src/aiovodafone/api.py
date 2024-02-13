@@ -414,7 +414,9 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
         return False
 
-    async def _login_json(self, username: str, password: str, useChallenge: bool = False) -> bool:
+    async def _login_json(
+        self, username: str, password: str, useChallenge: bool = False
+    ) -> bool:
         """Login via json page"""
 
         if useChallenge:
