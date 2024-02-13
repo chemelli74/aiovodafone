@@ -66,7 +66,7 @@ class VodafoneStationCommonApi(ABC):
                 if "data" in response_json and "ModelName" in response_json["data"]:
                     return DeviceType.TECHNICOLOR
         async with session.get(
-            f"https://{host}/login.html", headers=HEADERS, ssl=False
+            f"http://{host}/login.html", headers=HEADERS, ssl=False
         ) as response:
             if response.status == 200:
                 # To identify the Sercomm devices before the login
@@ -414,23 +414,35 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
         return False
 
-    async def _login_json(self, username: str, password: str) -> bool:
+    async def _login_json(self, username: str, password: str, challenge: bool = False) -> bool:
         """Login via json page"""
 
-        payload = {
-            "LoginName": username,
-            "LoginPWD": password,
-        }
-        reply_json = await self._post_sercomm_page("/data/login.json", payload)
-        _LOGGER.debug("Login result: %s[%s]", LOGIN[int(str(reply_json))], reply_json)
+        if challenge:
+            return_dict = await self._get_sercomm_page("/data/login.json")
+            challenge = return_dict["challenge"]
+            _LOGGER.debug("challenge: <%s>", challenge)
+            payload = {
+                "LoginName": username,
+                "LoginPWD": hashlib.sha256(bytes(password + challenge, "utf-8")).hexdigest(),
+                "challenge": challenge,
+            }
+        else:
+            payload = {
+                "LoginName": username,
+                "LoginPWD": password,
+            }
 
-        if reply_json == "1":
+        reply_json = await self._post_sercomm_page("/data/login.json", payload)
+        reply_int = int(str(reply_json))
+        _LOGGER.debug("Login result: %s[%s]", LOGIN[reply_int], reply_json)
+
+        if reply_int == 1:
             return True
 
-        if reply_json == "2":
+        if reply_int == 2:
             raise AlreadyLogged
 
-        if reply_json in ["3", "4", "5"]:
+        if reply_int in [3, 4, 5]:
             raise CannotAuthenticate
 
         raise GenericLoginError
@@ -526,19 +538,23 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         await self._set_cookie()
         await self._reset()
 
-        # First  try with both  username and password encrypted
-        # Second try with plain username and password encrypted
-        try:
-            _LOGGER.debug("Login first try: username[encrypted], password[encrypted]")
-            logged = await self._login_json(
-                await self._encrypt_string(self.username),
-                await self._encrypt_string(self.password),
-            )
-        except CannotAuthenticate:
-            _LOGGER.debug("Login second try: username[plain], password[encrypted]")
-            logged = await self._login_json(
-                self.username, await self._encrypt_string(self.password)
-            )
+        if not self.encryption_key:
+            _LOGGER.debug("Login: username[plain], password[challenge encrypted]")
+            logged = await self._login_json(self.username, self.password, True)
+        else:
+            # First  try with both  username and password encrypted
+            # Second try with plain username and password encrypted
+            try:
+                _LOGGER.debug("Login first try: username[encrypted], password[encrypted]")
+                logged = await self._login_json(
+                    await self._encrypt_string(self.username),
+                    await self._encrypt_string(self.password),
+                )
+            except CannotAuthenticate:
+                _LOGGER.debug("Login second try: username[plain], password[encrypted]")
+                logged = await self._login_json(
+                    self.username, await self._encrypt_string(self.password)
+                )
 
         return logged
 
