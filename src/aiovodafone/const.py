@@ -1,4 +1,5 @@
 """Constants for Vodafone Station."""
+
 import logging
 from enum import Enum
 
