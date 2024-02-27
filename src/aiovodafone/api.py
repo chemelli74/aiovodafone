@@ -537,13 +537,15 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
             return_dict = await self._get_sercomm_page("/data/login.json")
             challenge = return_dict["challenge"]
             _LOGGER.debug("challenge: <%s>", challenge)
-            logged = await self._login_json({
-                "LoginName": self.username,
-                "LoginPWD": hashlib.sha256(
-                    bytes(self.password + challenge, "utf-8")
-                ).hexdigest(),
-                "challenge": challenge,
-            })
+            logged = await self._login_json(
+                {
+                    "LoginName": self.username,
+                    "LoginPWD": hashlib.sha256(
+                        bytes(self.password + challenge, "utf-8")
+                    ).hexdigest(),
+                    "challenge": challenge,
+                }
+            )
         else:
             # First  try with both  username and password encrypted
             # Second try with plain username and password encrypted
@@ -551,16 +553,20 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
                 _LOGGER.debug(
                     "Login first try: username[encrypted], password[encrypted]"
                 )
-                logged = await self._login_json({
-                    "LoginName": self._encrypt_string(self.username),
-                    "LoginPWD": self._encrypt_string(self.password),
-                })
+                logged = await self._login_json(
+                    {
+                        "LoginName": self._encrypt_string(self.username),
+                        "LoginPWD": self._encrypt_string(self.password),
+                    }
+                )
             except CannotAuthenticate:
                 _LOGGER.debug("Login second try: username[plain], password[encrypted]")
-                logged = await self._login_json({
-                    "LoginName": self.username,
-                    "LoginPWD": self._encrypt_string(self.password),
-                })
+                logged = await self._login_json(
+                    {
+                        "LoginName": self.username,
+                        "LoginPWD": self._encrypt_string(self.password),
+                    }
+                )
 
         return logged
 
