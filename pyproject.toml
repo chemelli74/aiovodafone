@@ -28,7 +28,7 @@ beautifulsoup4 = "*"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7,<9"
-pytest-cov = ">=3,<5"
+pytest-cov = ">=3,<6"
 
 [tool.semantic_release]
 branch = "main"
