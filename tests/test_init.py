@@ -1,3 +1,5 @@
+"""Base tests for aiovodafone."""
+
 from aiovodafone.api import (
     VodafoneStationDevice,
     VodafoneStationSercommApi,
@@ -12,7 +14,8 @@ from aiovodafone.exceptions import (
 )
 
 
-def test_objects_can_be_imported():
+def test_objects_can_be_imported() -> None:
+    """Verify objects exist."""
     assert type(VodafoneStationDevice)
     assert type(VodafoneStationSercommApi)
     assert type(VodafoneStationTechnicolorApi)
