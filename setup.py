@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+"""Setup module for aiovodafone."""
 
 # This is a shim to allow GitHub to detect the package, build is done with poetry
 # Taken from https://github.com/Textualize/rich

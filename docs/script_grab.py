@@ -1,18 +1,23 @@
 """Collect html pages for Vodafone Station."""
 
-import argparse
 import asyncio
 import logging
-from datetime import datetime
+from argparse import ArgumentParser, Namespace
+from datetime import UTC, datetime
+from pathlib import Path
 
 import aiohttp
 
 
-def get_arguments() -> tuple[argparse.ArgumentParser, argparse.Namespace]:
+def get_arguments() -> tuple[ArgumentParser, Namespace]:
     """Get parsed passed in arguments."""
-    parser = argparse.ArgumentParser(description="aiovodafone library test")
+    parser = ArgumentParser(description="aiovodafone library test")
     parser.add_argument(
-        "--router", "-r", type=str, default="192.168.1.1", help="Set router IP address"
+        "--router",
+        "-r",
+        type=str,
+        default="192.168.1.1",
+        help="Set router IP address",
     )
     arguments = parser.parse_args()
 
@@ -26,8 +31,14 @@ async def main() -> None:
     print("-" * 20)
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "User-Agent": (
+            "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:78.0)"
+            "Gecko/20100101 Firefox/78.0"
+        ),
+        "Accept": (
+            "text/html,application/xhtml+xml,application/xml;"
+            "q=0.9,image/webp,*/*;q=0.8"
+        ),
         "Accept-Language": "en-GB,en;q=0.5",
         "DNT": "1",
     }
@@ -46,10 +57,13 @@ async def main() -> None:
         )
         reply_text = await reply.text()
 
-        text_file = open(f"login-page-{protocol}-{datetime.now()}.html", "w+")
-        text_file.write(reply_text)
-        text_file.close()
-        print("-" * 20)
+        with Path.open(
+            Path(f"login-page-{protocol}-{datetime.now(tz=UTC)}.html"),
+            "w+",
+        ) as text_file:
+            text_file.write(reply_text)
+            text_file.close()
+            print("-" * 20)
 
     await session.close()
 
