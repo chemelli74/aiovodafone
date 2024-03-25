@@ -66,14 +66,22 @@ class VodafoneStationCommonApi(ABC):
                 response_json = await response.json()
                 if "data" in response_json and "ModelName" in response_json["data"]:
                     return DeviceType.TECHNICOLOR
-        async with session.get(
-            f"https://{host}/login.html", headers=HEADERS, ssl=False
-        ) as response:
-            if response.status == 200:
-                # To identify the Sercomm devices before the login
-                # There's no other sure way to identify a Sercomm device without login
-                if "var csrf_token = " in await response.text():
-                    return DeviceType.SERCOMM
+        try:
+            async with session.get(
+                f"https://{host}/login.html", headers=HEADERS, ssl=False
+            ) as response:
+                if response.status == 200:
+                    # To identify the Sercomm devices before the login
+                    # There's no other sure way to identify a Sercomm device without login
+                    if "var csrf_token = " in await response.text():
+                        return DeviceType.SERCOMM
+        except aiohttp.client_exceptions.ClientConnectorSSLError:
+            async with session.get(
+                f"http://{host}/login.html", headers=HEADERS, ssl=False
+            ) as response:
+                if response.status == 200:
+                    if "var csrf_token = " in await response.text():
+                        return DeviceType.SERCOMM
         return None
 
     def __init__(self, host: str, username: str, password: str) -> None:
@@ -415,23 +423,20 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
         return False
 
-    async def _login_json(self, username: str, password: str) -> bool:
+    async def _login_json(self, payload: dict[str, Any]) -> bool:
         """Login via json page"""
 
-        payload = {
-            "LoginName": username,
-            "LoginPWD": password,
-        }
         reply_json = await self._post_sercomm_page("/data/login.json", payload)
-        _LOGGER.debug("Login result: %s[%s]", LOGIN[int(str(reply_json))], reply_json)
+        reply_int = int(str(reply_json))
+        _LOGGER.debug("Login result: %s[%s]", LOGIN[reply_int], reply_json)
 
-        if reply_json == "1":
+        if reply_int == 1:
             return True
 
-        if reply_json == "2":
+        if reply_int == 2:
             raise AlreadyLogged
 
-        if reply_json in ["3", "4", "5"]:
+        if reply_int in [3, 4, 5]:
             raise CannotAuthenticate
 
         raise GenericLoginError
@@ -527,19 +532,42 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         await self._set_cookie()
         await self._reset()
 
-        # First  try with both  username and password encrypted
-        # Second try with plain username and password encrypted
-        try:
-            _LOGGER.debug("Login first try: username[encrypted], password[encrypted]")
+        if not self.encryption_key:
+            _LOGGER.debug("Login: username[plain], password[challenge encrypted]")
+
+            return_dict = await self._get_sercomm_page("/data/login.json")
+            challenge = return_dict["challenge"]
+            _LOGGER.debug("challenge: <%s>", challenge)
             logged = await self._login_json(
-                await self._encrypt_string(self.username),
-                await self._encrypt_string(self.password),
+                {
+                    "LoginName": self.username,
+                    "LoginPWD": hashlib.sha256(
+                        bytes(self.password + challenge, "utf-8")
+                    ).hexdigest(),
+                    "challenge": challenge,
+                }
             )
-        except CannotAuthenticate:
-            _LOGGER.debug("Login second try: username[plain], password[encrypted]")
-            logged = await self._login_json(
-                self.username, await self._encrypt_string(self.password)
-            )
+        else:
+            # First  try with both  username and password encrypted
+            # Second try with plain username and password encrypted
+            try:
+                _LOGGER.debug(
+                    "Login first try: username[encrypted], password[encrypted]"
+                )
+                logged = await self._login_json(
+                    {
+                        "LoginName": self._encrypt_string(self.username),
+                        "LoginPWD": self._encrypt_string(self.password),
+                    }
+                )
+            except CannotAuthenticate:
+                _LOGGER.debug("Login second try: username[plain], password[encrypted]")
+                logged = await self._login_json(
+                    {
+                        "LoginName": self.username,
+                        "LoginPWD": self._encrypt_string(self.password),
+                    }
+                )
 
         return logged
 
