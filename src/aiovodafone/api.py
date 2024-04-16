@@ -454,7 +454,6 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
     async def _login_json(self, payload: dict[str, Any]) -> bool:
         """Login via json page"""
-
         reply_json = await self._post_sercomm_page("/data/login.json", payload)
         reply_int = int(str(reply_json))
         _LOGGER.debug("Login result: %s[%s]", LOGIN[reply_int], reply_json)
@@ -573,23 +572,23 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
                 {
                     "LoginName": self.username,
                     "LoginPWD": hashlib.sha256(
-                        bytes(self.password + challenge, "utf-8")
+                        bytes(self.password + challenge, "utf-8"),
                     ).hexdigest(),
                     "challenge": challenge,
-                }
+                },
             )
         else:
             # First  try with both  username and password encrypted
             # Second try with plain username and password encrypted
             try:
                 _LOGGER.debug(
-                    "Login first try: username[encrypted], password[encrypted]"
+                    "Login first try: username[encrypted], password[encrypted]",
                 )
                 logged = await self._login_json(
                     {
                         "LoginName": self._encrypt_string(self.username),
                         "LoginPWD": self._encrypt_string(self.password),
-                    }
+                    },
                 )
             except CannotAuthenticate:
                 _LOGGER.debug("Login second try: username[plain], password[encrypted]")
@@ -597,7 +596,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
                     {
                         "LoginName": self.username,
                         "LoginPWD": self._encrypt_string(self.password),
-                    }
+                    },
                 )
 
         return logged
