@@ -453,7 +453,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         return False
 
     async def _login_json(self, payload: dict[str, Any]) -> bool:
-        """Login via json page"""
+        """Login via json page."""
         reply_json = await self._post_sercomm_page("/data/login.json", payload)
         reply_int = int(str(reply_json))
         _LOGGER.debug("Login result: %s[%s]", LOGIN[reply_int], reply_json)
