@@ -1,0 +1,1 @@
+"""aiovodafone tests."""

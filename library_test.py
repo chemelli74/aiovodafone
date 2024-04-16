@@ -1,11 +1,13 @@
-import argparse
+"""Test script for aiovodafone library."""
+
 import asyncio
 import json
 import logging
-import os
+import sys
+from argparse import ArgumentParser, Namespace
+from pathlib import Path
 
 import aiohttp
-
 from aiovodafone.api import (
     VodafoneStationCommonApi,
     VodafoneStationSercommApi,
@@ -22,31 +24,38 @@ from aiovodafone.exceptions import (
 )
 
 
-def get_arguments() -> tuple[argparse.ArgumentParser, argparse.Namespace]:
+def get_arguments() -> tuple[ArgumentParser, Namespace]:
     """Get parsed passed in arguments."""
-    parser = argparse.ArgumentParser(description="aiovodafone library test")
+    parser = ArgumentParser(description="aiovodafone library test")
     parser.add_argument(
-        "--router", "-r", type=str, default="192.168.1.1", help="Set router IP address"
+        "--router",
+        "-r",
+        type=str,
+        default="192.168.1.1",
+        help="Set router IP address",
     )
     parser.add_argument(
-        "--username", "-u", type=str, default="vodafone", help="Set router username"
+        "--username",
+        "-u",
+        type=str,
+        default="vodafone",
+        help="Set router username",
     )
     parser.add_argument("--password", "-p", type=str, help="Set router password")
     parser.add_argument(
         "--configfile",
         "-cf",
         type=str,
-        help="Load options from JSON config file. Command line options override those in the file.",
+        help="Load options from JSON config file. \
+        Command line options override those in the file.",
     )
 
     arguments = parser.parse_args()
-    if arguments.configfile:
-        # Re-parse the command line, taking the options in the optional JSON file as a basis
-        if os.path.exists(arguments.configfile):
-            with open(arguments.configfile) as f:
-                arguments = parser.parse_args(
-                    namespace=argparse.Namespace(**json.load(f))
-                )
+    # Re-parse the command line
+    # taking the options in the optional JSON file as a basis
+    if arguments.configfile and Path.exists(arguments.configfile):
+        with Path.open(arguments.configfile) as f:
+            arguments = parser.parse_args(namespace=Namespace(**json.load(f)))
 
     return parser, arguments
 
@@ -58,12 +67,13 @@ async def main() -> None:
     if not args.password:
         print("You have to specify a password")
         parser.print_help()
-        exit(1)
+        sys.exit(1)
 
     print("Determining device type")
     async with aiohttp.ClientSession() as session:
         device_type = await VodafoneStationCommonApi.get_device_type(
-            args.router, session
+            args.router,
+            session,
         )
         print(device_type)
 
@@ -75,7 +85,7 @@ async def main() -> None:
         api = VodafoneStationSercommApi(args.router, args.username, args.password)
     else:
         print("The device is not a supported Vodafone Station.")
-        exit(1)
+        sys.exit(1)
 
     try:
         try:
@@ -97,7 +107,7 @@ async def main() -> None:
             raise
     except VodafoneError:
         await api.close()
-        exit(1)
+        sys.exit(1)
 
     print("Logged-in.")
 
