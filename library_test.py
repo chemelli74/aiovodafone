@@ -53,7 +53,7 @@ def get_arguments() -> tuple[ArgumentParser, Namespace]:
     arguments = parser.parse_args()
     # Re-parse the command line
     # taking the options in the optional JSON file as a basis
-    if arguments.configfile and Path.exists(arguments.configfile):
+    if arguments.configfile and Path(arguments.configfile).exists():
         with Path.open(arguments.configfile) as f:
             arguments = parser.parse_args(namespace=Namespace(**json.load(f)))
 
