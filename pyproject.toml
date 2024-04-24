@@ -27,14 +27,29 @@ aiohttp = "*"
 beautifulsoup4 = "*"
 
 [tool.poetry.group.dev.dependencies]
-pytest = ">=7,<9"
-pytest-cov = ">=3,<6"
+pytest = "^8.1"
+pytest-cov = "^5.0"
 
 [tool.semantic_release]
-branch = "main"
 version_toml = ["pyproject.toml:tool.poetry.version"]
-version_variable = ["src/aiovodafone/__init__.py:__version__"]
+version_variables = ["src/aiovodafone/__init__.py:__version__",]
 build_command = "pip install poetry && poetry build"
+
+[tool.semantic_release.changelog]
+exclude_commit_patterns = [
+    "chore*",
+    "ci*",
+]
+
+[tool.semantic_release.changelog.environment]
+keep_trailing_newline = true
+
+[tool.semantic_release.branches.main]
+match = "main"
+
+[tool.semantic_release.branches.noop]
+match = "(?!main$)"
+prerelease = true
 
 [tool.pytest.ini_options]
 addopts = "-v -Wdefault --cov=aiovodafone --cov-report=term-missing:skip-covered"
@@ -52,9 +67,8 @@ exclude_lines = [
     'if __name__ == "__main__":',
 ]
 
-[tool.isort]
-profile = "black"
-known_first_party = ["aiovodafone", "tests"]
+[tool.ruff.isort]
+known-first-party = ["aioamazondevices", "tests"]
 
 [tool.mypy]
 check_untyped_defs = true
