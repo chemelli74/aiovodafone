@@ -81,30 +81,26 @@ class VodafoneStationCommonApi(ABC):
                 response_json = await response.json()
                 if "data" in response_json and "ModelName" in response_json["data"]:
                     return DeviceType.TECHNICOLOR
-        try:
-            async with session.get(
-                f"https://{host}/login.html",
-                headers=HEADERS,
-                ssl=False,
-            ) as response:
-                # To identify the Sercomm devices before the login
-                # There's no other sure way to identify a Sercomm device without login
-                if (
-                    response.status == HTTPStatus.OK
-                    and "var csrf_token = " in await response.text()
-                ):
-                    return DeviceType.SERCOMM
-        except aiohttp.client_exceptions.ClientConnectorSSLError:
-            async with session.get(
-                f"http://{host}/login.html",
-                headers=HEADERS,
-                ssl=False,
-            ) as response:
-                if (
-                    response.status == HTTPStatus.OK
-                    and "var csrf_token = " in await response.text()
-                ):
-                    return DeviceType.SERCOMM
+
+        for protocol in ["https", "http"]:
+            try:
+                async with session.get(
+                    f"{protocol}://{host}/login.html",
+                    headers=HEADERS,
+                    ssl=False,
+                ) as response:
+                    # To identify the Sercomm devices before the login
+                    # There's no other sure way to identify a Sercomm device
+                    # without login
+                    if (
+                        response.status == HTTPStatus.OK
+                        and "var csrf_token = " in await response.text()
+                    ):
+                        return DeviceType.SERCOMM
+            except aiohttp.client_exceptions.ClientConnectorSSLError:
+                _LOGGER.debug("Unable to login using protocol %s", protocol)
+                continue
+
         return None
 
     def __init__(self, host: str, username: str, password: str) -> None:
@@ -443,6 +439,19 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
             digestmod=hashlib.sha256,
         ).hexdigest()
 
+    async def _encrypt_with_challenge(self, challenge: str) -> str:
+        """Encrypt password with challenge for login."""
+        return hashlib.sha256(
+            bytes(self.password + challenge, "utf-8"),
+        ).hexdigest()
+
+    async def _get_challenge(self) -> str:
+        """Return challenge or login."""
+        return_dict = await self._get_sercomm_page("/data/login.json")
+        challenge: str = return_dict["challenge"]
+        _LOGGER.debug("challenge: <%s>", challenge)
+        return challenge
+
     async def _reset(self) -> bool:
         """Reset page content before loading."""
         payload = {"chk_sys_busy": ""}
@@ -455,16 +464,16 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
     async def _login_json(self, payload: dict[str, Any]) -> bool:
         """Login via json page."""
         reply_json = await self._post_sercomm_page("/data/login.json", payload)
-        reply_int = int(str(reply_json))
-        _LOGGER.debug("Login result: %s[%s]", LOGIN[reply_int], reply_json)
+        reply_str = str(reply_json)
+        _LOGGER.debug("Login result: %s[%s]", LOGIN[int(reply_str)], reply_json)
 
-        if reply_int == 1:
+        if reply_str == "1":
             return True
 
-        if reply_int == 2:
+        if reply_str == "2":
             raise AlreadyLogged
 
-        if reply_int in [3, 4, 5]:
+        if reply_str in ["3", "4", "5"]:
             raise CannotAuthenticate
 
         raise GenericLoginError
@@ -565,15 +574,11 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         if not self.encryption_key:
             _LOGGER.debug("Login: username[plain], password[challenge encrypted]")
 
-            return_dict = await self._get_sercomm_page("/data/login.json")
-            challenge = return_dict["challenge"]
-            _LOGGER.debug("challenge: <%s>", challenge)
+            challenge = await self._get_challenge()
             logged = await self._login_json(
                 {
                     "LoginName": self.username,
-                    "LoginPWD": hashlib.sha256(
-                        bytes(self.password + challenge, "utf-8"),
-                    ).hexdigest(),
+                    "LoginPWD": await self._encrypt_with_challenge(challenge),
                     "challenge": challenge,
                 },
             )
@@ -586,8 +591,8 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
                 )
                 logged = await self._login_json(
                     {
-                        "LoginName": self._encrypt_string(self.username),
-                        "LoginPWD": self._encrypt_string(self.password),
+                        "LoginName": await self._encrypt_string(self.username),
+                        "LoginPWD": await self._encrypt_string(self.password),
                     },
                 )
             except CannotAuthenticate:
@@ -595,7 +600,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
                 logged = await self._login_json(
                     {
                         "LoginName": self.username,
-                        "LoginPWD": self._encrypt_string(self.password),
+                        "LoginPWD": await self._encrypt_string(self.password),
                     },
                 )
 
