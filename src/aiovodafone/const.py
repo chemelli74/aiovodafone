@@ -20,6 +20,8 @@ LOGIN = [
     "credential error",
     "credential error",
     "password mismatch",
+    "incorrect challenge",
+    "password mismatch",
 ]
 
 USER_ALREADY_LOGGED_IN = "MSG_LOGIN_150"
