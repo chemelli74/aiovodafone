@@ -465,7 +465,8 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         """Login via json page."""
         reply_json = await self._post_sercomm_page("/data/login.json", payload)
         reply_str = str(reply_json)
-        _LOGGER.debug("Login result: %s[%s]",
+        _LOGGER.debug(
+            "Login result: %s[%s]",
             LOGIN[int(reply_str)] if 0 <= int(reply_str) < len(LOGIN) else "unknown",
             reply_json,
         )
