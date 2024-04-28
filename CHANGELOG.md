@@ -1,5 +1,44 @@
 # Changelog
 
+## v0.6.0 (2024-04-28)
+
+### Unknown
+
+### Feature
+
+- Support for vodafone sercomm h300s ([`4608915`](https://github.com/chemelli74/aiovodafone/commit/46089158bdfb49c69770a08da2c9756b11619fb2))
+
+
+### Build
+
+- Minor updates ([`d4c3202`](https://github.com/chemelli74/aiovodafone/commit/d4c3202b50c56cc231ef624a3289a5f8fec84f2d))
+- Bump aiohttp from 3.9.4 to 3.9.5 ([`e0c159c`](https://github.com/chemelli74/aiovodafone/commit/e0c159ca9aa0f70baa25f56f549e6439d2e5ba1c))
+- Update cfg for v6 (breakingchange) ([`17e8a3b`](https://github.com/chemelli74/aiovodafone/commit/17e8a3b223e95aa4792885a12a2b81212e9c0719))
+- Bump aiohttp from 3.9.3 to 3.9.4 ([`09e1948`](https://github.com/chemelli74/aiovodafone/commit/09e1948338badc0d6e7013272ce41bf354f24ddb))
+- Bump idna from 3.6 to 3.7 ([`694377d`](https://github.com/chemelli74/aiovodafone/commit/694377d7a46f69f176058f29ca243653bbc7ddb1))
+- Bump wagoid/commitlint-github-action from 5.4.5 to 6.0.1 ([`315494f`](https://github.com/chemelli74/aiovodafone/commit/315494f42b8fca9535594752d03784e4be86787f))
+- Typo ([`52ea33f`](https://github.com/chemelli74/aiovodafone/commit/52ea33f462bc4096a610d54bc44698579a59dd67))
+- Cleanup ([`a46f537`](https://github.com/chemelli74/aiovodafone/commit/a46f5370bfe977165d8397b76d59a4db88f034f8))
+- Use ruff instead of isort, black, flake8, bandit and some pre-commit-hooks ([`10a7e43`](https://github.com/chemelli74/aiovodafone/commit/10a7e4311e8a1413d4a849a9eb3783a2e5e90d45))
+- Bump pytest-cov from 4.1.0 to 5.0.0 ([`0f9133f`](https://github.com/chemelli74/aiovodafone/commit/0f9133f8a20de7e52778f0ae9c02b06ddd64b10f))
+- Bump pytest from 8.0.2 to 8.1.0 ([`a0cb189`](https://github.com/chemelli74/aiovodafone/commit/a0cb189dfd8bdd151ecf921d5e8ed4896e638f02))
+- Bump pytest from 8.0.1 to 8.0.2 ([`322ac34`](https://github.com/chemelli74/aiovodafone/commit/322ac3422f9adb95020859853f5835dd6654896d))
+- Format devcontainer.json ([`dfa1359`](https://github.com/chemelli74/aiovodafone/commit/dfa135918a24dd73db702c51794852154cd0d03d))
+- Bump pytest from 8.0.0 to 8.0.1 ([`7f46bb6`](https://github.com/chemelli74/aiovodafone/commit/7f46bb69d4bb6432a50cdd08cdb34b107c33016a))
+- Bump pre-commit/action from 3.0.0 to 3.0.1 ([`7b75833`](https://github.com/chemelli74/aiovodafone/commit/7b75833ddfb1ac659cc6b4a8fa443b56ed20b8d2))
+- Bump aiohttp from 3.9.2 to 3.9.3 ([`57cac7e`](https://github.com/chemelli74/aiovodafone/commit/57cac7e5ef6b18b0ce81e6917717e49634c6145d))
+- Revert config change for actions/checkout@v4 ([`dab728a`](https://github.com/chemelli74/aiovodafone/commit/dab728a7795c11eb772cb3db4c0ced18465a0337))
+- Bump tiangolo/issue-manager from 0.4.1 to 0.5.0 ([`e8f3a7a`](https://github.com/chemelli74/aiovodafone/commit/e8f3a7ab4374dfa5daf97fa58bc3c3963f516c2d))
+- Bump pytest from 7.4.4 to 8.0.0 ([`47d0af7`](https://github.com/chemelli74/aiovodafone/commit/47d0af7e479adf253992984f6b4bfdcd8a276d4c))
+- Bump aiohttp from 3.9.1 to 3.9.2 ([`f83e584`](https://github.com/chemelli74/aiovodafone/commit/f83e5846be37fb6d85ca6f1c3bb7ce2fbb5e22a3))
+
+
+### Refactor
+
+- Short parameter for config file -cf instead of -f ([`c354354`](https://github.com/chemelli74/aiovodafone/commit/c354354e41825ca2e66eac7accbb5bbe31fa4e2c))
+- Make library_test.py accept json config file ([`79956dd`](https://github.com/chemelli74/aiovodafone/commit/79956dd93ce4d0778573abf19a280f8760e9cabb))
+
+
 ## v0.5.4 (2024-01-21)
 
 ### Unknown
@@ -32,15 +71,6 @@
 
 - Improve logging ([`782537e`](https://github.com/chemelli74/aiovodafone/commit/782537e50d7aef9cc4e287f6e9bcc88fea2691f1))
 - Various fixes for get_device_type ([`ec8f01f`](https://github.com/chemelli74/aiovodafone/commit/ec8f01fc4be5ea22927b985f8148002b11419e85))
-
-
-### Chore
-
-- Upgrade dependencies ([`cd24e94`](https://github.com/chemelli74/aiovodafone/commit/cd24e94c15a6535465b113e38bc94a43598d1047))
-- Pre-commit autoupdate ([`49747ad`](https://github.com/chemelli74/aiovodafone/commit/49747ad05d49348846aa7221da70032398fcdcca))
-- Pre-commit autoupdate ([`e84634e`](https://github.com/chemelli74/aiovodafone/commit/e84634e5aabf15bd17ce783ca17a5d5638ef2a83))
-- Pre-commit autoupdate ([`84397a6`](https://github.com/chemelli74/aiovodafone/commit/84397a6c8caef9f2348fb0c0f92eeb32a2899219))
-- Upgrade dependencies ([`095e0c0`](https://github.com/chemelli74/aiovodafone/commit/095e0c0292ab6e6b820507a3c506a553dbd393f8))
 
 
 ## v0.5.1 (2023-12-03)
@@ -83,15 +113,6 @@
 - Bump pytest from 7.4.2 to 7.4.3 ([`f02a0c9`](https://github.com/chemelli74/aiovodafone/commit/f02a0c9c850e91c9f9a6e6f4e8cb1194fe861449))
 
 
-### Chore
-
-- Pre-commit autoupdate ([`cdafa9f`](https://github.com/chemelli74/aiovodafone/commit/cdafa9ff361186572649d5b7b364763bef0455cc))
-- Pre-commit autoupdate ([`f45edf7`](https://github.com/chemelli74/aiovodafone/commit/f45edf790070cb15966ec3e146967b1345c7ca03))
-- Upgrade dependencies ([`8844ce1`](https://github.com/chemelli74/aiovodafone/commit/8844ce16a1aa3cde3541a95bca7eef671bf87a40))
-- Allow vscode to find poetry interpreter ([`e59ef08`](https://github.com/chemelli74/aiovodafone/commit/e59ef08eb29338c3c4c4d3971442cf015fcca241))
-- Pre-commit autoupdate ([`099878b`](https://github.com/chemelli74/aiovodafone/commit/099878bcd4963a3a897f3cd1c2f12844baeb5d76))
-
-
 ### Feature
 
 - Require aiohttp.clientsession to determine device type ([`cdb4637`](https://github.com/chemelli74/aiovodafone/commit/cdb46375d3c04b50dfb01c18ab82f1dc70607048))
@@ -106,14 +127,6 @@
 ## v0.4.2 (2023-10-26)
 
 ### Unknown
-
-### Chore
-
-- Add missing exception ([`5d90cb7`](https://github.com/chemelli74/aiovodafone/commit/5d90cb747e755d2fbdf3ece030e2ae53bd946814))
-- Apply review suggestion ([`f0529e6`](https://github.com/chemelli74/aiovodafone/commit/f0529e69a5c3147ec83bcc673e9450bccc0d3cff))
-- Pre-commit autoupdate ([`f0eecde`](https://github.com/chemelli74/aiovodafone/commit/f0eecdead23e7d3d5f5de7ed2baab16b889f382d))
-- Auto fixes ([`313bb1d`](https://github.com/chemelli74/aiovodafone/commit/313bb1db0c07b0d53b85cc933422c59d6df60d60))
-
 
 ### Fix
 
@@ -144,20 +157,9 @@
 - Add timezone to convert_uptime functions ([`d37cdbd`](https://github.com/chemelli74/aiovodafone/commit/d37cdbdca87955d4e0872aad69dd7f98351bcf91))
 
 
-### Chore
-
-- Pre-commit autoupdate ([`a84208f`](https://github.com/chemelli74/aiovodafone/commit/a84208f66124379fb949fa2520af93cc0ca2cd9a))
-
-
 ## v0.4.0 (2023-10-16)
 
 ### Unknown
-
-### Chore
-
-- Auto fixes ([`3cc53cc`](https://github.com/chemelli74/aiovodafone/commit/3cc53cc36446a934f86ef159dc6cee76616633d8))
-- Auto fixes ([`7fd6474`](https://github.com/chemelli74/aiovodafone/commit/7fd64740829afab6be2cf11549b91c2af0ed0884))
-
 
 ### Refactor
 
@@ -197,13 +199,6 @@
 - Support technicolor vodafone stations from germany ([`09989a6`](https://github.com/chemelli74/aiovodafone/commit/09989a6b83c12347fc1826a5d59da68f2a9f77b7))
 
 
-### Chore
-
-- Upgrade dependencies ([`3d16e9c`](https://github.com/chemelli74/aiovodafone/commit/3d16e9cce76b107e5cced4604e0d9be2804fb11f))
-- Pre-commit autoupdate ([`a07ff58`](https://github.com/chemelli74/aiovodafone/commit/a07ff582ef4f6a29806b1919479778eb88991edb))
-- Pre-commit autoupdate ([`328711c`](https://github.com/chemelli74/aiovodafone/commit/328711ce5899c20ffb2cb9e953d887dd4dbba9ee))
-
-
 ### Build
 
 - Bump aiohttp from 3.8.5 to 3.8.6 ([`d312246`](https://github.com/chemelli74/aiovodafone/commit/d312246728d715faec30e473306ebaaf07c920a8))
@@ -219,21 +214,9 @@
 - Make beautifulsoup parsing more robust ([`dc2d47b`](https://github.com/chemelli74/aiovodafone/commit/dc2d47b9aafcb8ada255b05640ae59f1b5cbc98b))
 
 
-### Chore
-
-- Pre-commit autoupdate ([`fb513b3`](https://github.com/chemelli74/aiovodafone/commit/fb513b3be255768276530ed44a80551cda7748c7))
-
-
 ## v0.3.0 (2023-09-20)
 
 ### Unknown
-
-### Chore
-
-- Cleanup - part ii ([`286b4e1`](https://github.com/chemelli74/aiovodafone/commit/286b4e1abbcfe96785d40734fbae3a0b709efb3a))
-- Update library_test ([`f8760aa`](https://github.com/chemelli74/aiovodafone/commit/f8760aa2c3d58d001c6154819b5c516d9e3cff86))
-- Better approach ([`9f0a491`](https://github.com/chemelli74/aiovodafone/commit/9f0a491cffee4cb808ad93895489be7dc6268079))
-
 
 ### Build
 
@@ -243,19 +226,6 @@
 ## v0.2.1 (2023-09-19)
 
 ### Unknown
-
-### Chore
-
-- Auto fixes ([`3c1f163`](https://github.com/chemelli74/aiovodafone/commit/3c1f1631dc906801e778aec7ad40dc2e51d53607))
-- Revert manual updates ([`8205c82`](https://github.com/chemelli74/aiovodafone/commit/8205c821a89f7c6aa66f93d81a5a9b49512467d5))
-- Auto fixes ([`3a0643f`](https://github.com/chemelli74/aiovodafone/commit/3a0643fecd459345437c82072ada5d7627d1a0aa))
-- Pre-commit autoupdate ([`5dddce3`](https://github.com/chemelli74/aiovodafone/commit/5dddce3b79786130a44d9bb07955013a7edaae64))
-- Logging restarts ([`e77d9b8`](https://github.com/chemelli74/aiovodafone/commit/e77d9b8f6b55cda5598f3a43dcfb735fa7066d70))
-- Small cleanup ([`e870036`](https://github.com/chemelli74/aiovodafone/commit/e8700364ef5861407bf7b9c297bcb8642e5fc239))
-- Apply review comments ([`01f4de2`](https://github.com/chemelli74/aiovodafone/commit/01f4de2ce15435db6874b1b4961a6e96c57d1dcf))
-- Auto fixes ([`135d212`](https://github.com/chemelli74/aiovodafone/commit/135d2122ac63d0d7d397454e9eef1682430137e8))
-- Small cleanup ([`71e8867`](https://github.com/chemelli74/aiovodafone/commit/71e88677a20179afdfe557e29f5261428ad24083))
-
 
 ### Build
 
@@ -278,15 +248,6 @@
 ## v0.2.0 (2023-09-10)
 
 ### Unknown
-
-### Chore
-
-- Pre-commit autoupdate ([`b4b8bcc`](https://github.com/chemelli74/aiovodafone/commit/b4b8bcc5c6c78c2aa227cd72573cbdce5aea80bd))
-- Add dependabot ([`79a6c38`](https://github.com/chemelli74/aiovodafone/commit/79a6c387d5c785796b5c7774304cbcd630b49910))
-- Add comment ([`a4aca3a`](https://github.com/chemelli74/aiovodafone/commit/a4aca3a4c5e66ec499c48d579a7c436c0cd624ac))
-- Upgrade dependencies ([`e363006`](https://github.com/chemelli74/aiovodafone/commit/e3630065c2ec82e759ee0234d11f6ce421677162))
-- Safeguard restarts functions ([`fa71105`](https://github.com/chemelli74/aiovodafone/commit/fa71105e9b33f378db9df99a5fa9565321920f1e))
-
 
 ### Build
 
@@ -322,12 +283,6 @@
 - Full sensor data, restart connection/router ([`3f40512`](https://github.com/chemelli74/aiovodafone/commit/3f40512e5170bb3e1173ceafa6d7d44ee02a45eb))
 
 
-### Chore
-
-- Code optimization &amp; cleanup ([`e17d579`](https://github.com/chemelli74/aiovodafone/commit/e17d579dc868c247e72cdf2c8123d4092313f7f8))
-- Code optimization &amp; cleanup ([`8b99aab`](https://github.com/chemelli74/aiovodafone/commit/8b99aabaf5ab3b549425a016d42bee1ad668ffd6))
-
-
 ## v0.0.8 (2023-09-05)
 
 ### Fix
@@ -339,14 +294,6 @@
 ### Unknown
 
 ## v0.0.7 (2023-09-05)
-
-### Chore
-
-- Fix no-commit-to-branch (ci) ([`c71d9b7`](https://github.com/chemelli74/aiovodafone/commit/c71d9b7205f2a690a82b1bbb4966d7cd9a45ba49))
-- Fix no-commit-to-branch (ci) ([`f3d1600`](https://github.com/chemelli74/aiovodafone/commit/f3d1600c6eb5c69f2c07310646b9871dcc0caeb5))
-- Upgrade dependencies ([`14983e4`](https://github.com/chemelli74/aiovodafone/commit/14983e4203c83099578a36a654cfe3dca48b8a60))
-- Pre-commit additional hooks ([`1ec2fb4`](https://github.com/chemelli74/aiovodafone/commit/1ec2fb4fef8af18c9547a827ac1afa86986a89bc))
-
 
 ### Fix
 
@@ -363,11 +310,6 @@
 - Poetry lock ([`b489804`](https://github.com/chemelli74/aiovodafone/commit/b4898044c77a6172cc28796f57832951cf2281f2))
 
 
-### Chore
-
-- Improve login ([`605cd37`](https://github.com/chemelli74/aiovodafone/commit/605cd3744eaf44262f379e15d52b49f97a4da650))
-
-
 ## v0.0.5 (2023-07-28)
 
 ### Fix
@@ -375,11 +317,6 @@
 - Improve login handling ([`e50cf1a`](https://github.com/chemelli74/aiovodafone/commit/e50cf1a8ebf47b2088d9e43d321b6b18329d97bb))
 - Stop script if login fails ([`3a31c02`](https://github.com/chemelli74/aiovodafone/commit/3a31c025660443c3455f5d3e2acab4721c34a0be))
 - Drop python 3.9 ([`dd2ecb6`](https://github.com/chemelli74/aiovodafone/commit/dd2ecb66a9d5be687c4c576ae3e806f24791d6a5))
-
-
-### Chore
-
-- Improve login handling ([`8e5ca41`](https://github.com/chemelli74/aiovodafone/commit/8e5ca410cf2842613f3e54ce8d1618e7f34a413a))
 
 
 ### Unknown
@@ -396,14 +333,6 @@
 
 ### Unknown
 
-### Chore
-
-- Coverage ([`1c4939d`](https://github.com/chemelli74/aiovodafone/commit/1c4939dfe40ddea046f17bbd4366f848915dc565))
-- Coverage ([`681171e`](https://github.com/chemelli74/aiovodafone/commit/681171e78a637ac258e917b11bfacccefe40c9b0))
-- Tweaks ([`0d740b8`](https://github.com/chemelli74/aiovodafone/commit/0d740b86f64152c0b55f7709a4dd4c21ee3cd73b))
-- Initial commit ([`1c07f18`](https://github.com/chemelli74/aiovodafone/commit/1c07f186c52f4321feabee6f03308c5d8c87b0ff))
-
-
 ### Build
 
 - 0.0.2 ([`213850d`](https://github.com/chemelli74/aiovodafone/commit/213850dd9e547838a77b1aab06d15eb532292871))
@@ -413,3 +342,4 @@
 ### Refactor
 
 - Logout/close ([`8d053c3`](https://github.com/chemelli74/aiovodafone/commit/8d053c329dbb349728bcd642803d3bd446551b16))
+
