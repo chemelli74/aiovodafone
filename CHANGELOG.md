@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.6.1 (2024-06-24)
+
+### Fix
+
+- Fix license classifier (#131) ([`f929cfc`](https://github.com/chemelli74/aiovodafone/commit/f929cfc8e62610953bd20780eafe9023a5e86647))
+
+
+### Unknown
+
+### Build
+
+- Bump pytest from 8.2.1 to 8.2.2 ([`849cafc`](https://github.com/chemelli74/aiovodafone/commit/849cafc9230aa38f6b67544e4db0b952b3b32302))
+- Bump pytest from 8.2.0 to 8.2.1 ([`eff402e`](https://github.com/chemelli74/aiovodafone/commit/eff402ef05f0cc298a18df197f686e4b8a523917))
+- Bump pytest from 8.1.1 to 8.2.0 ([`12cebbb`](https://github.com/chemelli74/aiovodafone/commit/12cebbb29730ebf6a470052fdba30c5b87ad8aa3))
+
+
 ## v0.6.0 (2024-04-28)
 
 ### Unknown
