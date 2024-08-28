@@ -8,6 +8,7 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
 import aiohttp
+
 from aiovodafone.api import (
     VodafoneStationCommonApi,
     VodafoneStationSercommApi,
