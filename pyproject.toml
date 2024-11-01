@@ -3,6 +3,7 @@ name = "aiovodafone"
 version = "0.6.1"
 description = "Python library to control Vodafone Station"
 authors = ["Simone Chemelli <simone.chemelli@gmail.com>"]
+license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/chemelli74/aiovodafone"
 classifiers = [
@@ -11,7 +12,6 @@ classifiers = [
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Topic :: Software Development :: Libraries",
-    "License :: OSI Approved :: Apache Software License",
 ]
 packages = [
     { include = "aiovodafone", from = "src" },
