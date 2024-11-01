@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.1 (2024-11-01)
+
+### Bug fixes
+
+- Fix license classifier (#177) ([`4e15884`](https://github.com/chemelli74/aiovodafone/commit/4e15884397fd9714c3d7599d74f289b51dfc1c2d))
+
+
 ## v0.7.0 (2024-11-01)
 
 ### Build system
