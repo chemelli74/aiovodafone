@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aiovodafone"
-version = "0.6.1"
+version = "0.7.0"
 description = "Python library to control Vodafone Station"
 authors = ["Simone Chemelli <simone.chemelli@gmail.com>"]
 readme = "README.md"
