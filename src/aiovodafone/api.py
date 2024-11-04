@@ -168,14 +168,14 @@ class VodafoneStationCommonApi(ABC):
             allow_redirects=False,
         )
 
-    @abstractmethod
-    def convert_uptime(self, uptime: str) -> datetime:
-        """Convert uptime to datetime."""
-
     async def close(self) -> None:
         """Router close session."""
         if hasattr(self, "session"):
             await self.session.close()
+
+    @abstractmethod
+    def convert_uptime(self, uptime: str) -> datetime:
+        """Convert uptime to datetime."""
 
     @abstractmethod
     async def login(self) -> bool:
@@ -188,6 +188,14 @@ class VodafoneStationCommonApi(ABC):
     @abstractmethod
     async def get_sensor_data(self) -> dict[Any, Any]:
         """Get router sensor data."""
+
+    @abstractmethod
+    async def get_docis_data(self) -> dict[Any, Any]:
+        """Get router docis data."""
+
+    @abstractmethod
+    async def get_voice_data(self) -> dict[Any, Any]:
+        """Get router voice data."""
 
     @abstractmethod
     async def logout(self) -> None:
@@ -230,9 +238,15 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             1000,
         ).hex()[:32]
 
+    def convert_uptime(self, uptime: str) -> datetime:
+        """Convert uptime to datetime."""
+        return datetime.now(tz=UTC) - timedelta(
+            seconds=int(uptime),
+        )
+
     async def login(self) -> bool:
         """Router login."""
-        _LOGGER.debug("Logging into %s", self.host)
+        _LOGGER.debug(f"Logging into {self.host}")
         self._client_session()
 
         _LOGGER.debug("Get salt for login")
@@ -278,11 +292,12 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         """
         _LOGGER.debug("Get hosts")
-        host_response = await self._get_page_result("/api/v1/host/hostTbl")
-        host_json = await host_response.json()
+        response = await self._get_page_result("/api/v1/host/hostTbl")
+        response_json = await response.json()
+        _LOGGER.debug(f"GET reply ({response_json})")
 
         devices_dict = {}
-        for device in host_json["data"]["hostTbl"]:
+        for device in response_json["data"]["hostTbl"]:
             connected = device["active"] == "true"
             connection_type = (
                 "WiFi" if "WiFi" in device["layer1interface"] else "Ethernet"
@@ -308,22 +323,92 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
     async def get_sensor_data(self) -> dict[Any, Any]:
         """Get all sensors data."""
-        status_response = await self._get_page_result("/api/v1/sta_status")
-        status_json = await status_response.json()
-        _LOGGER.debug("GET reply (%s)", status_json)
+        _LOGGER.debug("Get sensors")
+        response = await self._get_page_result("/api/v1/sta_status")
+        response_json = await response.json()
+        _LOGGER.debug(f"GET reply ({response_json})")
 
         data = {}
-        data["sys_serial_number"] = status_json["data"]["serialnumber"]
-        data["sys_firmware_version"] = status_json["data"]["firmwareversion"]
-        data["sys_hardware_version"] = status_json["data"]["hardwaretype"]
-        data["sys_uptime"] = status_json["data"]["uptime"]
+        data["wan_status"] = response_json["data"]["WANStatus"]
+        data["cm_status"] = response_json["data"]["CMStatus"]
+        data["cm_mode"] = response_json["data"]["LanMode"]
+        data["sys_serial_number"] = response_json["data"]["serialnumber"]
+        data["sys_firmware_version"] = response_json["data"]["firmwareversion"]
+        data["sys_hardware_version"] = response_json["data"]["hardwaretype"]
+        data["sys_uptime"] = response_json["data"]["uptime"]
         return data
 
-    def convert_uptime(self, uptime: str) -> datetime:
-        """Convert uptime to datetime."""
-        return datetime.now(tz=UTC) - timedelta(
-            seconds=int(uptime),
-        )
+    async def get_docis_data(self) -> dict[Any, Any]:
+        """Get docis data."""
+        _LOGGER.debug("Get docis data")
+        response = await self._get_page_result("/api/v1/sta_docsis_status")
+        response_json = await response.json()
+        _LOGGER.debug(f"GET reply ({response_json})")
+
+        data = {"downstream": {}, "upstream": {}}  # type: dict[Any, Any]
+
+        # OFDM Downtream
+        for channel in response_json["data"]["ofdm_downstream"]:
+            data["downstream"][channel["channelid_ofdm"]] = {
+                "channel_type": channel["ChannelType"],
+                "channel_frequency": channel["start_frequency"],
+                "channel_modulation": channel["FFT_ofdm"],
+                "channel_signal": channel["power_ofdm"],
+                "channel_locked": channel["locked_ofdm"],
+            }
+
+        # Downtream
+        for channel in response_json["data"]["downstream"]:
+            data["downstream"][channel["channelid"]] = {
+                "channel_type": channel["ChannelType"],
+                "channel_frequency": channel["CentralFrequency"],
+                "channel_modulation": channel["FFT"],
+                "channel_signal": channel["power"],
+                "channel_locked": channel["locked"],
+            }
+
+        # OFDMA upstream
+        for channel in response_json["data"]["ofdma_upstream"]:
+            data["upstream"][channel["channelidup"]] = {
+                "channel_type": channel["ChannelType"],
+                "channel_frequency": channel["start_frequency"],
+                "channel_modulation": channel["FFT"],
+                "channel_signal": channel["power"],
+                "channel_locked": channel["RangingStatus"],
+            }
+
+        # Upstream
+        for channel in response_json["data"]["upstream"]:
+            data["upstream"][channel["channelidup"]] = {
+                "channel_type": channel["ChannelType"],
+                "channel_frequency": channel["CentralFrequency"],
+                "channel_modulation": channel["FFT"],
+                "channel_signal": channel["power"],
+                "channel_locked": channel["RangingStatus"],
+            }
+
+        data["status"] = response_json["data"]["operational"]
+        return data
+
+    async def get_voice_data(self) -> dict[Any, Any]:
+        """Get voice data."""
+        _LOGGER.debug("Get voice data")
+        response = await self._get_page_result("/api/v1/sta_voice_status")
+        response_json = await response.json()
+        _LOGGER.debug(f"GET reply ({response_json})")
+
+        data = {"line1": {}, "line2": {}}  # type: dict[Any, Any]
+
+        for line in ["1", "2"]:
+            data[f"line{line}"] = {
+                "line_number": response_json["data"][f"callnumber{line}"],
+                "line_status": response_json["data"][f"LineStatus{line}"],
+                "status": response_json["data"][f"status{line}"],
+            }
+        data["general"] = {
+            "status": response_json["data"]["DocsisStatus"],
+        }
+        return data
 
     async def logout(self) -> None:
         """Router logout."""
@@ -482,71 +567,38 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
         raise GenericLoginError
 
-    async def get_sensor_data(self) -> dict[Any, Any]:
-        """Load user_data page information."""
-        _LOGGER.debug("Getting sensor data for host %s", self.host)
-
-        reply_dict_1 = await self._get_sercomm_page("/data/user_data.json")
-        reply_dict_2 = await self._get_sercomm_page("/data/statussupportstatus.json")
-        reply_dict_3 = await self._get_sercomm_page("/data/statussupportrestart.json")
-
-        return reply_dict_1 | reply_dict_2 | reply_dict_3 | self._overview
-
-    async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
-        """Get all connected devices."""
-        _LOGGER.debug("Getting all devices for host %s", self.host)
-        return_dict = await self._get_sercomm_page("/data/overview.json")
-
-        # Cleanup sensor data from devices in order to be merged later
-        self._overview.update(return_dict)
-        for info in ["wifi_user", "wifi_guest", "ethernet"]:
-            if info in self._overview:
-                self._overview.pop(info)
-
-        if (
-            "wifi_user" not in return_dict
-            and "wifi_guest" not in return_dict
-            and "ethernet" not in return_dict
-        ):
-            _LOGGER.info("No device in response from %s", self.host)
-            return self._devices
-
-        arr_devices = []
-        arr_wifi_user = return_dict["wifi_user"].split(";")
-        arr_wifi_user = filter(lambda x: x.strip() != "", arr_wifi_user)
-        arr_wifi_user = ["Wifi (Main)|" + dev for dev in arr_wifi_user]
-        arr_wifi_guest = return_dict["wifi_guest"].split(";")
-        arr_wifi_guest = filter(lambda x: x.strip() != "", arr_wifi_guest)
-        arr_wifi_guest = ["[Wifi (Guest)|" + dev for dev in arr_wifi_guest]
-        arr_devices.append(arr_wifi_user)
-        arr_devices.append(arr_wifi_guest)
-        arr_ethernet = return_dict["ethernet"].split(";")
-        arr_ethernet = filter(lambda x: x.strip() != "", arr_ethernet)
-        arr_ethernet = ["Ethernet|on|" + dev + "|||" for dev in arr_ethernet]
-        arr_devices.append(arr_ethernet)
-        arr_devices = [item for sublist in arr_devices for item in sublist]
-        _LOGGER.debug("Array of devices: %s", arr_devices)
-
-        for device_line in arr_devices:
-            device_fields: list[Any] = device_line.split("|")
-            wifi_band = (
-                device_fields[7] if len(device_fields) == FULL_FIELDS_NUM else ""
+    async def restart_connection(self, connection_type: str) -> None:
+        """Internet Connection restart."""
+        _LOGGER.debug(
+            "Restarting %s connection for router %s",
+            connection_type,
+            self.host,
+        )
+        payload = {f"{connection_type}_reconnect": "1"}
+        try:
+            if not await self._check_logged_in():
+                await self.login()
+            await self._post_sercomm_page("/data/statussupportrestart.json", payload)
+        except aiohttp.ClientResponseError as ex:
+            _LOGGER.debug(
+                'Client response error for "restart_connection" is: %s',
+                ex.message,
             )
-            try:
-                dev_info = VodafoneStationDevice(
-                    connection_type=device_fields[0],
-                    connected=device_fields[1] == "on",
-                    type=device_fields[2],
-                    name=device_fields[3],
-                    mac=device_fields[4],
-                    ip_address=device_fields[5],
-                    wifi=wifi_band,
-                )
-                self._devices[dev_info.mac] = dev_info
-            except (KeyError, IndexError):
-                _LOGGER.warning("Error processing line: %s", device_line)
+            # Some models dump a text reply with wrong HTML headers
+            # as reply to a reconnection request
+            if not ex.message.startswith("Invalid header token"):
+                raise
 
-        return self._devices
+    async def restart_router(self) -> None:
+        """Router restart."""
+        _LOGGER.debug("Restarting router %s", self.host)
+        payload = {"restart_device": "1"}
+        try:
+            if not await self._check_logged_in():
+                await self.login()
+            await self._post_sercomm_page("/data/statussupportrestart.json", payload, 2)
+        except asyncio.exceptions.TimeoutError:
+            pass
 
     def convert_uptime(self, uptime: str) -> datetime:
         """Convert router uptime to last boot datetime."""
@@ -610,38 +662,79 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
         return logged
 
-    async def restart_connection(self, connection_type: str) -> None:
-        """Internet Connection restart."""
-        _LOGGER.debug(
-            "Restarting %s connection for router %s",
-            connection_type,
-            self.host,
-        )
-        payload = {f"{connection_type}_reconnect": "1"}
-        try:
-            if not await self._check_logged_in():
-                await self.login()
-            await self._post_sercomm_page("/data/statussupportrestart.json", payload)
-        except aiohttp.ClientResponseError as ex:
-            _LOGGER.debug(
-                'Client response error for "restart_connection" is: %s',
-                ex.message,
-            )
-            # Some models dump a text reply with wrong HTML headers
-            # as reply to a reconnection request
-            if not ex.message.startswith("Invalid header token"):
-                raise
+    async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
+        """Get all connected devices."""
+        _LOGGER.debug("Getting all devices for host %s", self.host)
+        return_dict = await self._get_sercomm_page("/data/overview.json")
 
-    async def restart_router(self) -> None:
-        """Router restart."""
-        _LOGGER.debug("Restarting router %s", self.host)
-        payload = {"restart_device": "1"}
-        try:
-            if not await self._check_logged_in():
-                await self.login()
-            await self._post_sercomm_page("/data/statussupportrestart.json", payload, 2)
-        except asyncio.exceptions.TimeoutError:
-            pass
+        # Cleanup sensor data from devices in order to be merged later
+        self._overview.update(return_dict)
+        for info in ["wifi_user", "wifi_guest", "ethernet"]:
+            if info in self._overview:
+                self._overview.pop(info)
+
+        if (
+            "wifi_user" not in return_dict
+            and "wifi_guest" not in return_dict
+            and "ethernet" not in return_dict
+        ):
+            _LOGGER.info("No device in response from %s", self.host)
+            return self._devices
+
+        arr_devices = []
+        arr_wifi_user = return_dict["wifi_user"].split(";")
+        arr_wifi_user = filter(lambda x: x.strip() != "", arr_wifi_user)
+        arr_wifi_user = ["Wifi (Main)|" + dev for dev in arr_wifi_user]
+        arr_wifi_guest = return_dict["wifi_guest"].split(";")
+        arr_wifi_guest = filter(lambda x: x.strip() != "", arr_wifi_guest)
+        arr_wifi_guest = ["[Wifi (Guest)|" + dev for dev in arr_wifi_guest]
+        arr_devices.append(arr_wifi_user)
+        arr_devices.append(arr_wifi_guest)
+        arr_ethernet = return_dict["ethernet"].split(";")
+        arr_ethernet = filter(lambda x: x.strip() != "", arr_ethernet)
+        arr_ethernet = ["Ethernet|on|" + dev + "|||" for dev in arr_ethernet]
+        arr_devices.append(arr_ethernet)
+        arr_devices = [item for sublist in arr_devices for item in sublist]
+        _LOGGER.debug("Array of devices: %s", arr_devices)
+
+        for device_line in arr_devices:
+            device_fields: list[Any] = device_line.split("|")
+            wifi_band = (
+                device_fields[7] if len(device_fields) == FULL_FIELDS_NUM else ""
+            )
+            try:
+                dev_info = VodafoneStationDevice(
+                    connection_type=device_fields[0],
+                    connected=device_fields[1] == "on",
+                    type=device_fields[2],
+                    name=device_fields[3],
+                    mac=device_fields[4],
+                    ip_address=device_fields[5],
+                    wifi=wifi_band,
+                )
+                self._devices[dev_info.mac] = dev_info
+            except (KeyError, IndexError):
+                _LOGGER.warning("Error processing line: %s", device_line)
+
+        return self._devices
+
+    async def get_sensor_data(self) -> dict[Any, Any]:
+        """Load user_data page information."""
+        _LOGGER.debug("Getting sensor data for host %s", self.host)
+
+        reply_dict_1 = await self._get_sercomm_page("/data/user_data.json")
+        reply_dict_2 = await self._get_sercomm_page("/data/statussupportstatus.json")
+        reply_dict_3 = await self._get_sercomm_page("/data/statussupportrestart.json")
+
+        return reply_dict_1 | reply_dict_2 | reply_dict_3 | self._overview
+
+    async def get_docis_data(self) -> dict[Any, Any]:
+        """Get docis data."""
+        return {}
+
+    async def get_voice_data(self) -> dict[Any, Any]:
+        """Get voice data."""
+        return {}
 
     async def logout(self) -> None:
         """Router logout."""
