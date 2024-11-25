@@ -16,12 +16,12 @@ from .exceptions import (
 )
 
 __all__ = [
+    "AlreadyLogged",
+    "CannotAuthenticate",
+    "CannotConnect",
+    "ModelNotSupported",
+    "VodafoneError",
     "VodafoneStationDevice",
     "VodafoneStationSercommApi",
     "VodafoneStationTechnicolorApi",
-    "VodafoneError",
-    "AlreadyLogged",
-    "CannotConnect",
-    "CannotAuthenticate",
-    "ModelNotSupported",
 ]
