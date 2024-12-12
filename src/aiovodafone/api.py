@@ -190,6 +190,14 @@ class VodafoneStationCommonApi(ABC):
         """Get router sensor data."""
 
     @abstractmethod
+    async def get_docis_data(self) -> dict[Any, Any]:
+        """Get router docis data."""
+
+    @abstractmethod
+    async def get_voice_data(self) -> dict[Any, Any]:
+        """Get router voice data."""
+
+    @abstractmethod
     async def logout(self) -> None:
         """Router logout."""
 
@@ -317,6 +325,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         data["sys_firmware_version"] = status_json["data"]["firmwareversion"]
         data["sys_hardware_version"] = status_json["data"]["hardwaretype"]
         data["sys_uptime"] = status_json["data"]["uptime"]
+        data["wan_status"] = status_json["data"]["WANStatus"]
+        data["cm_status"] = status_json["data"]["CMStatus"]
+        data["cm_mode"] = status_json["data"]["LanMode"]
         return data
 
     def convert_uptime(self, uptime: str) -> datetime:
@@ -324,6 +335,78 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         return datetime.now(tz=UTC) - timedelta(
             seconds=int(uptime),
         )
+
+    async def get_docis_data(self) -> dict[Any, Any]:
+        """Get docis data."""
+        _LOGGER.debug("Get docis data")
+        response = await self._get_page_result("/api/v1/sta_docsis_status")
+        response_json = await response.json()
+        _LOGGER.debug(f"GET reply ({response_json})")
+
+        data = {"downstream": {}, "upstream": {}}  # type: dict[Any, Any]
+
+        # OFDM Downtream
+        for channel in response_json["data"]["ofdm_downstream"]:
+            data["downstream"][channel["channelid_ofdm"]] = {
+                "channel_type": channel["ChannelType"],
+                "channel_frequency": channel["start_frequency"],
+                "channel_modulation": channel["FFT_ofdm"],
+                "channel_signal": channel["power_ofdm"],
+                "channel_locked": channel["locked_ofdm"],
+            }
+
+        # Downtream
+        for channel in response_json["data"]["downstream"]:
+            data["downstream"][channel["channelid"]] = {
+                "channel_type": channel["ChannelType"],
+                "channel_frequency": channel["CentralFrequency"],
+                "channel_modulation": channel["FFT"],
+                "channel_signal": channel["power"],
+                "channel_locked": channel["locked"],
+            }
+
+        # OFDMA upstream
+        for channel in response_json["data"]["ofdma_upstream"]:
+            data["upstream"][channel["channelidup"]] = {
+                "channel_type": channel["ChannelType"],
+                "channel_frequency": channel["start_frequency"],
+                "channel_modulation": channel["FFT"],
+                "channel_signal": channel["power"],
+                "channel_locked": channel["RangingStatus"],
+            }
+
+        # Upstream
+        for channel in response_json["data"]["upstream"]:
+            data["upstream"][channel["channelidup"]] = {
+                "channel_type": channel["ChannelType"],
+                "channel_frequency": channel["CentralFrequency"],
+                "channel_modulation": channel["FFT"],
+                "channel_signal": channel["power"],
+                "channel_locked": channel["RangingStatus"],
+            }
+
+        data["status"] = response_json["data"]["operational"]
+        return data
+
+    async def get_voice_data(self) -> dict[Any, Any]:
+        """Get voice data."""
+        _LOGGER.debug("Get voice data")
+        response = await self._get_page_result("/api/v1/sta_voice_status")
+        response_json = await response.json()
+        _LOGGER.debug(f"GET reply ({response_json})")
+
+        data = {"line1": {}, "line2": {}}  # type: dict[Any, Any]
+
+        for line in ["1", "2"]:
+            data[f"line{line}"] = {
+                "line_number": response_json["data"][f"callnumber{line}"],
+                "line_status": response_json["data"][f"LineStatus{line}"],
+                "status": response_json["data"][f"status{line}"],
+            }
+        data["general"] = {
+            "status": response_json["data"]["DocsisStatus"],
+        }
+        return data
 
     async def logout(self) -> None:
         """Router logout."""
@@ -547,6 +630,14 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
                 _LOGGER.warning("Error processing line: %s", device_line)
 
         return self._devices
+
+    async def get_docis_data(self) -> dict[Any, Any]:
+        """Get docis data."""
+        return {}
+
+    async def get_voice_data(self) -> dict[Any, Any]:
+        """Get voice data."""
+        return {}
 
     def convert_uptime(self, uptime: str) -> datetime:
         """Convert router uptime to last boot datetime."""
