@@ -343,7 +343,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         response_json = await response.json()
         _LOGGER.debug(f"GET reply ({response_json})")
 
-        data = {"downstream": {}, "upstream": {}}  # type: dict[Any, Any]
+        data: dict[str, Any] = {"downstream": {}, "upstream": {}}
 
         # OFDM Downtream
         for channel in response_json["data"]["ofdm_downstream"]:
