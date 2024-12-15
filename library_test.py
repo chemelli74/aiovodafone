@@ -125,7 +125,7 @@ async def main() -> None:
     print("Uptime  :", api.convert_uptime(data["sys_uptime"]))
     print("WAN status:", data.get("wan_status"))
     print("Cable modem status:", data.get("cm_status"))
-    print("Cable modem mode:", data.get("cm_mode"))
+    print("LAN mode:", data.get("lan_mode"))
     print("-" * 20)
     data = await api.get_docis_data()
     print("Docis data:", data)
