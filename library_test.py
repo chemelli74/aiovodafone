@@ -131,10 +131,28 @@ async def main() -> None:
     print("-" * 20)
     data = await api.get_docis_data()
     print(f"Docis data: {data}")
+    print("-" * 20)
+    for which in ["downstream", "upstream"]:
+        print(f"{which}")
+        for channel in data[which]:
+            print(f"{channel}:")
+            print(f"{'Type:':>15} {data[which][channel]['channel_type']}")
+            print(f"{'Frequency:':>15} {data[which][channel]['channel_frequency']}")
+            print(f"{'Modulation:':>15} {data[which][channel]['channel_modulation']}")
+            print(f"{'Power:':>15} {data[which][channel]['channel_power']}")
+            print(f"{'Locked:':>15} {data[which][channel]['channel_locked']}")
 
     print("-" * 20)
     data = await api.get_voice_data()
     print(f"Voice data: {data}")
+    print("-" * 20)
+    print(f"{'VoIP status:':>15} {data['general']['status']}")
+    print(f"{'Line1:':>15} {data['line1']['status']}")
+    print(f"{'Line1 number:':>15} {data['line1']['call_number']}")
+    print(f"{'Line1 status:':>15} {data['line1']['line_status']}")
+    print(f"{'Line2:':>15} {data['line2']['status']}")
+    print(f"{'Line2 number:':>15} {data['line2']['call_number']}")
+    print(f"{'Line2 status:':>15} {data['line2']['line_status']}")
 
     print("-" * 20)
     print("Logout & close session")
