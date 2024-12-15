@@ -327,7 +327,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         data["sys_uptime"] = status_json["data"]["uptime"]
         data["wan_status"] = status_json["data"]["WANStatus"]
         data["cm_status"] = status_json["data"]["CMStatus"]
-        data["cm_mode"] = status_json["data"]["LanMode"]
+        data["lan_mode"] = status_json["data"]["LanMode"]
         return data
 
     def convert_uptime(self, uptime: str) -> datetime:
