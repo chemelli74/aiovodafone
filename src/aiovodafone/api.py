@@ -351,7 +351,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
                 "channel_type": channel["ChannelType"],
                 "channel_frequency": channel["start_frequency"],
                 "channel_modulation": channel["FFT_ofdm"],
-                "channel_signal": channel["power_ofdm"],
+                "channel_power": channel["power_ofdm"],
                 "channel_locked": channel["locked_ofdm"],
             }
 
