@@ -92,19 +92,19 @@ async def main() -> None:
         try:
             await api.login()
         except ModelNotSupported:
-            print("Model is not supported yet for router", api.host)
+            print(f"Model is not supported yet for router {api.host}")
             raise
         except CannotAuthenticate:
-            print("Cannot authenticate to router", api.host)
+            print(f"Cannot authenticate to router {api.host}")
             raise
         except CannotConnect:
-            print("Cannot connect to router", api.host)
+            print(f"Cannot connect to router {api.host}")
             raise
         except AlreadyLogged:
-            print("Only one user at a time can connect to router", api.host)
+            print(f"Only one user at a time can connect to router {api.host}")
             raise
         except GenericLoginError:
-            print("Unable to login to router", api.host)
+            print(f"Unable to login to router {api.host}")
             raise
     except VodafoneError:
         await api.close()
@@ -114,24 +114,28 @@ async def main() -> None:
 
     print("-" * 20)
     devices = await api.get_devices_data()
-    print("Devices:", devices)
+    print(f"Devices: {devices}")
+
     print("-" * 20)
     data = await api.get_sensor_data()
-    print("Sensor Data:", data)
+    print(f"Sensor data: {data}")
     print("-" * 20)
-    print("Serial #:", data["sys_serial_number"])
-    print("Firmware:", data["sys_firmware_version"])
-    print("Hardware:", data["sys_hardware_version"])
-    print("Uptime  :", api.convert_uptime(data["sys_uptime"]))
-    print("WAN status:", data.get("wan_status"))
-    print("Cable modem status:", data.get("cm_status"))
-    print("LAN mode:", data.get("lan_mode"))
+    print(f"Serial #: {data['sys_serial_number']}")
+    print(f"Firmware: {data['sys_firmware_version']}")
+    print(f"Hardware: {data['sys_hardware_version']}")
+    print(f"Uptime  : {api.convert_uptime(data['sys_uptime'])}")
+    print(f"WAN status        : {data.get('wan_status')}")
+    print(f"Cable modem status: {data.get('cm_status')}")
+    print(f"LAN mode          : {data.get('lan_mode')}")
+
     print("-" * 20)
     data = await api.get_docis_data()
-    print("Docis data:", data)
+    print(f"Docis data: {data}")
+
     print("-" * 20)
     data = await api.get_voice_data()
-    print("Voice data:", data)
+    print(f"Voice data: {data}")
+
     print("-" * 20)
     print("Logout & close session")
     await api.logout()
