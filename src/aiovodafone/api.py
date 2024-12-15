@@ -399,7 +399,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         for line in ["1", "2"]:
             data[f"line{line}"] = {
-                "line_number": response_json["data"][f"callnumber{line}"],
+                "call_number": response_json["data"][f"callnumber{line}"],
                 "line_status": response_json["data"][f"LineStatus{line}"],
                 "status": response_json["data"][f"status{line}"],
             }
