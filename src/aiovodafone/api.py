@@ -395,7 +395,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         response_json = await response.json()
         _LOGGER.debug(f"GET reply ({response_json})")
 
-        data = {"line1": {}, "line2": {}}  # type: dict[Any, Any]
+        data: dict[str, Any] = {"line1": {}, "line2": {}}
 
         for line in ["1", "2"]:
             data[f"line{line}"] = {
