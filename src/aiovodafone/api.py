@@ -168,14 +168,14 @@ class VodafoneStationCommonApi(ABC):
             allow_redirects=False,
         )
 
-    @abstractmethod
-    def convert_uptime(self, uptime: str) -> datetime:
-        """Convert uptime to datetime."""
-
     async def close(self) -> None:
         """Router close session."""
         if hasattr(self, "session"):
             await self.session.close()
+
+    @abstractmethod
+    def convert_uptime(self, uptime: str) -> datetime:
+        """Convert uptime to datetime."""
 
     @abstractmethod
     async def login(self) -> bool:
@@ -237,6 +237,12 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             bytes(salt_web_ui, "utf-8"),
             1000,
         ).hex()[:32]
+
+    def convert_uptime(self, uptime: str) -> datetime:
+        """Convert uptime to datetime."""
+        return datetime.now(tz=UTC) - timedelta(
+            seconds=int(uptime),
+        )
 
     async def login(self) -> bool:
         """Router login."""
@@ -329,12 +335,6 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         data["cm_status"] = status_json["data"]["CMStatus"]
         data["lan_mode"] = status_json["data"]["LanMode"]
         return data
-
-    def convert_uptime(self, uptime: str) -> datetime:
-        """Convert uptime to datetime."""
-        return datetime.now(tz=UTC) - timedelta(
-            seconds=int(uptime),
-        )
 
     async def get_docis_data(self) -> dict[Any, Any]:
         """Get docis data."""
@@ -565,80 +565,6 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
         raise GenericLoginError
 
-    async def get_sensor_data(self) -> dict[Any, Any]:
-        """Load user_data page information."""
-        _LOGGER.debug("Getting sensor data for host %s", self.host)
-
-        reply_dict_1 = await self._get_sercomm_page("/data/user_data.json")
-        reply_dict_2 = await self._get_sercomm_page("/data/statussupportstatus.json")
-        reply_dict_3 = await self._get_sercomm_page("/data/statussupportrestart.json")
-
-        return reply_dict_1 | reply_dict_2 | reply_dict_3 | self._overview
-
-    async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
-        """Get all connected devices."""
-        _LOGGER.debug("Getting all devices for host %s", self.host)
-        return_dict = await self._get_sercomm_page("/data/overview.json")
-
-        # Cleanup sensor data from devices in order to be merged later
-        self._overview.update(return_dict)
-        for info in ["wifi_user", "wifi_guest", "ethernet"]:
-            if info in self._overview:
-                self._overview.pop(info)
-
-        if (
-            "wifi_user" not in return_dict
-            and "wifi_guest" not in return_dict
-            and "ethernet" not in return_dict
-        ):
-            _LOGGER.info("No device in response from %s", self.host)
-            return self._devices
-
-        arr_devices = []
-        arr_wifi_user = return_dict["wifi_user"].split(";")
-        arr_wifi_user = filter(lambda x: x.strip() != "", arr_wifi_user)
-        arr_wifi_user = ["Wifi (Main)|" + dev for dev in arr_wifi_user]
-        arr_wifi_guest = return_dict["wifi_guest"].split(";")
-        arr_wifi_guest = filter(lambda x: x.strip() != "", arr_wifi_guest)
-        arr_wifi_guest = ["[Wifi (Guest)|" + dev for dev in arr_wifi_guest]
-        arr_devices.append(arr_wifi_user)
-        arr_devices.append(arr_wifi_guest)
-        arr_ethernet = return_dict["ethernet"].split(";")
-        arr_ethernet = filter(lambda x: x.strip() != "", arr_ethernet)
-        arr_ethernet = ["Ethernet|on|" + dev + "|||" for dev in arr_ethernet]
-        arr_devices.append(arr_ethernet)
-        arr_devices = [item for sublist in arr_devices for item in sublist]
-        _LOGGER.debug("Array of devices: %s", arr_devices)
-
-        for device_line in arr_devices:
-            device_fields: list[Any] = device_line.split("|")
-            wifi_band = (
-                device_fields[7] if len(device_fields) == FULL_FIELDS_NUM else ""
-            )
-            try:
-                dev_info = VodafoneStationDevice(
-                    connection_type=device_fields[0],
-                    connected=device_fields[1] == "on",
-                    type=device_fields[2],
-                    name=device_fields[3],
-                    mac=device_fields[4],
-                    ip_address=device_fields[5],
-                    wifi=wifi_band,
-                )
-                self._devices[dev_info.mac] = dev_info
-            except (KeyError, IndexError):
-                _LOGGER.warning("Error processing line: %s", device_line)
-
-        return self._devices
-
-    async def get_docis_data(self) -> dict[Any, Any]:
-        """Get docis data."""
-        return {}
-
-    async def get_voice_data(self) -> dict[Any, Any]:
-        """Get voice data."""
-        return {}
-
     def convert_uptime(self, uptime: str) -> datetime:
         """Convert router uptime to last boot datetime."""
         d = int(uptime.split(":")[0])
@@ -701,6 +627,85 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
         return logged
 
+    async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
+        """Get all connected devices."""
+        _LOGGER.debug("Getting all devices for host %s", self.host)
+        return_dict = await self._get_sercomm_page("/data/overview.json")
+
+        # Cleanup sensor data from devices in order to be merged later
+        self._overview.update(return_dict)
+        for info in ["wifi_user", "wifi_guest", "ethernet"]:
+            if info in self._overview:
+                self._overview.pop(info)
+
+        if (
+            "wifi_user" not in return_dict
+            and "wifi_guest" not in return_dict
+            and "ethernet" not in return_dict
+        ):
+            _LOGGER.info("No device in response from %s", self.host)
+            return self._devices
+
+        arr_devices = []
+        arr_wifi_user = return_dict["wifi_user"].split(";")
+        arr_wifi_user = filter(lambda x: x.strip() != "", arr_wifi_user)
+        arr_wifi_user = ["Wifi (Main)|" + dev for dev in arr_wifi_user]
+        arr_wifi_guest = return_dict["wifi_guest"].split(";")
+        arr_wifi_guest = filter(lambda x: x.strip() != "", arr_wifi_guest)
+        arr_wifi_guest = ["[Wifi (Guest)|" + dev for dev in arr_wifi_guest]
+        arr_devices.append(arr_wifi_user)
+        arr_devices.append(arr_wifi_guest)
+        arr_ethernet = return_dict["ethernet"].split(";")
+        arr_ethernet = filter(lambda x: x.strip() != "", arr_ethernet)
+        arr_ethernet = ["Ethernet|on|" + dev + "|||" for dev in arr_ethernet]
+        arr_devices.append(arr_ethernet)
+        arr_devices = [item for sublist in arr_devices for item in sublist]
+        _LOGGER.debug("Array of devices: %s", arr_devices)
+
+        for device_line in arr_devices:
+            device_fields: list[Any] = device_line.split("|")
+            wifi_band = (
+                device_fields[7] if len(device_fields) == FULL_FIELDS_NUM else ""
+            )
+            try:
+                dev_info = VodafoneStationDevice(
+                    connection_type=device_fields[0],
+                    connected=device_fields[1] == "on",
+                    type=device_fields[2],
+                    name=device_fields[3],
+                    mac=device_fields[4],
+                    ip_address=device_fields[5],
+                    wifi=wifi_band,
+                )
+                self._devices[dev_info.mac] = dev_info
+            except (KeyError, IndexError):
+                _LOGGER.warning("Error processing line: %s", device_line)
+
+        return self._devices
+
+    async def get_sensor_data(self) -> dict[Any, Any]:
+        """Load user_data page information."""
+        _LOGGER.debug("Getting sensor data for host %s", self.host)
+
+        reply_dict_1 = await self._get_sercomm_page("/data/user_data.json")
+        reply_dict_2 = await self._get_sercomm_page("/data/statussupportstatus.json")
+        reply_dict_3 = await self._get_sercomm_page("/data/statussupportrestart.json")
+
+        return reply_dict_1 | reply_dict_2 | reply_dict_3 | self._overview
+
+    async def get_docis_data(self) -> dict[Any, Any]:
+        """Get docis data."""
+        return {}
+
+    async def get_voice_data(self) -> dict[Any, Any]:
+        """Get voice data."""
+        return {}
+
+    async def logout(self) -> None:
+        """Router logout."""
+        if hasattr(self, "session"):
+            self.session.cookie_jar.clear()
+
     async def restart_connection(self, connection_type: str) -> None:
         """Internet Connection restart."""
         _LOGGER.debug(
@@ -733,8 +738,3 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
             await self._post_sercomm_page("/data/statussupportrestart.json", payload, 2)
         except asyncio.exceptions.TimeoutError:
             pass
-
-    async def logout(self) -> None:
-        """Router logout."""
-        if hasattr(self, "session"):
-            self.session.cookie_jar.clear()
