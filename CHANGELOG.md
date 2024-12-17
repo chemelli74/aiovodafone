@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.8.0 (2024-12-17)
+
+### Features
+
+- Added docis and voice information for technicolor modems (#180) ([`bf769ad`](https://github.com/chemelli74/aiovodafone/commit/bf769adf1366f340d8516231ec93be3f8d0099b3))
+
+
+### Build system
+
+- Bump python-semantic-release/python-semantic-release from 9.15.1 to 9.15.2 (#208) ([`175b8fd`](https://github.com/chemelli74/aiovodafone/commit/175b8fd72738bcfad6354662d2a0e1ada2dfed23))
+- Bump wagoid/commitlint-github-action from 6.1.2 to 6.2.0 (#207) ([`3be1313`](https://github.com/chemelli74/aiovodafone/commit/3be1313d722a47e6b6c2261c2409ebe372f9123a))
+- Install poetry by default (#199) ([`f178a30`](https://github.com/chemelli74/aiovodafone/commit/f178a30253b654da929627dd0f4b131885240976))
+- Fix checkout for remote branches (#198) ([`be89b7e`](https://github.com/chemelli74/aiovodafone/commit/be89b7e83301272007200fd5f98f56d991dc3bb5))
+- Bump aiohttp from 3.11.9 to 3.11.10 (#196) ([`c4952c5`](https://github.com/chemelli74/aiovodafone/commit/c4952c5321f9fca1239a2f801f0a639887bd5a6c))
+- Bump python-semantic-release/python-semantic-release from 9.15.0 to 9.15.1 (#195) ([`5d10748`](https://github.com/chemelli74/aiovodafone/commit/5d10748224b03b7cecbc088da0b71da088397e4a))
+- Bump python-semantic-release/python-semantic-release (#193) ([`6d8bd78`](https://github.com/chemelli74/aiovodafone/commit/6d8bd78e6772e364a38aaf6ddc20cd86b7c66a61))
+- Bump aiohttp from 3.11.7 to 3.11.9 (#192) ([`f283c37`](https://github.com/chemelli74/aiovodafone/commit/f283c37352d3cf9e77dd1b0ac52417027610e221))
+- Bump pytest from 8.3.3 to 8.3.4 (#191) ([`49e9a2d`](https://github.com/chemelli74/aiovodafone/commit/49e9a2d9516ea6e79ab756029356722dbc6b7348))
+- Bump aiohttp from 3.11.2 to 3.11.7 (#189) ([`ec5c0c4`](https://github.com/chemelli74/aiovodafone/commit/ec5c0c42b0b13560055b672d4500af6179be5cdc))
+- Bump aiohttp from 3.10.10 to 3.11.2 (#187) ([`17f796c`](https://github.com/chemelli74/aiovodafone/commit/17f796ca51b18cf31d334f376bb2a3c11266da9d))
+- Bump codecov/codecov-action from 4 to 5 (#186) ([`41c7400`](https://github.com/chemelli74/aiovodafone/commit/41c7400e971699bbc1d640e1eaea8a82ea57807d))
+- Bump python-semantic-release/python-semantic-release (#185) ([`d180b2f`](https://github.com/chemelli74/aiovodafone/commit/d180b2fc83d78e6897610745203396068dbc2617))
+- Bump python-semantic-release/python-semantic-release (#183) ([`dde42a7`](https://github.com/chemelli74/aiovodafone/commit/dde42a7af6a1dc3b4ae7d3b66637113effc7c456))
+- Bump python-semantic-release/python-semantic-release (#182) ([`94dcfa4`](https://github.com/chemelli74/aiovodafone/commit/94dcfa45332ae1833dd3bea1eff8c016ef3842e1))
+- Bump pytest-cov from 5.0.0 to 6.0.0 (#179) ([`9a62529`](https://github.com/chemelli74/aiovodafone/commit/9a62529d66f5be5c524be0265e2b4cb4dff35d08))
+
+
+### Testing
+
+- Cleanup .coveragerc (#178) ([`48d08fa`](https://github.com/chemelli74/aiovodafone/commit/48d08fa726bef4b2e8a1921f6b04383c8c9f2c12))
+
+
 ## v0.7.1 (2024-11-01)
 
 ### Bug fixes
@@ -391,4 +423,3 @@
 ### Refactoring
 
 - Logout/close ([`8d053c3`](https://github.com/chemelli74/aiovodafone/commit/8d053c329dbb349728bcd642803d3bd446551b16))
-
