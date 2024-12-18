@@ -341,7 +341,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         _LOGGER.debug("Get docis data")
         response = await self._get_page_result("/api/v1/sta_docsis_status")
         response_json = await response.json()
-        _LOGGER.debug(f"GET reply ({response_json})")
+        _LOGGER.debug("GET reply (%s)", response_json)
 
         data: dict[str, Any] = {"downstream": {}, "upstream": {}}
 
@@ -393,7 +393,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         _LOGGER.debug("Get voice data")
         response = await self._get_page_result("/api/v1/sta_voice_status")
         response_json = await response.json()
-        _LOGGER.debug(f"GET reply ({response_json})")
+        _LOGGER.debug("GET reply (%s)", response_json)
 
         data: dict[str, Any] = {"line1": {}, "line2": {}}
 
