@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.1 (2024-12-18)
+
+### Bug fixes
+
+- Optimize logging with ruff g004 (#211) ([`17cf4a2`](https://github.com/chemelli74/aiovodafone/commit/17cf4a23f9a899ec8481107737fa4b311e89f0f0))
+
+
+### Build system
+
+- Cleanup old settings (#210) ([`e4e7b8f`](https://github.com/chemelli74/aiovodafone/commit/e4e7b8f6b6079d110e4b34c7d5d926b53bb6d605))
+
+
 ## v0.8.0 (2024-12-17)
 
 ### Features
