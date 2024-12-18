@@ -3,7 +3,6 @@ target-version = "py312"
 lint.select = ["ALL"]
 
 lint.ignore = [
-    "ANN101",   # Missing type annotation for `self` in method
     "ASYNC109", # Checks for async functions with a timeout argument
     "D203",     # 1 blank line required before class docstring
     "D213",     # Multi-line docstring summary should start at the second line
