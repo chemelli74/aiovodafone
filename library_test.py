@@ -92,19 +92,19 @@ async def main() -> None:
         try:
             await api.login()
         except ModelNotSupported:
-            print("Model is not supported yet for router", api.host)
+            print(f"Model is not supported yet for router {api.host}")
             raise
         except CannotAuthenticate:
-            print("Cannot authenticate to router", api.host)
+            print(f"Cannot authenticate to router {api.host}")
             raise
         except CannotConnect:
-            print("Cannot connect to router", api.host)
+            print(f"Cannot connect to router {api.host}")
             raise
         except AlreadyLogged:
-            print("Only one user at a time can connect to router", api.host)
+            print(f"Only one user at a time can connect to router {api.host}")
             raise
         except GenericLoginError:
-            print("Unable to login to router", api.host)
+            print(f"Unable to login to router {api.host}")
             raise
     except VodafoneError:
         await api.close()
@@ -114,24 +114,46 @@ async def main() -> None:
 
     print("-" * 20)
     devices = await api.get_devices_data()
-    print("Devices:", devices)
+    print(f"Devices: {devices}")
+
     print("-" * 20)
     data = await api.get_sensor_data()
-    print("Sensor Data:", data)
+    print(f"Sensor data: {data}")
     print("-" * 20)
-    print("Serial #:", data["sys_serial_number"])
-    print("Firmware:", data["sys_firmware_version"])
-    print("Hardware:", data["sys_hardware_version"])
-    print("Uptime  :", api.convert_uptime(data["sys_uptime"]))
-    print("WAN status:", data.get("wan_status"))
-    print("Cable modem status:", data.get("cm_status"))
-    print("LAN mode:", data.get("lan_mode"))
+    print(f"{'Serial #:':>20} {data['sys_serial_number']}")
+    print(f"{'Firmware:':>20} {data['sys_firmware_version']}")
+    print(f"{'Hardware:':>20} {data['sys_hardware_version']}")
+    print(f"{'Uptime:':>20} {api.convert_uptime(data['sys_uptime'])}")
+    print(f"{'WAN status:':>20} {data.get('wan_status')}")
+    print(f"{'Cable modem status:':>20} {data.get('cm_status')}")
+    print(f"{'LAN mode:':>20} {data.get('lan_mode')}")
+
     print("-" * 20)
     data = await api.get_docis_data()
-    print("Docis data:", data)
+    print(f"Docis data: {data}")
+    print("-" * 20)
+    for which in ["downstream", "upstream"]:
+        print(f"{which}")
+        for channel in data[which]:
+            print(f"{channel}:")
+            print(f"{'Type:':>15} {data[which][channel]['channel_type']}")
+            print(f"{'Frequency:':>15} {data[which][channel]['channel_frequency']}")
+            print(f"{'Modulation:':>15} {data[which][channel]['channel_modulation']}")
+            print(f"{'Power:':>15} {data[which][channel]['channel_power']}")
+            print(f"{'Locked:':>15} {data[which][channel]['channel_locked']}")
+
     print("-" * 20)
     data = await api.get_voice_data()
-    print("Voice data:", data)
+    print(f"Voice data: {data}")
+    print("-" * 20)
+    print(f"{'VoIP status:':>15} {data['general']['status']}")
+    print(f"{'Line1:':>15} {data['line1']['status']}")
+    print(f"{'Line1 number:':>15} {data['line1']['call_number']}")
+    print(f"{'Line1 status:':>15} {data['line1']['line_status']}")
+    print(f"{'Line2:':>15} {data['line2']['status']}")
+    print(f"{'Line2 number:':>15} {data['line2']['call_number']}")
+    print(f"{'Line2 status:':>15} {data['line2']['line_status']}")
+
     print("-" * 20)
     print("Logout & close session")
     await api.logout()
