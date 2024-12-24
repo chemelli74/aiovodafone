@@ -294,6 +294,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         _LOGGER.debug("Get hosts")
         host_response = await self._get_page_result("/api/v1/host/hostTbl")
         host_json = await host_response.json()
+        _LOGGER.debug("GET reply (%s)", host_json)
 
         devices_dict = {}
         for device in host_json["data"]["hostTbl"]:
@@ -322,6 +323,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
     async def get_sensor_data(self) -> dict[Any, Any]:
         """Get all sensors data."""
+        _LOGGER.debug("Get sensors")
         status_response = await self._get_page_result("/api/v1/sta_status")
         status_json = await status_response.json()
         _LOGGER.debug("GET reply (%s)", status_json)
