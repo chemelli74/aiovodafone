@@ -397,17 +397,22 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         response_json = await response.json()
         _LOGGER.debug("GET reply (%s)", response_json)
 
-        data: dict[str, Any] = {"line1": {}, "line2": {}}
+        data: dict[str, Any] = {"line1": {}, "line2": {}, "general": {}}
 
-        for line in ["1", "2"]:
-            data[f"line{line}"] = {
-                "call_number": response_json["data"][f"callnumber{line}"],
-                "line_status": response_json["data"][f"LineStatus{line}"],
-                "status": response_json["data"][f"status{line}"],
-            }
-        data["general"] = {
-            "status": response_json["data"]["DocsisStatus"],
-        }
+        if "data" in response_json:
+            for line in ["1", "2"]:
+                if f"callnumber{line}" in response_json["data"]:
+                    data[f"line{line}"] = {
+                        "call_number": response_json["data"][f"callnumber{line}"],
+                        "line_status": response_json["data"][f"LineStatus{line}"],
+                        "status": response_json["data"][f"status{line}"],
+                    }
+
+                if "DocsisStatus" in response_json["data"]:
+                    data["general"] = {
+                        "status": response_json["data"]["DocsisStatus"],
+                    }
+
         return data
 
     async def logout(self) -> None:
