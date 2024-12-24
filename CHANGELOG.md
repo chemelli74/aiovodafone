@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.8.2 (2024-12-24)
+
+### Bug fixes
+
+- Fixed missing voice data for output (#209) ([`9ff4707`](https://github.com/chemelli74/aiovodafone/commit/9ff470705caa5692675ad94d76e70f8fb4c102bd))
+
+
+### Code style
+
+- Reorderd methods in api to have same listing as definition order of abstract class (#203) ([`2438038`](https://github.com/chemelli74/aiovodafone/commit/2438038b446b40fbc224bd13845a1d76a2b5b3a8))
+
+
+### Build system
+
+- Bump aiohttp from 3.11.10 to 3.11.11 (#213) ([`5a50dbc`](https://github.com/chemelli74/aiovodafone/commit/5a50dbc7cd58e61e84d74235214d24e7f0d6a4c0))
+
+
 ## v0.8.1 (2024-12-18)
 
 ### Bug fixes
