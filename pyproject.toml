@@ -22,7 +22,7 @@ packages = [
 "Changelog" = "https://github.com/chemelli74/aiovodafone/blob/main/CHANGELOG.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.10"
 aiohttp = "*"
 beautifulsoup4 = "*"
 

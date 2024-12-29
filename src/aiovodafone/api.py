@@ -7,7 +7,7 @@ import re
 import urllib.parse
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 from http.cookies import SimpleCookie
 from typing import Any, cast
@@ -82,8 +82,8 @@ class VodafoneStationCommonApi(ABC):
                 if "data" in response_json and "ModelName" in response_json["data"]:
                     return DeviceType.TECHNICOLOR
 
-        for protocol in ["https", "http"]:
-            try:
+        try:
+            for protocol in ["https", "http"]:
                 async with session.get(
                     f"{protocol}://{host}/login.html",
                     headers=HEADERS,
@@ -97,9 +97,8 @@ class VodafoneStationCommonApi(ABC):
                         and "var csrf_token = " in await response.text()
                     ):
                         return DeviceType.SERCOMM
-            except aiohttp.client_exceptions.ClientConnectorSSLError:
-                _LOGGER.debug("Unable to login using protocol %s", protocol)
-                continue
+        except aiohttp.client_exceptions.ClientConnectorSSLError:
+            _LOGGER.debug("Unable to login using protocol %s", protocol)
 
         return None
 
@@ -143,7 +142,7 @@ class VodafoneStationCommonApi(ABC):
     ) -> aiohttp.ClientResponse:
         """Get data from a web page via POST."""
         _LOGGER.debug("POST page  %s from host %s", page, self.host)
-        timestamp = int(datetime.now(tz=UTC).timestamp())
+        timestamp = int(datetime.now(tz=timezone.utc).timestamp())
         url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
         return await self.session.post(
             url,
@@ -157,7 +156,7 @@ class VodafoneStationCommonApi(ABC):
     async def _get_page_result(self, page: str) -> aiohttp.ClientResponse:
         """Get data from a web page via GET."""
         _LOGGER.debug("GET page  %s [%s]", page, self.host)
-        timestamp = int(datetime.now(tz=UTC).timestamp())
+        timestamp = int(datetime.now(tz=timezone.utc).timestamp())
         url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
 
         return await self.session.get(
@@ -240,7 +239,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
     def convert_uptime(self, uptime: str) -> datetime:
         """Convert uptime to datetime."""
-        return datetime.now(tz=UTC) - timedelta(
+        return datetime.now(tz=timezone.utc) - timedelta(
             seconds=int(uptime),
         )
 
@@ -578,7 +577,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         h = int(uptime.split(":")[1])
         m = int(uptime.split(":")[2])
 
-        return datetime.now(tz=UTC) - timedelta(
+        return datetime.now(tz=timezone.utc) - timedelta(
             days=d,
             hours=h,
             minutes=m,
