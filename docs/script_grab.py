@@ -36,8 +36,7 @@ async def main() -> None:
             "Gecko/20100101 Firefox/78.0"
         ),
         "Accept": (
-            "text/html,application/xhtml+xml,application/xml;"
-            "q=0.9,image/webp,*/*;q=0.8"
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
         ),
         "Accept-Language": "en-GB,en;q=0.5",
         "DNT": "1",
