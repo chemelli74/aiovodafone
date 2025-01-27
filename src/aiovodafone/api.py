@@ -39,6 +39,8 @@ from .exceptions import (
     GenericLoginError,
     GenericResponseError,
     ModelNotSupported,
+    RequestFailed,
+    ResultTimeoutError,
 )
 
 
@@ -489,6 +491,300 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         await self._request_page_result(
             HTTPMethod.POST, "/api/v1/session/logout", payload={}
         )
+
+    async def _post_page_result_with_handling(
+        self,
+        endpoint: str,
+        payload: dict,
+        timeout: int = 10,
+    ) -> aiohttp.ClientResponse | None:
+        """Wrap `_post_page_result` to handle errors and logging.
+
+        Args:
+        ----
+            endpoint (str): API endpoint for the POST request.
+            payload (dict): Data to be sent in the POST request.
+            timeout (int): Timeout for the request (default: 10 seconds).
+
+        Returns:
+        -------
+            aiohttp.ClientResponse | None: The response object if successful,
+            None otherwise.
+
+        """
+        try:
+            return await self._post_page_result(endpoint, payload, timeout)
+        except aiohttp.ClientResponseError:
+            _LOGGER.exception("Request to %s failed", endpoint)
+        return None
+
+    async def ping(
+        self,
+        ip_address: str,
+        count: int = 1,
+        ping_size: int = 56,
+        ping_interval: int = 1000,
+        retries: int = 15,
+    ) -> dict:
+        """Trigger a ping diagnostic request to the router.
+
+        Args:
+        ----
+            ip_address (str): The target IP address to ping.
+            count (int): Number of ping requests to send (default: 1).
+            ping_size (int): The size of the ping packet (default: 56 bytes).
+            ping_interval (int): Interval between ping requests in milliseconds
+                (default: 1000 ms).
+            retries (int): Number of times to retry if results are not ready
+                (default: 15).
+
+        Returns:
+        -------
+            bool: The ping results.
+
+        """
+        url = "/api/v1/sta_diagnostic_utility/ping"
+        async with await self._get_page_result(url) as csrf_res:
+            csrf_json = await csrf_res.json()
+        _LOGGER.debug("CSRF response (see token): %s", csrf_json)
+        token = csrf_json.get("token")
+        if token:
+            self.headers["X-CSRF-Token"] = token
+        else:
+            _LOGGER.warning("Failed to retrieve CSRF token")
+
+        payload = {
+            "ipaddress": ip_address,
+            "count": count,
+            "pingsize": ping_size,
+            "pingintervalin": ping_interval,
+        }
+
+        response = await self._post_page_result_with_handling(
+            url,
+            payload,
+        )
+        if response is None or response.status != HTTPStatus.OK:
+            raise RequestFailed("Failed to trigger ping request.")
+
+        for attempt in range(retries):
+            try:
+                result = await self.get_ping_results()
+                if result and result.get("data", {}).get("ping_result") != "InProgress":
+                    return result
+
+                _LOGGER.debug(
+                    "Ping results not ready, retrying (%d/%d)...",
+                    attempt + 1,
+                    retries,
+                )
+                # sleep for 2 seconds, just like the dashboard does
+                await asyncio.sleep(2)
+            except aiohttp.ClientResponseError:
+                _LOGGER.exception("Failed to retrieve ping results")
+
+        raise ResultTimeoutError(
+            "ping results not available after %d retries",
+            retries,
+        )
+
+    async def get_ping_results(self) -> dict[Any, Any] | None:
+        """Retrieve the results of the ping diagnostic.
+
+        Returns
+        -------
+            dict | None: The ping results if available, None otherwise.
+
+        """
+        try:
+            response = await self._get_page_result(
+                "/api/v1/sta_diagnostic_utility/ping_res",
+            )
+
+            if response.status == HTTPStatus.OK:
+                json_data: dict[Any, Any] = await response.json()
+                return json_data
+        except aiohttp.ClientResponseError:
+            _LOGGER.exception("Failed to retrieve ping results")
+
+        return None
+
+    async def traceroute(
+        self,
+        ip_address: str,
+        count: int = 30,
+        ip_type: str = "Ipv4",
+        retries: int = 15,
+    ) -> dict:
+        """Trigger a traceroute diagnostic request to the router.
+
+        Args:
+        ----
+            ip_address (str): The target IP address for the traceroute.
+            count (int): Maximum number of hops (default: 30).
+            ip_type (str): IP address type, either "Ipv4" or "Ipv6"
+                (default: "Ipv4").
+            retries (int): Number of times to retry if results are not ready
+                (default: 15).
+
+        Returns:
+        -------
+            dict: The traceroute results.
+
+        """
+        url = "/api/v1/sta_diagnostic_utility/traceroute"
+        async with await self._get_page_result(url) as csrf_res:
+            csrf_json = await csrf_res.json()
+        _LOGGER.debug("CSRF response (see token): %s", csrf_json)
+        token = csrf_json.get("token")
+        if token:
+            self.headers["X-CSRF-Token"] = token
+        else:
+            _LOGGER.warning("Failed to retrieve CSRF token")
+
+        payload = {
+            "traceroute_ip": ip_address,
+            "count_tr": str(count),
+            "ipaddresstype": ip_type,
+        }
+
+        response = await self._post_page_result_with_handling(url, payload)
+        if response is None or response.status != HTTPStatus.OK:
+            raise RequestFailed("Failed to trigger traceroute request.")
+
+        for attempt in range(retries):
+            try:
+                result = await self.get_traceroute_results()
+                if (
+                    result
+                    and result.get("data", {}).get("traceroute_result") != "InProgress"
+                ):
+                    return result
+
+                _LOGGER.debug(
+                    "Traceroute results not ready, retrying (%d/%d)...",
+                    attempt + 1,
+                    retries,
+                )
+                # sleep for 2 seconds, just like the dashboard does
+                await asyncio.sleep(2)
+            except aiohttp.ClientResponseError:
+                _LOGGER.exception("Failed to retrieve traceroute results")
+
+        raise ResultTimeoutError(
+            "traceroute results not available after %d retries",
+            retries,
+        )
+
+    async def get_traceroute_results(self) -> dict[Any, Any] | None:
+        """Retrieve the results of the traceroute diagnostic.
+
+        Returns
+        -------
+            dict | None: The traceroute results if available, None otherwise.
+
+        """
+        try:
+            response = await self._get_page_result(
+                "/api/v1/sta_diagnostic_utility/traceroute_res",
+            )
+
+            if response.status == HTTPStatus.OK:
+                json_data: dict[Any, Any] = await response.json()
+                return json_data
+        except aiohttp.ClientResponseError:
+            _LOGGER.exception("Failed to retrieve traceroute results")
+
+        return None
+
+    async def dns_resolve(
+        self,
+        hostname: str,
+        dns_server: str = "1.1.1.1",
+        record_type: str = "A",
+        retries: int = 15,
+    ) -> dict:
+        """Trigger a traceroute diagnostic request to the router.
+
+        Args:
+        ----
+            hostname (str): The hostname to resolve.
+            dns_server (str): The DNS server to query (default: 1.1.1.1).
+            record_type (str): DNS record type (default: "A").
+            retries (int): Number of times to retry if results are not ready
+                (default: 15).
+
+        Returns:
+        -------
+            dict: The dns_resolve results.
+
+        """
+        url = "/api/v1/sta_diagnostic_utility/tracedns"
+        async with await self._get_page_result(url) as csrf_res:
+            csrf_json = await csrf_res.json()
+        _LOGGER.debug("CSRF response (see token): %s", csrf_json)
+        token = csrf_json.get("token")
+        if token:
+            self.headers["X-CSRF-Token"] = token
+        else:
+            _LOGGER.warning("Failed to retrieve CSRF token")
+
+        payload = {
+            "tracednsip": dns_server,
+            "tracednsName": hostname,
+            "qtype": record_type,
+        }
+
+        response = await self._post_page_result_with_handling(url, payload)
+        if response is None or response.status != HTTPStatus.OK:
+            raise RequestFailed("Failed to trigger traceroute request.")
+
+        for attempt in range(retries):
+            try:
+                result = await self.get_dns_resolve_results()
+                if (
+                    result
+                    # NOTE Yes, the result field is named "traceroute_result",
+                    # this is not a typo
+                    and result.get("data", {}).get("traceroute_result") != "InProgress"
+                ):
+                    return result
+
+                _LOGGER.debug(
+                    "DNS resolve results not ready, retrying (%d/%d)...",
+                    attempt + 1,
+                    retries,
+                )
+                # sleep for 2 seconds, just like the dashboard does
+                await asyncio.sleep(2)
+            except aiohttp.ClientResponseError:
+                _LOGGER.exception("Failed to retrieve dns_resolve results")
+
+        raise ResultTimeoutError(
+            "dns results not available after %d retries",
+            retries,
+        )
+
+    async def get_dns_resolve_results(self) -> dict[Any, Any] | None:
+        """Retrieve the results of the dns_resolve diagnostic.
+
+        Returns
+        -------
+            dict | None: The DNS resolve results if available, None otherwise.
+
+        """
+        try:
+            response = await self._get_page_result(
+                "/api/v1/sta_diagnostic_utility/traceDns_res",
+            )
+
+            if response.status == HTTPStatus.OK:
+                json_data: dict[Any, Any] = await response.json()
+                return json_data
+        except aiohttp.ClientResponseError:
+            _LOGGER.exception("Failed to retrieve DNS resolve results")
+
+        return None
 
 
 class VodafoneStationSercommApi(VodafoneStationCommonApi):

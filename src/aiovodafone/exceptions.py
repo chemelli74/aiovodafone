@@ -29,3 +29,11 @@ class AlreadyLogged(VodafoneError):
 
 class ModelNotSupported(VodafoneError):
     """Exception raised when using a model not yet supported."""
+
+
+class RequestFailed(VodafoneError):
+    """Exception raised when a debug request failed."""
+
+
+class ResultTimeoutError(VodafoneError):
+    """Exception raised when a debug request times out."""
