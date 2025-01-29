@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.9.0 (2025-01-29)
+
+### Features
+
+- Add force parameter (#224) ([`5d3ab4f`](https://github.com/chemelli74/aiovodafone/commit/5d3ab4ff71de999f5fdca9c27ae9108b79a8b168))
+
+
+### Build system
+
+- Bump python-semantic-release/python-semantic-release from 9.16.1 to 9.17.0 (#221) ([`3295597`](https://github.com/chemelli74/aiovodafone/commit/3295597a97ee67449967bfea401babdfe99f34f6))
+- Bump wagoid/commitlint-github-action from 6.2.0 to 6.2.1 (#219) ([`97cb66a`](https://github.com/chemelli74/aiovodafone/commit/97cb66a0d98ad594e51c5c46e1247fb85f4afb0c))
+- Bump python-semantic-release/python-semantic-release from 9.15.2 to 9.16.1 (#218) ([`61c9750`](https://github.com/chemelli74/aiovodafone/commit/61c9750e3767163ddeb871cb362c9d07c683e367))
+
+
 ## v0.8.2 (2024-12-24)
 
 ### Bug fixes
