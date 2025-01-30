@@ -198,6 +198,10 @@ class VodafoneStationCommonApi(ABC):
         """Get router voice data."""
 
     @abstractmethod
+    async def restart_router(self) -> None:
+        """Router restart."""
+
+    @abstractmethod
     async def logout(self) -> None:
         """Router logout."""
 
@@ -244,6 +248,26 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             seconds=int(uptime),
         )
 
+    async def _get_csrf_token(self, force_update: bool = False) -> None:
+        """Retrieve CSRF token."""
+        if force_update:
+            self.headers.pop("X-CSRF-Token", None)
+
+        if "X-CSRF-Token" in self.headers:
+            _LOGGER.debug("CSRF Token already set")
+            return
+
+        # Any existing URL will do the job here
+        csrf_res = await self._get_page_result("/api/v1/wifi/1/SSIDEnable")
+        csrf_json = await csrf_res.json()
+        _LOGGER.debug("csrf call response: %s", csrf_json)
+
+        if token := csrf_json.get("token"):
+            _LOGGER.debug("CSRF Token: %s", token)
+            self.headers["X-CSRF-Token"] = token
+        else:
+            _LOGGER.warning("Failed to retrieve CSRF token")
+
     async def login(self, force_logout: bool = False) -> bool:
         """Router login."""
         _LOGGER.debug("Logging into %s (force: %s)", self.host, force_logout)
@@ -287,6 +311,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         # Request menu otherwise the next call fails
         _LOGGER.debug("Get menu")
         await self._get_page_result("/api/v1/session/menu")
+
+        # Retrieve CSRF token
+        await self._get_csrf_token(force_update=True)
 
         return True
 
@@ -421,6 +448,17 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
                     }
 
         return data
+
+    async def restart_router(self) -> None:
+        """Router restart."""
+        _LOGGER.debug("Restarting router %s", self.host)
+        # NOTE This payload is identical to the request sent by the UI.
+        payload = {
+            "restart": "Router,Wifi,VoIP,Dect,MoCA",
+            "ui_access": "reboot_device",
+        }
+
+        await self._post_page_result("/api/v1/sta_restart", payload)
 
     async def logout(self) -> None:
         """Router logout."""
