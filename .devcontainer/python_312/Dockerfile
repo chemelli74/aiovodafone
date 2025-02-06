@@ -12,6 +12,8 @@ RUN if [ "${INSTALL_NODE}" = "true" ]; then su vscode -c "umask 0002 && . /usr/l
 # [Optional] If your pip requirements rarely change, uncomment this section to add them to the image.
 RUN pip3 --disable-pip-version-check --no-cache-dir install pre-commit
 RUN pip3 --disable-pip-version-check --no-cache-dir install poetry
+RUN pip3 --disable-pip-version-check --no-cache-dir install aiohttp
+RUN pip3 --disable-pip-version-check --no-cache-dir install bs4
 
 # [Optional] Uncomment this section to install additional OS packages.
 # RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
