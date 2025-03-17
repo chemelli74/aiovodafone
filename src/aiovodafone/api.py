@@ -459,7 +459,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         _LOGGER.debug("POST raw reply (%s): %s", page, await reply.text())
         reply_json = await reply.json(content_type="text/html")
         _LOGGER.debug("POST json reply (%s): %s", page, reply_json)
-        return cast(dict, reply_json)
+        return cast("dict", reply_json)
 
     async def _check_logged_in(self) -> bool:
         """Check if logged in or not."""
@@ -501,7 +501,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
                 _LOGGER.debug("Redirected login!")
                 reply_text = await self._find_login_url()
 
-        return cast(str, reply_text)
+        return cast("str", reply_text)
 
     async def _get_csrf_token(self, reply_text: str) -> None:
         """Load login page to get csrf token."""
