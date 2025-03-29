@@ -12,7 +12,14 @@ from http import HTTPStatus
 from http.cookies import SimpleCookie
 from typing import Any, cast
 
-import aiohttp
+from aiohttp import (
+    ClientConnectorError,
+    ClientConnectorSSLError,
+    ClientResponse,
+    ClientResponseError,
+    ClientSession,
+    CookieJar,
+)
 from bs4 import BeautifulSoup, Tag
 
 from .const import (
@@ -51,7 +58,7 @@ class VodafoneStationCommonApi(ABC):
     @staticmethod
     async def get_device_type(
         host: str,
-        session: aiohttp.ClientSession,
+        session: ClientSession,
     ) -> DeviceType | None:
         """Find out the device type of a Vodafone Stations and returns it as enum.
 
@@ -97,7 +104,7 @@ class VodafoneStationCommonApi(ABC):
                         and "var csrf_token = " in await response.text()
                     ):
                         return DeviceType.SERCOMM
-            except aiohttp.client_exceptions.ClientConnectorSSLError:
+            except ClientConnectorSSLError:
                 _LOGGER.debug("Unable to login using protocol %s", protocol)
                 continue
 
@@ -111,7 +118,7 @@ class VodafoneStationCommonApi(ABC):
         self.password = password
         self.base_url = self._base_url()
         self.headers = HEADERS
-        self.session: aiohttp.ClientSession
+        self.session: ClientSession
         self.csrf_token: str = ""
         self.encryption_key: str = ""
         self._unique_id: str | None = None
@@ -122,8 +129,8 @@ class VodafoneStationCommonApi(ABC):
         """Create aiohttp ClientSession."""
         if not hasattr(self, "session") or self.session.closed:
             _LOGGER.debug("Creating HTTP ClientSession")
-            jar = aiohttp.CookieJar(unsafe=True)
-            self.session = aiohttp.ClientSession(cookie_jar=jar)
+            jar = CookieJar(unsafe=True)
+            self.session = ClientSession(cookie_jar=jar)
 
     def _base_url(self) -> str:
         """Create base URL."""
@@ -140,7 +147,7 @@ class VodafoneStationCommonApi(ABC):
         page: str,
         payload: dict[str, Any],
         timeout: int = 10,
-    ) -> aiohttp.ClientResponse:
+    ) -> ClientResponse:
         """Get data from a web page via POST."""
         _LOGGER.debug("POST page  %s from host %s", page, self.host)
         timestamp = int(datetime.now(tz=UTC).timestamp())
@@ -154,7 +161,7 @@ class VodafoneStationCommonApi(ABC):
             allow_redirects=True,
         )
 
-    async def _get_page_result(self, page: str) -> aiohttp.ClientResponse:
+    async def _get_page_result(self, page: str) -> ClientResponse:
         """Get data from a web page via GET."""
         _LOGGER.debug("GET page  %s [%s]", page, self.host)
         timestamp = int(datetime.now(tz=UTC).timestamp())
@@ -553,7 +560,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         """Reset page content before loading."""
         payload = {"chk_sys_busy": ""}
         reply = await self._post_page_result("/data/reset.json", payload)
-        if isinstance(reply, aiohttp.ClientResponse):
+        if isinstance(reply, ClientResponse):
             return bool(reply.status == HTTPStatus.OK)
 
         return False
@@ -732,7 +739,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
             if not await self._check_logged_in():
                 await self.login()
             await self._post_sercomm_page("/data/statussupportrestart.json", payload)
-        except aiohttp.ClientResponseError as ex:
+        except ClientResponseError as ex:
             _LOGGER.debug(
                 'Client response error for "restart_connection" is: %s',
                 ex.message,
