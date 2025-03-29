@@ -70,7 +70,7 @@ class VodafoneStationCommonApi(ABC):
         Args:
         ----
             host (str): The router's address, e.g. `192.168.1.1`
-            session (aiohttp.ClientSession): the client session for HTTP requests
+            session (ClientSession): the client session for HTTP requests
 
         Returns:
         -------
@@ -604,7 +604,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         try:
             self._client_session()
             html_page = await self._find_login_url()
-        except (asyncio.exceptions.TimeoutError, aiohttp.ClientConnectorError) as exc:
+        except (asyncio.exceptions.TimeoutError, ClientConnectorError) as exc:
             _LOGGER.warning("Connection error for %s", self.host)
             raise CannotConnect from exc
 
