@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.11.0 (2025-04-24)
+
+### Features
+
+- Technicolor router restart (#225) ([`3400810`](https://github.com/chemelli74/aiovodafone/commit/3400810c253d09e231be8292354daf44dc795141))
+
+
 ## v0.10.0 (2025-04-24)
 
 ### Features
