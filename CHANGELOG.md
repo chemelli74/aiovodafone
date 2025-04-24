@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.10.0 (2025-04-24)
+
+### Features
+
+- Pass clientsession(aiohttp) as parameter (#259) ([`d33abb5`](https://github.com/chemelli74/aiovodafone/commit/d33abb5f263cb82f3136beb6336537277dbc314f))
+
+
+### Build system
+
+- Update ruff rules (#258) ([`53910ad`](https://github.com/chemelli74/aiovodafone/commit/53910adc84204ecbb4a35260a80e2ba22c31c2d3))
+- Bump beautifulsoup4 from 4.13.3 to 4.13.4 (#256) ([`4e38a7e`](https://github.com/chemelli74/aiovodafone/commit/4e38a7ee289de38596608138518c8d349e1e2112))
+- Bump aiohttp from 3.11.16 to 3.11.17 (#255) ([`f6e2451`](https://github.com/chemelli74/aiovodafone/commit/f6e24515def8bcf787f8ee1011777a57052ff66a))
+- Bump aiohttp from 3.11.14 to 3.11.16 (#250) ([`7926721`](https://github.com/chemelli74/aiovodafone/commit/792672159b3ab9e2ebf4c4a4125aa28235838e13))
+- Bump pytest-cov from 6.0.0 to 6.1.1 (#251) ([`b2c9a9c`](https://github.com/chemelli74/aiovodafone/commit/b2c9a9cf2d23b62599630a8db4b5fe8962933bbd))
+- Bump aiohttp from 3.11.13 to 3.11.14 (#246) ([`bf307c8`](https://github.com/chemelli74/aiovodafone/commit/bf307c847361b07feac651981f50040fef4980b2))
+- Bump pytest from 8.3.4 to 8.3.5 (#241) ([`af4cad1`](https://github.com/chemelli74/aiovodafone/commit/af4cad167695e9d36130a1900d1710683983cbfb))
+- Bump aiohttp from 3.11.12 to 3.11.13 (#240) ([`78ead9d`](https://github.com/chemelli74/aiovodafone/commit/78ead9d48477560b2004a1ff9d7ba790089040c0))
+- Bump python-semantic-release/python-semantic-release from 9.20.0 to 9.21.0 (#238) ([`4877815`](https://github.com/chemelli74/aiovodafone/commit/48778152a945a38cf9146304d4edc9a54ea88efc))
+- Bump python-semantic-release/python-semantic-release from 9.19.1 to 9.20.0 (#237) ([`8d9578b`](https://github.com/chemelli74/aiovodafone/commit/8d9578b0f352d2425d9441f7d4b1e0ae104663ee))
+- Bump python-semantic-release/python-semantic-release from 9.19.0 to 9.19.1 (#235) ([`2065186`](https://github.com/chemelli74/aiovodafone/commit/2065186074150fb7f6235457dd5e54a5c7ac7190))
+- Bump python-semantic-release/python-semantic-release from 9.18.1 to 9.19.0 (#234) ([`5470bd1`](https://github.com/chemelli74/aiovodafone/commit/5470bd1b53b75bdde7d8bdc6485e804b8bafb575))
+- Bump aiohttp from 3.11.11 to 3.11.12 (#231) ([`ae2a00f`](https://github.com/chemelli74/aiovodafone/commit/ae2a00f47ea8d7ec98c0ca08c67a6c3b0afe4dee))
+- Bump beautifulsoup4 from 4.13.0 to 4.13.3 (#230) ([`29a8f83`](https://github.com/chemelli74/aiovodafone/commit/29a8f8378b44fc8642b94fbb6c5322d873e0eb6a))
+- Bump python-semantic-release/python-semantic-release from 9.18.0 to 9.18.1 (#229) ([`877aa97`](https://github.com/chemelli74/aiovodafone/commit/877aa97acb86083dcc3a0f99d16cabca54ebcd3a))
+- Bump python-semantic-release/python-semantic-release from 9.17.0 to 9.18.0 (#228) ([`bd09457`](https://github.com/chemelli74/aiovodafone/commit/bd0945797de9c8b4dd8c40591164b8f5553719dd))
+- Bump beautifulsoup4 from 4.12.3 to 4.13.0 (#226) ([`c8c7b42`](https://github.com/chemelli74/aiovodafone/commit/c8c7b428156f9b1ae71883c5cbf1396699a3af73))
+
+
 ## v0.9.0 (2025-01-29)
 
 ### Features
