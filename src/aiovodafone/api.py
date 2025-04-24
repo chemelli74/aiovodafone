@@ -18,6 +18,7 @@ from aiohttp import (
     ClientResponse,
     ClientResponseError,
     ClientSession,
+    ClientTimeout,
 )
 from bs4 import BeautifulSoup, Tag
 
@@ -33,6 +34,7 @@ from .exceptions import (
     AlreadyLogged,
     CannotAuthenticate,
     CannotConnect,
+    CsrfError,
     GenericLoginError,
     ModelNotSupported,
     RequestFailed,
@@ -147,33 +149,45 @@ class VodafoneStationCommonApi(ABC):
         page: str,
         payload: dict[str, Any],
         timeout: int = 10,
-    ) -> ClientResponse:
+    ) -> ClientResponse | None:
         """Get data from a web page via POST."""
-        _LOGGER.debug("POST page  %s from host %s", page, self.host)
+        _LOGGER.debug("POST page %s from host %s", page, self.host)
         timestamp = int(datetime.now(tz=UTC).timestamp())
         url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
-        return await self.session.post(
-            url,
-            data=payload,
-            headers=self.headers,
-            timeout=timeout,
-            ssl=False,
-            allow_redirects=True,
-        )
+        try:
+            return await self.session.post(
+                url,
+                data=payload,
+                headers=self.headers,
+                timeout=ClientTimeout(timeout),
+                ssl=False,
+                allow_redirects=True,
+            )
+        except ClientResponseError:
+            _LOGGER.exception("Request to %s failed", page)
+        return None
 
-    async def _get_page_result(self, page: str) -> ClientResponse:
+    async def _get_page_result(
+        self,
+        page: str,
+        timeout: int = 10,
+    ) -> ClientResponse | None:
         """Get data from a web page via GET."""
-        _LOGGER.debug("GET page  %s [%s]", page, self.host)
+        _LOGGER.debug("GET page %s [%s]", page, self.host)
         timestamp = int(datetime.now(tz=UTC).timestamp())
         url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
 
-        return await self.session.get(
-            url,
-            headers=self.headers,
-            timeout=10,
-            ssl=False,
-            allow_redirects=False,
-        )
+        try:
+            return await self.session.get(
+                url,
+                headers=self.headers,
+                timeout=ClientTimeout(timeout),
+                ssl=False,
+                allow_redirects=False,
+            )
+        except ClientResponseError:
+            _LOGGER.exception("Request to %s failed", page)
+        return None
 
     async def close(self) -> None:
         """Router close session."""
@@ -262,6 +276,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             payload=payload,
         )
 
+        if not salt_response:
+            raise GenericLoginError("Failed to get salt for login")
+
         salt_json = await salt_response.json()
 
         salt = salt_json["salt"]
@@ -283,6 +300,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             page="/api/v1/session/login",
             payload=payload,
         )
+        if not login_response:
+            raise GenericLoginError("Failed to login")
+
         login_json = await login_response.json()
         if "error" in login_json and login_json["error"] == "error":
             if login_json["message"] == USER_ALREADY_LOGGED_IN:
@@ -306,6 +326,8 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         """
         _LOGGER.debug("Get hosts")
         host_response = await self._get_page_result("/api/v1/host/hostTbl")
+        if not host_response:
+            raise RequestFailed("Failed to get hosts")
         host_json = await host_response.json()
         _LOGGER.debug("GET reply (%s)", host_json)
 
@@ -338,6 +360,8 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         """Get all sensors data."""
         _LOGGER.debug("Get sensors")
         status_response = await self._get_page_result("/api/v1/sta_status")
+        if not status_response:
+            raise RequestFailed("Failed to get status")
         status_json = await status_response.json()
         _LOGGER.debug("GET reply (%s)", status_json)
 
@@ -355,6 +379,8 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         """Get docis data."""
         _LOGGER.debug("Get docis data")
         response = await self._get_page_result("/api/v1/sta_docsis_status")
+        if not response:
+            raise RequestFailed("Failed to get DOCSIS status")
         response_json = await response.json()
         _LOGGER.debug("GET reply (%s)", response_json)
 
@@ -407,6 +433,8 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         """Get voice data."""
         _LOGGER.debug("Get voice data")
         response = await self._get_page_result("/api/v1/sta_voice_status")
+        if not response:
+            raise RequestFailed("Failed to get voice status")
         response_json = await response.json()
         _LOGGER.debug("GET reply (%s)", response_json)
 
@@ -433,32 +461,6 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         _LOGGER.debug("Logout")
         await self._post_page_result("/api/v1/session/logout", payload={})
 
-    async def _post_page_result_with_handling(
-        self,
-        endpoint: str,
-        payload: dict,
-        timeout: int = 10,
-    ) -> aiohttp.ClientResponse | None:
-        """Wrap `_post_page_result` to handle errors and logging.
-
-        Args:
-        ----
-            endpoint (str): API endpoint for the POST request.
-            payload (dict): Data to be sent in the POST request.
-            timeout (int): Timeout for the request (default: 10 seconds).
-
-        Returns:
-        -------
-            aiohttp.ClientResponse | None: The response object if successful,
-            None otherwise.
-
-        """
-        try:
-            return await self._post_page_result(endpoint, payload, timeout)
-        except aiohttp.ClientResponseError:
-            _LOGGER.exception("Request to %s failed", endpoint)
-        return None
-
     async def ping(
         self,
         ip_address: str,
@@ -481,12 +483,14 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         Returns:
         -------
-            bool: The ping results.
+            dict: The ping results.
 
         """
         url = "/api/v1/sta_diagnostic_utility/ping"
-        async with await self._get_page_result(url) as csrf_res:
-            csrf_json = await csrf_res.json()
+        csrf_res = await self._get_page_result(url)
+        if not csrf_res:
+            raise CsrfError("Failed to retrieve CSRF token")
+        csrf_json = await csrf_res.json()
         _LOGGER.debug("CSRF response (see token): %s", csrf_json)
         token = csrf_json.get("token")
         if token:
@@ -501,7 +505,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             "pingintervalin": ping_interval,
         }
 
-        response = await self._post_page_result_with_handling(
+        response = await self._post_page_result(
             url,
             payload,
         )
@@ -521,7 +525,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
                 )
                 # sleep for 2 seconds, just like the dashboard does
                 await asyncio.sleep(2)
-            except aiohttp.ClientResponseError:
+            except ClientResponseError:
                 _LOGGER.exception("Failed to retrieve ping results")
 
         raise ResultTimeoutError(
@@ -541,11 +545,14 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             response = await self._get_page_result(
                 "/api/v1/sta_diagnostic_utility/ping_res",
             )
+            if not response:
+                _LOGGER.error("Failed to retrieve ping results")
+                return None
 
             if response.status == HTTPStatus.OK:
                 json_data: dict[Any, Any] = await response.json()
                 return json_data
-        except aiohttp.ClientResponseError:
+        except ClientResponseError:
             _LOGGER.exception("Failed to retrieve ping results")
 
         return None
@@ -574,8 +581,10 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         """
         url = "/api/v1/sta_diagnostic_utility/traceroute"
-        async with await self._get_page_result(url) as csrf_res:
-            csrf_json = await csrf_res.json()
+        csrf_res = await self._get_page_result(url)
+        if not csrf_res:
+            raise CsrfError("Failed to retrieve CSRF token")
+        csrf_json = await csrf_res.json()
         _LOGGER.debug("CSRF response (see token): %s", csrf_json)
         token = csrf_json.get("token")
         if token:
@@ -589,7 +598,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             "ipaddresstype": ip_type,
         }
 
-        response = await self._post_page_result_with_handling(url, payload)
+        response = await self._post_page_result(url, payload)
         if response is None or response.status != HTTPStatus.OK:
             raise RequestFailed("Failed to trigger traceroute request.")
 
@@ -609,7 +618,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
                 )
                 # sleep for 2 seconds, just like the dashboard does
                 await asyncio.sleep(2)
-            except aiohttp.ClientResponseError:
+            except ClientResponseError:
                 _LOGGER.exception("Failed to retrieve traceroute results")
 
         raise ResultTimeoutError(
@@ -630,10 +639,14 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
                 "/api/v1/sta_diagnostic_utility/traceroute_res",
             )
 
+            if not response:
+                _LOGGER.error("Failed to retrieve traceroute results")
+                return None
+
             if response.status == HTTPStatus.OK:
                 json_data: dict[Any, Any] = await response.json()
                 return json_data
-        except aiohttp.ClientResponseError:
+        except ClientResponseError:
             _LOGGER.exception("Failed to retrieve traceroute results")
 
         return None
@@ -661,8 +674,10 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         """
         url = "/api/v1/sta_diagnostic_utility/tracedns"
-        async with await self._get_page_result(url) as csrf_res:
-            csrf_json = await csrf_res.json()
+        csrf_res = await self._get_page_result(url)
+        if not csrf_res:
+            raise CsrfError("Failed to retrieve CSRF token")
+        csrf_json = await csrf_res.json()
         _LOGGER.debug("CSRF response (see token): %s", csrf_json)
         token = csrf_json.get("token")
         if token:
@@ -676,7 +691,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             "qtype": record_type,
         }
 
-        response = await self._post_page_result_with_handling(url, payload)
+        response = await self._post_page_result(url, payload)
         if response is None or response.status != HTTPStatus.OK:
             raise RequestFailed("Failed to trigger traceroute request.")
 
@@ -698,7 +713,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
                 )
                 # sleep for 2 seconds, just like the dashboard does
                 await asyncio.sleep(2)
-            except aiohttp.ClientResponseError:
+            except ClientResponseError:
                 _LOGGER.exception("Failed to retrieve dns_resolve results")
 
         raise ResultTimeoutError(
@@ -718,11 +733,14 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             response = await self._get_page_result(
                 "/api/v1/sta_diagnostic_utility/traceDns_res",
             )
+            if not response:
+                _LOGGER.error("Failed to retrieve dns_resolve results")
+                return None
 
             if response.status == HTTPStatus.OK:
                 json_data: dict[Any, Any] = await response.json()
                 return json_data
-        except aiohttp.ClientResponseError:
+        except ClientResponseError:
             _LOGGER.exception("Failed to retrieve DNS resolve results")
 
         return None
@@ -744,6 +762,8 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
     async def _get_sercomm_page(self, page: str) -> dict[Any, Any]:
         """Get html page and process reply."""
         reply = await self._get_page_result(page)
+        if not reply:
+            raise RequestFailed(f"Failed to get page {page}")
         reply_json = await reply.json(content_type="text/html")
         _LOGGER.debug("GET reply (%s): %s", page, reply_json)
         return await self._list_2_dict(reply_json)
@@ -756,6 +776,8 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
     ) -> dict[Any, Any] | str:
         """Post html page and process reply."""
         reply = await self._post_page_result(page, payload, timeout)
+        if not reply:
+            raise RequestFailed("Failed to get page")
         _LOGGER.debug("POST raw reply (%s): %s", page, await reply.text())
         reply_json = await reply.json(content_type="text/html")
         _LOGGER.debug("POST json reply (%s): %s", page, reply_json)
@@ -781,7 +803,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         reply = await self.session.get(
             url,
             headers=self.headers,
-            timeout=10,
+            timeout=ClientTimeout(10),
             ssl=False,
             allow_redirects=True,
         )

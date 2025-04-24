@@ -33,3 +33,7 @@ class RequestFailed(VodafoneError):
 
 class ResultTimeoutError(VodafoneError):
     """Exception raised when a debug request times out."""
+
+
+class CsrfError(VodafoneError):
+    """Exception raised when a CSRF Error occurs."""
