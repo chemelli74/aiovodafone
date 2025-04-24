@@ -7,7 +7,7 @@ import sys
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
-import aiohttp
+from aiohttp import ClientSession, CookieJar
 
 from aiovodafone.api import (
     VodafoneStationCommonApi,
@@ -61,6 +61,14 @@ def get_arguments() -> tuple[ArgumentParser, Namespace]:
     return parser, arguments
 
 
+async def logout_close_session(api: VodafoneStationCommonApi) -> None:
+    """Logout and close aiohttp session."""
+    print("-" * 20)
+    print("Logout & close session")
+    await api.logout()
+    await api.close()
+
+
 async def main() -> None:
     """Run main."""
     parser, args = get_arguments()
@@ -70,20 +78,33 @@ async def main() -> None:
         parser.print_help()
         sys.exit(1)
 
+    print("Creating HTTP ClientSession")
+    jar = CookieJar(unsafe=True)
+    session = ClientSession(cookie_jar=jar)
+
     print("Determining device type")
-    async with aiohttp.ClientSession() as session:
-        device_type = await VodafoneStationCommonApi.get_device_type(
-            args.router,
-            session,
-        )
-        print(device_type)
+    device_type = await VodafoneStationCommonApi.get_device_type(
+        args.router,
+        session,
+    )
+    print(device_type)
 
     print("-" * 20)
     api: VodafoneStationCommonApi
     if device_type == DeviceType.TECHNICOLOR:
-        api = VodafoneStationTechnicolorApi(args.router, args.username, args.password)
+        api = VodafoneStationTechnicolorApi(
+            args.router,
+            args.username,
+            args.password,
+            session,
+        )
     elif device_type == DeviceType.SERCOMM:
-        api = VodafoneStationSercommApi(args.router, args.username, args.password)
+        api = VodafoneStationSercommApi(
+            args.router,
+            args.username,
+            args.password,
+            session,
+        )
     else:
         print("The device is not a supported Vodafone Station.")
         sys.exit(1)
@@ -128,6 +149,11 @@ async def main() -> None:
     print(f"{'Cable modem status:':>20} {data.get('cm_status')}")
     print(f"{'LAN mode:':>20} {data.get('lan_mode')}")
 
+    # Sercomm devices don't support Docis data and Voice data
+    if device_type == DeviceType.SERCOMM:
+        await logout_close_session(api)
+        return
+
     print("-" * 20)
     data = await api.get_docis_data()
     print(f"Docis data: {data}")
@@ -154,10 +180,7 @@ async def main() -> None:
     print(f"{'Line2 number:':>15} {data['line2'].get('call_number', 'N/A')}")
     print(f"{'Line2 status:':>15} {data['line2'].get('line_status', 'N/A')}")
 
-    print("-" * 20)
-    print("Logout & close session")
-    await api.logout()
-    await api.close()
+    await logout_close_session(api)
 
 
 if __name__ == "__main__":

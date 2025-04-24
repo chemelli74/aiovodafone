@@ -18,7 +18,6 @@ from aiohttp import (
     ClientResponse,
     ClientResponseError,
     ClientSession,
-    CookieJar,
 )
 from bs4 import BeautifulSoup, Tag
 
@@ -110,7 +109,13 @@ class VodafoneStationCommonApi(ABC):
 
         return None
 
-    def __init__(self, host: str, username: str, password: str) -> None:
+    def __init__(
+        self,
+        host: str,
+        username: str,
+        password: str,
+        session: ClientSession,
+    ) -> None:
         """Initialize the scanner."""
         self.host = host
         self.protocol = "http"
@@ -118,19 +123,12 @@ class VodafoneStationCommonApi(ABC):
         self.password = password
         self.base_url = self._base_url()
         self.headers = HEADERS
-        self.session: ClientSession
+        self.session = session
         self.csrf_token: str = ""
         self.encryption_key: str = ""
         self._unique_id: str | None = None
         self._overview: dict[str, Any] = {}
         self._devices: dict[str, VodafoneStationDevice] = {}
-
-    def _client_session(self) -> None:
-        """Create aiohttp ClientSession."""
-        if not hasattr(self, "session") or self.session.closed:
-            _LOGGER.debug("Creating HTTP ClientSession")
-            jar = CookieJar(unsafe=True)
-            self.session = ClientSession(cookie_jar=jar)
 
     def _base_url(self) -> str:
         """Create base URL."""
@@ -254,7 +252,6 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     async def login(self, force_logout: bool = False) -> bool:
         """Router login."""
         _LOGGER.debug("Logging into %s (force: %s)", self.host, force_logout)
-        self._client_session()
 
         _LOGGER.debug("Get salt for login")
         payload = {"username": self.username, "password": "seeksalthash"}
@@ -602,7 +599,6 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         """Router login."""
         _LOGGER.debug("Logging into %s", self.host)
         try:
-            self._client_session()
             html_page = await self._find_login_url()
         except (asyncio.exceptions.TimeoutError, ClientConnectorError) as exc:
             _LOGGER.warning("Connection error for %s", self.host)
