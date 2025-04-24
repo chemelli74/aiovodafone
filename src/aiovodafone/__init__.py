@@ -11,6 +11,7 @@ from .exceptions import (
     AlreadyLogged,
     CannotAuthenticate,
     CannotConnect,
+    CsrfError,
     ModelNotSupported,
     VodafoneError,
 )
@@ -19,6 +20,7 @@ __all__ = [
     "AlreadyLogged",
     "CannotAuthenticate",
     "CannotConnect",
+    "CsrfError",
     "ModelNotSupported",
     "VodafoneError",
     "VodafoneStationDevice",
