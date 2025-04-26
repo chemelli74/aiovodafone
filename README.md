@@ -35,6 +35,22 @@ Install this via pip (or your favourite package manager):
 
 `pip install aiovodafone`
 
+## Test
+
+Test the library with:
+
+`python library_test.py`
+
+The script accept command line arguments or a library_test.json config file:
+
+```json
+{
+  "router": "192.168.1.1",
+  "username": "<your_username>",
+  "password": "<your_password>"
+}
+```
+
 ## Contributors ✨
 
 Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
