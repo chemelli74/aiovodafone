@@ -1,10 +1,10 @@
 # Changelog
 
-## v1.0.0-rc.1 (2025-05-26)
+## v1.0.0 (2025-05-26)
 
 ### Build system
 
-- Bump python-semantic-release/python-semantic-release ([`cdf95ea`](https://github.com/chemelli74/aiovodafone/commit/cdf95ea9b2af6ee0b10247ac1966a4880ff386f9))
+- Bump python-semantic-release/python-semantic-release from 9.21.1 to 10.0.1 ([`0f455c7`](https://github.com/chemelli74/aiovodafone/commit/0f455c7d86c2f3c0e9de2d0ab74b9cb30e76baa3))
 - Bump python-semantic-release/python-semantic-release from 9.21.0 to 9.21.1 ([`067a685`](https://github.com/chemelli74/aiovodafone/commit/067a68517fa0dfbdc9492362ba21ea354ca82bcc))
 - Bump aiohttp from 3.11.17 to 3.11.18 ([`9f49549`](https://github.com/chemelli74/aiovodafone/commit/9f49549673420477b079102e78e4a281a24bcf2a))
 
