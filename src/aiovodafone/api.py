@@ -18,6 +18,7 @@ from aiohttp import (
     ClientResponse,
     ClientResponseError,
     ClientSession,
+    ClientTimeout,
 )
 from bs4 import BeautifulSoup, Tag
 
@@ -144,9 +145,11 @@ class VodafoneStationCommonApi(ABC):
         self,
         page: str,
         payload: dict[str, Any],
-        timeout: int = 10,
+        timeout: ClientTimeout | None = None,
     ) -> ClientResponse:
         """Get data from a web page via POST."""
+        if not timeout:
+            timeout = ClientTimeout(10)
         _LOGGER.debug("POST page  %s from host %s", page, self.host)
         timestamp = int(datetime.now(tz=UTC).timestamp())
         url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
@@ -168,7 +171,7 @@ class VodafoneStationCommonApi(ABC):
         return await self.session.get(
             url,
             headers=self.headers,
-            timeout=10,
+            timeout=ClientTimeout(10),
             ssl=False,
             allow_redirects=False,
         )
@@ -494,7 +497,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         self,
         page: str,
         payload: dict[str, Any],
-        timeout: int = 10,
+        timeout: ClientTimeout | None = None,
     ) -> dict[Any, Any] | str:
         """Post html page and process reply."""
         reply = await self._post_page_result(page, payload, timeout)
@@ -523,7 +526,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         reply = await self.session.get(
             url,
             headers=self.headers,
-            timeout=10,
+            timeout=ClientTimeout(10),
             ssl=False,
             allow_redirects=True,
         )
@@ -790,6 +793,8 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         try:
             if not await self._check_logged_in():
                 await self.login()
-            await self._post_sercomm_page("/data/statussupportrestart.json", payload, 2)
+            await self._post_sercomm_page(
+                "/data/statussupportrestart.json", payload, ClientTimeout(2)
+            )
         except asyncio.exceptions.TimeoutError:
             pass
