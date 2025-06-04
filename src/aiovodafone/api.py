@@ -24,9 +24,11 @@ from bs4 import BeautifulSoup, Tag
 
 from .const import (
     _LOGGER,
+    DEFAULT_TIMEOUT,
     FULL_FIELDS_NUM,
     HEADERS,
     LOGIN,
+    POST_RESTART_TIMEOUT,
     USER_ALREADY_LOGGED_IN,
     DeviceType,
 )
@@ -145,7 +147,7 @@ class VodafoneStationCommonApi(ABC):
         self,
         page: str,
         payload: dict[str, Any],
-        timeout: int = 10,
+        timeout: ClientTimeout = DEFAULT_TIMEOUT,
     ) -> ClientResponse:
         """Get data from a web page via POST."""
         _LOGGER.debug("POST page  %s from host %s", page, self.host)
@@ -155,7 +157,7 @@ class VodafoneStationCommonApi(ABC):
             url,
             data=payload,
             headers=self.headers,
-            timeout=ClientTimeout(timeout),
+            timeout=timeout,
             ssl=False,
             allow_redirects=True,
         )
@@ -169,7 +171,7 @@ class VodafoneStationCommonApi(ABC):
         return await self.session.get(
             url,
             headers=self.headers,
-            timeout=ClientTimeout(10),
+            timeout=DEFAULT_TIMEOUT,
             ssl=False,
             allow_redirects=False,
         )
@@ -524,7 +526,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         reply = await self.session.get(
             url,
             headers=self.headers,
-            timeout=ClientTimeout(10),
+            timeout=DEFAULT_TIMEOUT,
             ssl=False,
             allow_redirects=True,
         )
@@ -791,6 +793,8 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         try:
             if not await self._check_logged_in():
                 await self.login()
-            await self._post_sercomm_page("/data/statussupportrestart.json", payload, 2)
+            await self._post_sercomm_page(
+                "/data/statussupportrestart.json", payload, POST_RESTART_TIMEOUT
+            )
         except asyncio.exceptions.TimeoutError:
             pass
