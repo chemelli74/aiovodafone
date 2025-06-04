@@ -704,24 +704,33 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
             _LOGGER.info("No device in response from %s", self.host)
             return self._devices
 
-        arr_devices = []
-        arr_wifi_user = return_dict["wifi_user"].split(";")
-        arr_wifi_user = filter(lambda x: x.strip() != "", arr_wifi_user)
-        arr_wifi_user = ["Wifi (Main)|" + dev for dev in arr_wifi_user]
-        arr_wifi_guest = return_dict["wifi_guest"].split(";")
-        arr_wifi_guest = filter(lambda x: x.strip() != "", arr_wifi_guest)
-        arr_wifi_guest = ["[Wifi (Guest)|" + dev for dev in arr_wifi_guest]
-        arr_devices.append(arr_wifi_user)
-        arr_devices.append(arr_wifi_guest)
-        arr_ethernet = return_dict["ethernet"].split(";")
-        arr_ethernet = filter(lambda x: x.strip() != "", arr_ethernet)
-        arr_ethernet = ["Ethernet|on|" + dev + "|||" for dev in arr_ethernet]
-        arr_devices.append(arr_ethernet)
-        arr_devices = [item for sublist in arr_devices for item in sublist]
+        _arr_devices: list[list[str]] = []
+        # Wifi user
+        arr_wifi_user_list: list[str] = return_dict["wifi_user"].split(";")
+        arr_wifi_user_filter: filter[str] = filter(
+            lambda x: x.strip() != "", arr_wifi_user_list
+        )
+        arr_wifi_user = ["Wifi (Main)|" + dev for dev in arr_wifi_user_filter]
+        _arr_devices.append(arr_wifi_user)
+        # Wifi guest
+        arr_wifi_guest_list: list[str] = return_dict["wifi_guest"].split(";")
+        arr_wifi_guest_filter: filter[str] = filter(
+            lambda x: x.strip() != "", arr_wifi_guest_list
+        )
+        arr_wifi_guest = ["[Wifi (Guest)|" + dev for dev in arr_wifi_guest_filter]
+        _arr_devices.append(arr_wifi_guest)
+        # Ethernet
+        arr_ethernet_list: list[str] = return_dict["ethernet"].split(";")
+        arr_ethernet_filter: filter[str] = filter(
+            lambda x: x.strip() != "", arr_ethernet_list
+        )
+        arr_ethernet = ["Ethernet|on|" + dev + "|||" for dev in arr_ethernet_filter]
+        _arr_devices.append(arr_ethernet)
+        arr_devices: list[str] = [item for sublist in _arr_devices for item in sublist]
         _LOGGER.debug("Array of devices: %s", arr_devices)
 
         for device_line in arr_devices:
-            device_fields: list[Any] = device_line.split("|")
+            device_fields: list[str] = device_line.split("|")
             wifi_band = (
                 device_fields[7] if len(device_fields) == FULL_FIELDS_NUM else ""
             )
