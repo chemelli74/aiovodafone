@@ -3,6 +3,8 @@
 import logging
 from enum import Enum
 
+from aiohttp import ClientTimeout
+
 _LOGGER = logging.getLogger(__package__)
 
 HEADERS = {
@@ -34,3 +36,7 @@ class DeviceType(str, Enum):
 
     SERCOMM = "Sercomm"
     TECHNICOLOR = "Technicolor"
+
+
+DEFAULT_TIMEOUT = ClientTimeout(10)
+POST_RESTART_TIMEOUT = ClientTimeout(2)
