@@ -497,7 +497,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         self,
         page: str,
         payload: dict[str, Any],
-        timeout: int = 10,
+        timeout: ClientTimeout = DEFAULT_TIMEOUT,
     ) -> dict[Any, Any] | str:
         """Post html page and process reply."""
         reply = await self._post_page_result(page, payload, timeout)
