@@ -198,15 +198,15 @@ class VodafoneStationCommonApi(ABC):
         """Get router device data."""
 
     @abstractmethod
-    async def get_sensor_data(self) -> dict[Any, Any]:
+    async def get_sensor_data(self) -> dict[str, Any]:
         """Get router sensor data."""
 
     @abstractmethod
-    async def get_docis_data(self) -> dict[Any, Any]:
+    async def get_docis_data(self) -> dict[str, Any]:
         """Get router docis data."""
 
     @abstractmethod
-    async def get_voice_data(self) -> dict[Any, Any]:
+    async def get_voice_data(self) -> dict[str, Any]:
         """Get router voice data."""
 
     @abstractmethod
@@ -372,7 +372,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         return devices_dict
 
-    async def get_sensor_data(self) -> dict[Any, Any]:
+    async def get_sensor_data(self) -> dict[str, Any]:
         """Get all sensors data."""
         _LOGGER.debug("Get sensors")
         status_response = await self._request_page_result(
@@ -391,7 +391,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         data["lan_mode"] = status_json["data"]["LanMode"]
         return data
 
-    async def get_docis_data(self) -> dict[Any, Any]:
+    async def get_docis_data(self) -> dict[str, Any]:
         """Get docis data."""
         _LOGGER.debug("Get docis data")
         response = await self._request_page_result(
@@ -445,7 +445,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         data["status"] = response_json["data"]["operational"]
         return data
 
-    async def get_voice_data(self) -> dict[Any, Any]:
+    async def get_voice_data(self) -> dict[str, Any]:
         """Get voice data."""
         _LOGGER.debug("Get voice data")
         response = await self._request_page_result(
@@ -494,7 +494,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 class VodafoneStationSercommApi(VodafoneStationCommonApi):
     """Queries Vodafone Station running Sercomm firmware."""
 
-    async def _list_2_dict(self, data: dict[Any, Any]) -> dict[Any, Any]:
+    async def _list_2_dict(self, data: dict[dict[str, Any], Any]) -> dict[str, Any]:
         """Transform list in a dict."""
         kv_tuples = [((next(iter(v.keys()))), (next(iter(v.values())))) for v in data]
         key_values = {}
@@ -504,7 +504,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         _LOGGER.debug("Data retrieved (key_values): %s", key_values)
         return key_values
 
-    async def _get_sercomm_page(self, page: str) -> dict[Any, Any]:
+    async def _get_sercomm_page(self, page: str) -> dict[str, Any]:
         """Get html page and process reply."""
         reply = await self._request_page_result(HTTPMethod.GET, page)
         reply_json = await reply.json(content_type="text/html")
@@ -764,7 +764,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
         return self._devices
 
-    async def get_sensor_data(self) -> dict[Any, Any]:
+    async def get_sensor_data(self) -> dict[str, Any]:
         """Load user_data page information."""
         _LOGGER.debug("Getting sensor data for host %s", self.host)
 
@@ -774,11 +774,11 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
         return reply_dict_1 | reply_dict_2 | reply_dict_3 | self._overview
 
-    async def get_docis_data(self) -> dict[Any, Any]:
+    async def get_docis_data(self) -> dict[str, Any]:
         """Get docis data."""
         return {}
 
-    async def get_voice_data(self) -> dict[Any, Any]:
+    async def get_voice_data(self) -> dict[str, Any]:
         """Get voice data."""
         return {}
 
