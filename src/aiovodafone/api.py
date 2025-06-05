@@ -283,6 +283,56 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         else:
             _LOGGER.warning("Failed to retrieve CSRF token")
 
+    async def _trigger_diagnostic_call(
+        self,
+        check_url: str,
+        data_url: str,
+        payload: dict[str, Any],
+        key: str,
+        retries: int = 15,
+    ) -> dict:
+        """Trigger a specific diagnostic request to the router."""
+        url = f"/api/v1/sta_diagnostic_utility/{check_url}"
+        csrf_res = await self._request_page_result(HTTPMethod.GET, url)
+        csrf_json = await csrf_res.json()
+        _LOGGER.debug("CSRF response (see token): %s", csrf_json)
+        token = csrf_json.get("token")
+        if token:
+            self.headers["X-CSRF-Token"] = token
+        else:
+            _LOGGER.warning("Failed to retrieve CSRF token")
+
+        await self._request_page_result(
+            HTTPMethod.POST,
+            url,
+            payload,
+        )
+
+        url = f"/api/v1/sta_diagnostic_utility/{data_url}"
+        for attempt in range(retries):
+            try:
+                response = await self._request_page_result(HTTPMethod.GET, url)
+                result: dict[str, Any] = await response.json()
+                if result and result.get("data", {}).get(key) != "InProgress":
+                    return result
+
+                _LOGGER.debug(
+                    "'%s' results not ready, retrying (%d/%d)...",
+                    key,
+                    attempt + 1,
+                    retries,
+                )
+                # sleep for 2 seconds, just like the dashboard does
+                await asyncio.sleep(2)
+            except ClientResponseError:
+                _LOGGER.exception("Failed to retrieve '%s' results", key)
+
+        raise ResultTimeoutError(
+            "'%s' results not available after %d retries",
+            key,
+            retries,
+        )
+
     async def login(self, force_logout: bool = False) -> bool:
         """Router login."""
         _LOGGER.debug("Logging into %s (force: %s)", self.host, force_logout)
@@ -516,16 +566,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             dict: The ping results.
 
         """
-        url = "/api/v1/sta_diagnostic_utility/ping"
-        csrf_res = await self._request_page_result(HTTPMethod.GET, url)
-        csrf_json = await csrf_res.json()
-        _LOGGER.debug("CSRF response (see token): %s", csrf_json)
-        token = csrf_json.get("token")
-        if token:
-            self.headers["X-CSRF-Token"] = token
-        else:
-            _LOGGER.warning("Failed to retrieve CSRF token")
-
+        check_url = "ping"
+        data_url = "ping_res"
+        key = "ping_result"
         payload = {
             "ipaddress": ip_address,
             "count": count,
@@ -533,47 +576,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             "pingintervalin": ping_interval,
         }
 
-        await self._request_page_result(
-            HTTPMethod.POST,
-            url,
-            payload,
+        return await self._trigger_diagnostic_call(
+            check_url, data_url, payload, key, retries
         )
-
-        for attempt in range(retries):
-            try:
-                result = await self.get_ping_results()
-                if result and result.get("data", {}).get("ping_result") != "InProgress":
-                    return result
-
-                _LOGGER.debug(
-                    "Ping results not ready, retrying (%d/%d)...",
-                    attempt + 1,
-                    retries,
-                )
-                # sleep for 2 seconds, just like the dashboard does
-                await asyncio.sleep(2)
-            except ClientResponseError:
-                _LOGGER.exception("Failed to retrieve ping results")
-
-        raise ResultTimeoutError(
-            "ping results not available after %d retries",
-            retries,
-        )
-
-    async def get_ping_results(self) -> dict[str, Any]:
-        """Retrieve the results of the ping diagnostic.
-
-        Returns
-        -------
-            dict | None: The ping results if available, None otherwise.
-
-        """
-        response = await self._request_page_result(
-            HTTPMethod.GET,
-            "/api/v1/sta_diagnostic_utility/ping_res",
-        )
-
-        return cast("dict[str, Any]", await response.json())
 
     async def traceroute(
         self,
@@ -598,50 +603,17 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             dict: The traceroute results.
 
         """
-        url = "/api/v1/sta_diagnostic_utility/traceroute"
-        csrf_res = await self._request_page_result(HTTPMethod.GET, url)
-        csrf_json = await csrf_res.json()
-        _LOGGER.debug("CSRF response (see token): %s", csrf_json)
-        token = csrf_json.get("token")
-        if token:
-            self.headers["X-CSRF-Token"] = token
-        else:
-            _LOGGER.warning("Failed to retrieve CSRF token")
-
+        check_url = "traceroute"
+        data_url = "traceroute_res"
+        key = "traceroute_result"
         payload = {
             "traceroute_ip": ip_address,
             "count_tr": str(count),
             "ipaddresstype": ip_type,
         }
 
-        await self._request_page_result(HTTPMethod.GET, url, payload)
-
-        for attempt in range(retries):
-            try:
-                response = await self._request_page_result(
-                    HTTPMethod.GET,
-                    "/api/v1/sta_diagnostic_utility/traceroute_res",
-                )
-                result: dict[str, Any] = await response.json()
-                if (
-                    result
-                    and result.get("data", {}).get("traceroute_result") != "InProgress"
-                ):
-                    return result
-
-                _LOGGER.debug(
-                    "Traceroute results not ready, retrying (%d/%d)...",
-                    attempt + 1,
-                    retries,
-                )
-                # sleep for 2 seconds, just like the dashboard does
-                await asyncio.sleep(2)
-            except ClientResponseError:
-                _LOGGER.exception("Failed to retrieve traceroute results")
-
-        raise ResultTimeoutError(
-            "traceroute results not available after %d retries",
-            retries,
+        return await self._trigger_diagnostic_call(
+            check_url, data_url, payload, key, retries
         )
 
     async def dns_resolve(
@@ -666,52 +638,19 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             dict: The dns_resolve results.
 
         """
-        url = "/api/v1/sta_diagnostic_utility/tracedns"
-        csrf_res = await self._request_page_result(HTTPMethod.GET, url)
-        csrf_json = await csrf_res.json()
-        _LOGGER.debug("CSRF response (see token): %s", csrf_json)
-        token = csrf_json.get("token")
-        if token:
-            self.headers["X-CSRF-Token"] = token
-        else:
-            _LOGGER.warning("Failed to retrieve CSRF token")
-
+        check_url = "tracedns"
+        data_url = "traceDns_res"
+        # The result field is named "traceroute_result"
+        # this is not a typo
+        key = "traceroute_result"
         payload = {
             "tracednsip": dns_server,
             "tracednsName": hostname,
             "qtype": record_type,
         }
 
-        await self._request_page_result(HTTPMethod.POST, url, payload)
-
-        for attempt in range(retries):
-            try:
-                response = await self._request_page_result(
-                    HTTPMethod.GET,
-                    "/api/v1/sta_diagnostic_utility/traceDns_res",
-                )
-                result: dict[str, Any] = await response.json()
-                if (
-                    result
-                    # NOTE Yes, the result field is named "traceroute_result",
-                    # this is not a typo
-                    and result.get("data", {}).get("traceroute_result") != "InProgress"
-                ):
-                    return result
-
-                _LOGGER.debug(
-                    "DNS resolve results not ready, retrying (%d/%d)...",
-                    attempt + 1,
-                    retries,
-                )
-                # sleep for 2 seconds, just like the dashboard does
-                await asyncio.sleep(2)
-            except ClientResponseError:
-                _LOGGER.exception("Failed to retrieve dns_resolve results")
-
-        raise ResultTimeoutError(
-            "dns results not available after %d retries",
-            retries,
+        return await self._trigger_diagnostic_call(
+            check_url, data_url, payload, key, retries
         )
 
 
