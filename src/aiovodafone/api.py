@@ -8,7 +8,7 @@ import urllib.parse
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from http import HTTPStatus
+from http import HTTPMethod, HTTPStatus
 from http.cookies import SimpleCookie
 from typing import Any, cast
 
@@ -37,6 +37,7 @@ from .exceptions import (
     CannotAuthenticate,
     CannotConnect,
     GenericLoginError,
+    GenericResponseError,
     ModelNotSupported,
 )
 
@@ -143,38 +144,41 @@ class VodafoneStationCommonApi(ABC):
             SimpleCookie(f"domain={self.host}; name=login_uid; value=1;"),
         )
 
-    async def _post_page_result(
+    async def _request_page_result(
         self,
+        method: str,
         page: str,
-        payload: dict[str, Any],
+        payload: dict[str, Any] | None = None,
         timeout: ClientTimeout = DEFAULT_TIMEOUT,
     ) -> ClientResponse:
-        """Get data from a web page via POST."""
-        _LOGGER.debug("POST page  %s from host %s", page, self.host)
+        """Request data from a web page."""
+        _LOGGER.debug("%s page %s from host %s", method, page, self.host)
         timestamp = int(datetime.now(tz=UTC).timestamp())
         url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
-        return await self.session.post(
-            url,
-            data=payload,
-            headers=self.headers,
-            timeout=timeout,
-            ssl=False,
-            allow_redirects=True,
-        )
-
-    async def _get_page_result(self, page: str) -> ClientResponse:
-        """Get data from a web page via GET."""
-        _LOGGER.debug("GET page  %s [%s]", page, self.host)
-        timestamp = int(datetime.now(tz=UTC).timestamp())
-        url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
-
-        return await self.session.get(
-            url,
-            headers=self.headers,
-            timeout=DEFAULT_TIMEOUT,
-            ssl=False,
-            allow_redirects=False,
-        )
+        try:
+            response = await self.session.request(
+                method,
+                url,
+                data=payload,
+                headers=self.headers,
+                timeout=timeout,
+                ssl=False,
+                allow_redirects=True,
+            )
+            if response.status != HTTPStatus.OK:
+                _LOGGER.warning(
+                    "%s page %s from host %s failed: %s",
+                    method,
+                    page,
+                    self.host,
+                    response.status,
+                )
+                raise GenericResponseError
+        except ClientResponseError as err:
+            _LOGGER.exception("%s page %s from host %s failed", method, page, self.host)
+            raise GenericResponseError from err
+        else:
+            return response
 
     async def close(self) -> None:
         """Router close session."""
@@ -266,7 +270,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             return
 
         # Any existing URL will do the job here
-        csrf_res = await self._get_page_result("/api/v1/wifi/1/SSIDEnable")
+        csrf_res = await self._request_page_result(
+            HTTPMethod.GET, "/api/v1/wifi/1/SSIDEnable"
+        )
         csrf_json = await csrf_res.json()
         _LOGGER.debug("csrf call response: %s", csrf_json)
 
@@ -282,7 +288,8 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         _LOGGER.debug("Get salt for login")
         payload = {"username": self.username, "password": "seeksalthash"}
-        salt_response = await self._post_page_result(
+        salt_response = await self._request_page_result(
+            HTTPMethod.POST,
             page="/api/v1/session/login",
             payload=payload,
         )
@@ -304,7 +311,8 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         # disconnect other users if force is set
         if force_logout:
             payload["logout"] = "true"
-        login_response = await self._post_page_result(
+        login_response = await self._request_page_result(
+            HTTPMethod.POST,
             page="/api/v1/session/login",
             payload=payload,
         )
@@ -317,7 +325,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         # Request menu otherwise the next call fails
         _LOGGER.debug("Get menu")
-        await self._get_page_result("/api/v1/session/menu")
+        await self._request_page_result(HTTPMethod.GET, "/api/v1/session/menu")
 
         # Retrieve CSRF token
         await self._get_csrf_token(force_update=True)
@@ -333,7 +341,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         """
         _LOGGER.debug("Get hosts")
-        host_response = await self._get_page_result("/api/v1/host/hostTbl")
+        host_response = await self._request_page_result(
+            HTTPMethod.GET, "/api/v1/host/hostTbl"
+        )
         host_json = await host_response.json()
         _LOGGER.debug("GET reply (%s)", host_json)
 
@@ -365,7 +375,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     async def get_sensor_data(self) -> dict[str, Any]:
         """Get all sensors data."""
         _LOGGER.debug("Get sensors")
-        status_response = await self._get_page_result("/api/v1/sta_status")
+        status_response = await self._request_page_result(
+            HTTPMethod.GET, "/api/v1/sta_status"
+        )
         status_json = await status_response.json()
         _LOGGER.debug("GET reply (%s)", status_json)
 
@@ -382,7 +394,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     async def get_docis_data(self) -> dict[str, Any]:
         """Get docis data."""
         _LOGGER.debug("Get docis data")
-        response = await self._get_page_result("/api/v1/sta_docsis_status")
+        response = await self._request_page_result(
+            HTTPMethod.GET, "/api/v1/sta_docsis_status"
+        )
         response_json = await response.json()
         _LOGGER.debug("GET reply (%s)", response_json)
 
@@ -434,7 +448,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     async def get_voice_data(self) -> dict[str, Any]:
         """Get voice data."""
         _LOGGER.debug("Get voice data")
-        response = await self._get_page_result("/api/v1/sta_voice_status")
+        response = await self._request_page_result(
+            HTTPMethod.GET, "/api/v1/sta_voice_status"
+        )
         response_json = await response.json()
         _LOGGER.debug("GET reply (%s)", response_json)
 
@@ -465,12 +481,14 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             "ui_access": "reboot_device",
         }
 
-        await self._post_page_result("/api/v1/sta_restart", payload)
+        await self._request_page_result(HTTPMethod.POST, "/api/v1/sta_restart", payload)
 
     async def logout(self) -> None:
         """Router logout."""
         _LOGGER.debug("Logout")
-        await self._post_page_result("/api/v1/session/logout", payload={})
+        await self._request_page_result(
+            HTTPMethod.POST, "/api/v1/session/logout", payload={}
+        )
 
 
 class VodafoneStationSercommApi(VodafoneStationCommonApi):
@@ -488,7 +506,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
     async def _get_sercomm_page(self, page: str) -> dict[str, Any]:
         """Get html page and process reply."""
-        reply = await self._get_page_result(page)
+        reply = await self._request_page_result(HTTPMethod.GET, page)
         reply_json = await reply.json(content_type="text/html")
         _LOGGER.debug("GET reply (%s): %s", page, reply_json)
         return await self._list_2_dict(reply_json)
@@ -500,7 +518,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         timeout: ClientTimeout = DEFAULT_TIMEOUT,
     ) -> dict[Any, Any] | str:
         """Post html page and process reply."""
-        reply = await self._post_page_result(page, payload, timeout)
+        reply = await self._request_page_result(HTTPMethod.POST, page, payload, timeout)
         _LOGGER.debug("POST raw reply (%s): %s", page, await reply.text())
         reply_json = await reply.json(content_type="text/html")
         _LOGGER.debug("POST json reply (%s): %s", page, reply_json)
@@ -521,15 +539,9 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
         Router reply with 200 and a html body instead of a formal redirect
         """
-        url = f"{self.base_url}/login.html"
-        _LOGGER.debug("Requested login url: <%s>", url)
-        reply = await self.session.get(
-            url,
-            headers=self.headers,
-            timeout=DEFAULT_TIMEOUT,
-            ssl=False,
-            allow_redirects=True,
-        )
+        page = "/login.html"
+        _LOGGER.debug("Requested login url: <%s/%s>", self.base_url, page)
+        reply = await self._request_page_result(HTTPMethod.GET, page)
         if reply.status in [HTTPStatus.FORBIDDEN, HTTPStatus.NOT_FOUND]:
             raise ModelNotSupported
         reply_text = await reply.text()
@@ -597,7 +609,9 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
     async def _reset(self) -> bool:
         """Reset page content before loading."""
         payload = {"chk_sys_busy": ""}
-        reply = await self._post_page_result("/data/reset.json", payload)
+        reply = await self._request_page_result(
+            HTTPMethod.POST, "/data/reset.json", payload
+        )
         if isinstance(reply, ClientResponse):
             return bool(reply.status == HTTPStatus.OK)
 
@@ -802,8 +816,11 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         try:
             if not await self._check_logged_in():
                 await self.login()
-            await self._post_sercomm_page(
-                "/data/statussupportrestart.json", payload, POST_RESTART_TIMEOUT
+            await self._request_page_result(
+                HTTPMethod.POST,
+                "/data/statussupportrestart.json",
+                payload,
+                POST_RESTART_TIMEOUT,
             )
         except asyncio.exceptions.TimeoutError:
             pass
