@@ -618,7 +618,11 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         for attempt in range(retries):
             try:
-                result = await self.get_traceroute_results()
+                response = await self._request_page_result(
+                    HTTPMethod.GET,
+                    "/api/v1/sta_diagnostic_utility/traceroute_res",
+                )
+                result: dict[str, Any] = await response.json()
                 if (
                     result
                     and result.get("data", {}).get("traceroute_result") != "InProgress"
@@ -639,21 +643,6 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             "traceroute results not available after %d retries",
             retries,
         )
-
-    async def get_traceroute_results(self) -> dict[str, Any] | None:
-        """Retrieve the results of the traceroute diagnostic.
-
-        Returns
-        -------
-            dict | None: The traceroute results if available, None otherwise.
-
-        """
-        response = await self._request_page_result(
-            HTTPMethod.GET,
-            "/api/v1/sta_diagnostic_utility/traceroute_res",
-        )
-
-        return cast("dict[str, Any]", await response.json())
 
     async def dns_resolve(
         self,
@@ -697,7 +686,11 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         for attempt in range(retries):
             try:
-                result = await self.get_dns_resolve_results()
+                response = await self._request_page_result(
+                    HTTPMethod.GET,
+                    "/api/v1/sta_diagnostic_utility/traceDns_res",
+                )
+                result: dict[str, Any] = await response.json()
                 if (
                     result
                     # NOTE Yes, the result field is named "traceroute_result",
@@ -720,20 +713,6 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             "dns results not available after %d retries",
             retries,
         )
-
-    async def get_dns_resolve_results(self) -> dict[str, Any] | None:
-        """Retrieve the results of the dns_resolve diagnostic.
-
-        Returns
-        -------
-            dict | None: The DNS resolve results if available, None otherwise.
-
-        """
-        response = await self._request_page_result(
-            HTTPMethod.GET,
-            "/api/v1/sta_diagnostic_utility/traceDns_res",
-        )
-        return cast("dict[str, Any]", await response.json())
 
 
 class VodafoneStationSercommApi(VodafoneStationCommonApi):
