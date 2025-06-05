@@ -11,6 +11,10 @@ class GenericLoginError(VodafoneError):
     """Exception raised when login fails."""
 
 
+class GenericResponseError(VodafoneError):
+    """Exception raised when GET/POST fails."""
+
+
 class CannotConnect(VodafoneError):
     """Exception raised when connection fails."""
 
