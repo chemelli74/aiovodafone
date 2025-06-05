@@ -19,7 +19,6 @@ from aiohttp import (
     ClientResponseError,
     ClientSession,
     ClientTimeout,
-    ClientTimeout,
 )
 from bs4 import BeautifulSoup, Tag
 
@@ -37,11 +36,9 @@ from .exceptions import (
     AlreadyLogged,
     CannotAuthenticate,
     CannotConnect,
-    CsrfError,
     GenericLoginError,
     GenericResponseError,
     ModelNotSupported,
-    RequestFailed,
     ResultTimeoutError,
 )
 
@@ -152,47 +149,37 @@ class VodafoneStationCommonApi(ABC):
         self,
         method: str,
         page: str,
-        payload: dict[str, Any],
-        timeout: int = 10,
-    ) -> ClientResponse | None:
-        """Get data from a web page via POST."""
-        _LOGGER.debug("POST page %s from host %s", page, self.host)
+        payload: dict[str, Any] | None = None,
+        timeout: ClientTimeout = DEFAULT_TIMEOUT,
+    ) -> ClientResponse:
+        """Request data from a web page."""
+        _LOGGER.debug("%s page %s from host %s", method, page, self.host)
         timestamp = int(datetime.now(tz=UTC).timestamp())
         url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
         try:
-            return await self.session.post(
+            response = await self.session.request(
+                method,
                 url,
                 data=payload,
                 headers=self.headers,
-                timeout=ClientTimeout(timeout),
+                timeout=timeout,
                 ssl=False,
                 allow_redirects=True,
             )
-        except ClientResponseError:
-            _LOGGER.exception("Request to %s failed", page)
-        return None
-
-    async def _get_page_result(
-        self,
-        page: str,
-        timeout: int = 10,
-    ) -> ClientResponse | None:
-        """Get data from a web page via GET."""
-        _LOGGER.debug("GET page %s [%s]", page, self.host)
-        timestamp = int(datetime.now(tz=UTC).timestamp())
-        url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
-
-        try:
-            return await self.session.get(
-                url,
-                headers=self.headers,
-                timeout=ClientTimeout(timeout),
-                ssl=False,
-                allow_redirects=False,
-            )
-        except ClientResponseError:
-            _LOGGER.exception("Request to %s failed", page)
-        return None
+            if response.status != HTTPStatus.OK:
+                _LOGGER.warning(
+                    "%s page %s from host %s failed: %s",
+                    method,
+                    page,
+                    self.host,
+                    response.status,
+                )
+                raise GenericResponseError
+        except ClientResponseError as err:
+            _LOGGER.exception("%s page %s from host %s failed", method, page, self.host)
+            raise GenericResponseError from err
+        else:
+            return response
 
     async def close(self) -> None:
         """Router close session."""
@@ -308,9 +295,6 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             payload=payload,
         )
 
-        if not salt_response:
-            raise GenericLoginError("Failed to get salt for login")
-
         salt_json = await salt_response.json()
 
         salt = salt_json["salt"]
@@ -333,9 +317,6 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             page="/api/v1/session/login",
             payload=payload,
         )
-        if not login_response:
-            raise GenericLoginError("Failed to login")
-
         login_json = await login_response.json()
         if "error" in login_json and login_json["error"] == "error":
             if login_json["message"] == USER_ALREADY_LOGGED_IN:
@@ -361,9 +342,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         """
         _LOGGER.debug("Get hosts")
-        host_response = await self._get_page_result("/api/v1/host/hostTbl")
-        if not host_response:
-            raise RequestFailed("Failed to get hosts")
+        host_response = await self._request_page_result(
+            HTTPMethod.GET, "/api/v1/host/hostTbl"
+        )
         host_json = await host_response.json()
         _LOGGER.debug("GET reply (%s)", host_json)
 
@@ -395,9 +376,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     async def get_sensor_data(self) -> dict[str, Any]:
         """Get all sensors data."""
         _LOGGER.debug("Get sensors")
-        status_response = await self._get_page_result("/api/v1/sta_status")
-        if not status_response:
-            raise RequestFailed("Failed to get status")
+        status_response = await self._request_page_result(
+            HTTPMethod.GET, "/api/v1/sta_status"
+        )
         status_json = await status_response.json()
         _LOGGER.debug("GET reply (%s)", status_json)
 
@@ -414,9 +395,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     async def get_docis_data(self) -> dict[str, Any]:
         """Get docis data."""
         _LOGGER.debug("Get docis data")
-        response = await self._get_page_result("/api/v1/sta_docsis_status")
-        if not response:
-            raise RequestFailed("Failed to get DOCSIS status")
+        response = await self._request_page_result(
+            HTTPMethod.GET, "/api/v1/sta_docsis_status"
+        )
         response_json = await response.json()
         _LOGGER.debug("GET reply (%s)", response_json)
 
@@ -468,9 +449,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     async def get_voice_data(self) -> dict[str, Any]:
         """Get voice data."""
         _LOGGER.debug("Get voice data")
-        response = await self._get_page_result("/api/v1/sta_voice_status")
-        if not response:
-            raise RequestFailed("Failed to get voice status")
+        response = await self._request_page_result(
+            HTTPMethod.GET, "/api/v1/sta_voice_status"
+        )
         response_json = await response.json()
         _LOGGER.debug("GET reply (%s)", response_json)
 
@@ -506,33 +487,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     async def logout(self) -> None:
         """Router logout."""
         _LOGGER.debug("Logout")
-        await self._post_page_result("/api/v1/session/logout", payload={})
-
-    async def _post_page_result_with_handling(
-        self,
-        endpoint: str,
-        payload: dict,
-        timeout: int = 10,
-    ) -> aiohttp.ClientResponse | None:
-        """Wrap `_post_page_result` to handle errors and logging.
-
-        Args:
-        ----
-            endpoint (str): API endpoint for the POST request.
-            payload (dict): Data to be sent in the POST request.
-            timeout (int): Timeout for the request (default: 10 seconds).
-
-        Returns:
-        -------
-            aiohttp.ClientResponse | None: The response object if successful,
-            None otherwise.
-
-        """
-        try:
-            return await self._post_page_result(endpoint, payload, timeout)
-        except aiohttp.ClientResponseError:
-            _LOGGER.exception("Request to %s failed", endpoint)
-        return None
+        await self._request_page_result(
+            HTTPMethod.POST, "/api/v1/session/logout", payload={}
+        )
 
     async def ping(
         self,
@@ -560,9 +517,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         """
         url = "/api/v1/sta_diagnostic_utility/ping"
-        csrf_res = await self._get_page_result(url)
-        if not csrf_res:
-            raise CsrfError("Failed to retrieve CSRF token")
+        csrf_res = await self._request_page_result(HTTPMethod.GET, url)
         csrf_json = await csrf_res.json()
         _LOGGER.debug("CSRF response (see token): %s", csrf_json)
         token = csrf_json.get("token")
@@ -578,12 +533,11 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             "pingintervalin": ping_interval,
         }
 
-        response = await self._post_page_result(
+        await self._request_page_result(
+            HTTPMethod.POST,
             url,
             payload,
         )
-        if response is None or response.status != HTTPStatus.OK:
-            raise RequestFailed("Failed to trigger ping request.")
 
         for attempt in range(retries):
             try:
@@ -606,7 +560,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             retries,
         )
 
-    async def get_ping_results(self) -> dict[Any, Any] | None:
+    async def get_ping_results(self) -> dict[str, Any]:
         """Retrieve the results of the ping diagnostic.
 
         Returns
@@ -614,21 +568,12 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             dict | None: The ping results if available, None otherwise.
 
         """
-        try:
-            response = await self._get_page_result(
-                "/api/v1/sta_diagnostic_utility/ping_res",
-            )
-            if not response:
-                _LOGGER.error("Failed to retrieve ping results")
-                return None
+        response = await self._request_page_result(
+            HTTPMethod.GET,
+            "/api/v1/sta_diagnostic_utility/ping_res",
+        )
 
-            if response.status == HTTPStatus.OK:
-                json_data: dict[Any, Any] = await response.json()
-                return json_data
-        except ClientResponseError:
-            _LOGGER.exception("Failed to retrieve ping results")
-
-        return None
+        return cast("dict[str, Any]", await response.json())
 
     async def traceroute(
         self,
@@ -636,7 +581,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         count: int = 30,
         ip_type: str = "Ipv4",
         retries: int = 15,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Trigger a traceroute diagnostic request to the router.
 
         Args:
@@ -654,9 +599,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         """
         url = "/api/v1/sta_diagnostic_utility/traceroute"
-        csrf_res = await self._get_page_result(url)
-        if not csrf_res:
-            raise CsrfError("Failed to retrieve CSRF token")
+        csrf_res = await self._request_page_result(HTTPMethod.GET, url)
         csrf_json = await csrf_res.json()
         _LOGGER.debug("CSRF response (see token): %s", csrf_json)
         token = csrf_json.get("token")
@@ -671,9 +614,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             "ipaddresstype": ip_type,
         }
 
-        response = await self._post_page_result(url, payload)
-        if response is None or response.status != HTTPStatus.OK:
-            raise RequestFailed("Failed to trigger traceroute request.")
+        await self._request_page_result(HTTPMethod.GET, url, payload)
 
         for attempt in range(retries):
             try:
@@ -699,7 +640,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             retries,
         )
 
-    async def get_traceroute_results(self) -> dict[Any, Any] | None:
+    async def get_traceroute_results(self) -> dict[str, Any] | None:
         """Retrieve the results of the traceroute diagnostic.
 
         Returns
@@ -707,22 +648,12 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             dict | None: The traceroute results if available, None otherwise.
 
         """
-        try:
-            response = await self._get_page_result(
-                "/api/v1/sta_diagnostic_utility/traceroute_res",
-            )
+        response = await self._request_page_result(
+            HTTPMethod.GET,
+            "/api/v1/sta_diagnostic_utility/traceroute_res",
+        )
 
-            if not response:
-                _LOGGER.error("Failed to retrieve traceroute results")
-                return None
-
-            if response.status == HTTPStatus.OK:
-                json_data: dict[Any, Any] = await response.json()
-                return json_data
-        except ClientResponseError:
-            _LOGGER.exception("Failed to retrieve traceroute results")
-
-        return None
+        return cast("dict[str, Any]", await response.json())
 
     async def dns_resolve(
         self,
@@ -730,7 +661,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         dns_server: str = "1.1.1.1",
         record_type: str = "A",
         retries: int = 15,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Trigger a traceroute diagnostic request to the router.
 
         Args:
@@ -747,9 +678,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         """
         url = "/api/v1/sta_diagnostic_utility/tracedns"
-        csrf_res = await self._get_page_result(url)
-        if not csrf_res:
-            raise CsrfError("Failed to retrieve CSRF token")
+        csrf_res = await self._request_page_result(HTTPMethod.GET, url)
         csrf_json = await csrf_res.json()
         _LOGGER.debug("CSRF response (see token): %s", csrf_json)
         token = csrf_json.get("token")
@@ -764,9 +693,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             "qtype": record_type,
         }
 
-        response = await self._post_page_result(url, payload)
-        if response is None or response.status != HTTPStatus.OK:
-            raise RequestFailed("Failed to trigger traceroute request.")
+        await self._request_page_result(HTTPMethod.POST, url, payload)
 
         for attempt in range(retries):
             try:
@@ -794,7 +721,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             retries,
         )
 
-    async def get_dns_resolve_results(self) -> dict[Any, Any] | None:
+    async def get_dns_resolve_results(self) -> dict[str, Any] | None:
         """Retrieve the results of the dns_resolve diagnostic.
 
         Returns
@@ -802,21 +729,11 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             dict | None: The DNS resolve results if available, None otherwise.
 
         """
-        try:
-            response = await self._get_page_result(
-                "/api/v1/sta_diagnostic_utility/traceDns_res",
-            )
-            if not response:
-                _LOGGER.error("Failed to retrieve dns_resolve results")
-                return None
-
-            if response.status == HTTPStatus.OK:
-                json_data: dict[Any, Any] = await response.json()
-                return json_data
-        except ClientResponseError:
-            _LOGGER.exception("Failed to retrieve DNS resolve results")
-
-        return None
+        response = await self._request_page_result(
+            HTTPMethod.GET,
+            "/api/v1/sta_diagnostic_utility/traceDns_res",
+        )
+        return cast("dict[str, Any]", await response.json())
 
 
 class VodafoneStationSercommApi(VodafoneStationCommonApi):
@@ -846,9 +763,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         timeout: ClientTimeout = DEFAULT_TIMEOUT,
     ) -> dict[Any, Any] | str:
         """Post html page and process reply."""
-        reply = await self._post_page_result(page, payload, timeout)
-        if not reply:
-            raise RequestFailed("Failed to get page")
+        reply = await self._request_page_result(HTTPMethod.POST, page, payload, timeout)
         _LOGGER.debug("POST raw reply (%s): %s", page, await reply.text())
         reply_json = await reply.json(content_type="text/html")
         _LOGGER.debug("POST json reply (%s): %s", page, reply_json)
@@ -869,15 +784,9 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
         Router reply with 200 and a html body instead of a formal redirect
         """
-        url = f"{self.base_url}/login.html"
-        _LOGGER.debug("Requested login url: <%s>", url)
-        reply = await self.session.get(
-            url,
-            headers=self.headers,
-            timeout=ClientTimeout(10),
-            ssl=False,
-            allow_redirects=True,
-        )
+        page = "/login.html"
+        _LOGGER.debug("Requested login url: <%s/%s>", self.base_url, page)
+        reply = await self._request_page_result(HTTPMethod.GET, page)
         if reply.status in [HTTPStatus.FORBIDDEN, HTTPStatus.NOT_FOUND]:
             raise ModelNotSupported
         reply_text = await reply.text()
