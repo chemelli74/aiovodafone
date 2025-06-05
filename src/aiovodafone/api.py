@@ -292,16 +292,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         retries: int = 15,
     ) -> dict:
         """Trigger a specific diagnostic request to the router."""
-        url = f"/api/v1/sta_diagnostic_utility/{check_url}"
-        csrf_res = await self._request_page_result(HTTPMethod.GET, url)
-        csrf_json = await csrf_res.json()
-        _LOGGER.debug("CSRF response (see token): %s", csrf_json)
-        token = csrf_json.get("token")
-        if token:
-            self.headers["X-CSRF-Token"] = token
-        else:
-            _LOGGER.warning("Failed to retrieve CSRF token")
+        await self._get_csrf_token()
 
+        url = f"/api/v1/sta_diagnostic_utility/{check_url}"
         await self._request_page_result(
             HTTPMethod.POST,
             url,
