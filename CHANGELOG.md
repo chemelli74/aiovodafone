@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.1.0 (2025-06-06)
+
+### Features
+
+- Add ping, dns and traceroute for technicolor devices ([`8d2720d`](https://github.com/chemelli74/aiovodafone/commit/8d2720de7e0caad35749d9406dee6ad656b984e4))
+
+
+### Refactoring
+
+- Improve typing ([`12eb8ad`](https://github.com/chemelli74/aiovodafone/commit/12eb8ad53c755d758e4c23c824831749d39165b2))
+- Unify post and get internal requests ([`b8566c0`](https://github.com/chemelli74/aiovodafone/commit/b8566c016213c3f7dc2a313d846f67c1eddf59f6))
+- Fix typing ([`beca105`](https://github.com/chemelli74/aiovodafone/commit/beca1056180db2d2c4fcd7b3db249fffc016193b))
+- Use clienttimeout - part 2 ([`4d3f161`](https://github.com/chemelli74/aiovodafone/commit/4d3f16118121818b1b5d744e1db8998e5ecbe144))
+- Use clienttimeout ([`dd2ff01`](https://github.com/chemelli74/aiovodafone/commit/dd2ff010dce093a80eae45166323069653cefe1b))
+
+
+### Build system
+
+- Bump aiohttp from 3.11.18 to 3.12.6 ([`03c3a96`](https://github.com/chemelli74/aiovodafone/commit/03c3a96d36cb89fc4451f02aa5a366508edead3f))
+- Bump python-semantic-release/python-semantic-release from 10.0.1 to 10.0.2 ([`c9d8d8f`](https://github.com/chemelli74/aiovodafone/commit/c9d8d8f71a65fe305dd2df9271e858c8d6c16b37))
+
+
 ## v1.0.0 (2025-05-26)
 
 ### Build system
