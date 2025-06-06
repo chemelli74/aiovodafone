@@ -39,6 +39,7 @@ from .exceptions import (
     GenericLoginError,
     GenericResponseError,
     ModelNotSupported,
+    ResultTimeoutError,
 )
 
 
@@ -282,6 +283,49 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         else:
             _LOGGER.warning("Failed to retrieve CSRF token")
 
+    async def _trigger_diagnostic_call(
+        self,
+        check_url: str,
+        data_url: str,
+        payload: dict[str, Any],
+        key: str,
+        retries: int = 15,
+    ) -> dict:
+        """Trigger a specific diagnostic request to the router."""
+        await self._get_csrf_token(force_update=True)
+
+        url = f"/api/v1/sta_diagnostic_utility/{check_url}"
+        await self._request_page_result(
+            HTTPMethod.POST,
+            url,
+            payload,
+        )
+
+        url = f"/api/v1/sta_diagnostic_utility/{data_url}"
+        for attempt in range(retries):
+            try:
+                response = await self._request_page_result(HTTPMethod.GET, url)
+                result: dict[str, Any] = await response.json()
+                if result and result.get("data", {}).get(key) != "InProgress":
+                    return result
+
+                _LOGGER.debug(
+                    "'%s' results not ready, retrying (%d/%d)...",
+                    key,
+                    attempt + 1,
+                    retries,
+                )
+                # sleep for 2 seconds, just like the dashboard does
+                await asyncio.sleep(2)
+            except ClientResponseError:
+                _LOGGER.exception("Failed to retrieve '%s' results", key)
+
+        raise ResultTimeoutError(
+            "'%s' results not available after %d retries",
+            key,
+            retries,
+        )
+
     async def login(self, force_logout: bool = False) -> bool:
         """Router login."""
         _LOGGER.debug("Logging into %s (force: %s)", self.host, force_logout)
@@ -326,9 +370,6 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         # Request menu otherwise the next call fails
         _LOGGER.debug("Get menu")
         await self._request_page_result(HTTPMethod.GET, "/api/v1/session/menu")
-
-        # Retrieve CSRF token
-        await self._get_csrf_token(force_update=True)
 
         return True
 
@@ -488,6 +529,118 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         _LOGGER.debug("Logout")
         await self._request_page_result(
             HTTPMethod.POST, "/api/v1/session/logout", payload={}
+        )
+
+    async def ping(
+        self,
+        ip_address: str,
+        count: int = 1,
+        ping_size: int = 56,
+        ping_interval: int = 1000,
+        retries: int = 15,
+    ) -> dict:
+        """Trigger a ping diagnostic request to the router.
+
+        Args:
+        ----
+            ip_address (str): The target IP address to ping.
+            count (int): Number of ping requests to send (default: 1).
+            ping_size (int): The size of the ping packet (default: 56 bytes).
+            ping_interval (int): Interval between ping requests in milliseconds
+                (default: 1000 ms).
+            retries (int): Number of times to retry if results are not ready
+                (default: 15).
+
+        Returns:
+        -------
+            dict: The ping results.
+
+        """
+        check_url = "ping"
+        data_url = "ping_res"
+        key = "ping_result"
+        payload = {
+            "ipaddress": ip_address,
+            "count": count,
+            "pingsize": ping_size,
+            "pingintervalin": ping_interval,
+        }
+
+        return await self._trigger_diagnostic_call(
+            check_url, data_url, payload, key, retries
+        )
+
+    async def traceroute(
+        self,
+        ip_address: str,
+        count: int = 30,
+        ip_type: str = "Ipv4",
+        retries: int = 15,
+    ) -> dict[str, Any]:
+        """Trigger a traceroute diagnostic request to the router.
+
+        Args:
+        ----
+            ip_address (str): The target IP address for the traceroute.
+            count (int): Maximum number of hops (default: 30).
+            ip_type (str): IP address type, either "Ipv4" or "Ipv6"
+                (default: "Ipv4").
+            retries (int): Number of times to retry if results are not ready
+                (default: 15).
+
+        Returns:
+        -------
+            dict: The traceroute results.
+
+        """
+        check_url = "traceroute"
+        data_url = "traceroute_res"
+        key = "traceroute_result"
+        payload = {
+            "traceroute_ip": ip_address,
+            "count_tr": str(count),
+            "ipaddresstype": ip_type,
+        }
+
+        return await self._trigger_diagnostic_call(
+            check_url, data_url, payload, key, retries
+        )
+
+    async def dns_resolve(
+        self,
+        hostname: str,
+        dns_server: str = "1.1.1.1",
+        record_type: str = "A",
+        retries: int = 15,
+    ) -> dict[str, Any]:
+        """Trigger a traceroute diagnostic request to the router.
+
+        Args:
+        ----
+            hostname (str): The hostname to resolve.
+            dns_server (str): The DNS server to query (default: 1.1.1.1).
+            record_type (str): DNS record type (default: "A").
+            retries (int): Number of times to retry if results are not ready
+                (default: 15).
+
+        Returns:
+        -------
+            dict: The dns_resolve results.
+
+        """
+        check_url = "tracedns"
+        data_url = "traceDns_res"
+        # The result field is named "traceroute_result"
+        # this is not a typo
+        key = "traceroute_result"
+        payload = {
+            "tracednsip": dns_server,
+            "tracednsName": hostname,
+            "qtype": record_type,
+        }
+
+        return await self._trigger_diagnostic_call(
+            check_url, data_url, payload, key, retries
         )
 
 
