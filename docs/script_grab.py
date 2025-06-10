@@ -50,7 +50,7 @@ async def main() -> None:
         reply = await session.get(
             url,
             headers=headers,
-            timeout=10,
+            timeout=aiohttp.ClientTimeout(10),
             ssl=False,
             allow_redirects=True,
         )
