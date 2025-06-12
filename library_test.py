@@ -79,7 +79,7 @@ async def main() -> None:
         sys.exit(1)
 
     print("Creating HTTP ClientSession")
-    jar = CookieJar(unsafe=True)
+    jar = CookieJar(unsafe=True, quote_cookie=False)
     session = ClientSession(cookie_jar=jar)
 
     print("Determining device type")
