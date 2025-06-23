@@ -1,8 +1,11 @@
-[tool.poetry]
+[project]
 name = "aiovodafone"
 version = "1.1.0"
+requires-python = "^3.12"
 description = "Python library to control Vodafone Station"
-authors = ["Simone Chemelli <simone.chemelli@gmail.com>"]
+authors = [
+{ name = "Simone Chemelli", email = "simone.chemelli@gmail.com" },
+]
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/chemelli74/aiovodafone"
@@ -16,15 +19,14 @@ classifiers = [
 packages = [
     { include = "aiovodafone", from = "src" },
 ]
+dependencies = [
+    "aiohttp",
+    "beautifulsoup4",
+]
 
-[tool.poetry.urls]
+[project.urls]
 "Bug Tracker" = "https://github.com/chemelli74/aiovodafone/issues"
 "Changelog" = "https://github.com/chemelli74/aiovodafone/blob/main/CHANGELOG.md"
-
-[tool.poetry.dependencies]
-python = "^3.12"
-aiohttp = "*"
-beautifulsoup4 = "*"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.1"
