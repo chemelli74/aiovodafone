@@ -81,6 +81,7 @@ class VodafoneStationCommonApi(ABC):
             DeviceType:
             If the device is a Technicolor, it returns `DeviceType.TECHNICOLOR`.
             If the device is a Sercomm,     it returns `DeviceType.SERCOMM`.
+            If the device is a UltraHub,     it returns `DeviceType.ULTRAHUB`.
             If neither of the device types match, it returns `None`.
 
         """
@@ -88,7 +89,10 @@ class VodafoneStationCommonApi(ABC):
             f"http://{host}/api/v1/login_conf",
             headers=HEADERS,
         ) as response:
-            if response.status == HTTPStatus.OK:
+            if (
+                response.status == HTTPStatus.OK
+                and response.content_type == "application/json"
+            ):
                 response_json = await response.json()
                 if "data" in response_json and "ModelName" in response_json["data"]:
                     return DeviceType.TECHNICOLOR
@@ -109,6 +113,31 @@ class VodafoneStationCommonApi(ABC):
                     ):
                         return DeviceType.SERCOMM
             except ClientConnectorSSLError:
+                _LOGGER.debug("Unable to login using protocol %s", protocol)
+                continue
+            except ClientConnectorError:
+                _LOGGER.debug("Unable to login using protocol %s", protocol)
+                continue
+
+        for protocol in ["https", "http"]:
+            try:
+                async with session.get(
+                    f"{protocol}://{host}/api/users/details.jst?__id=3&X_INTERNAL_FIELDS=X_VODAFONE_WebUISecret",
+                    headers=HEADERS,
+                    ssl=False,
+                ) as response:
+                    # To identify the Sercomm devices before the login
+                    # There's no other sure way to identify a Sercomm device
+                    # without login
+                    if (
+                        response.status == HTTPStatus.OK
+                        and response.content_type == "application/json"
+                    ):
+                        return DeviceType.ULTRAHUB
+            except ClientConnectorSSLError:
+                _LOGGER.debug("Unable to login using protocol %s", protocol)
+                continue
+            except ClientConnectorError:
                 _LOGGER.debug("Unable to login using protocol %s", protocol)
                 continue
 
