@@ -119,7 +119,7 @@ class VodafoneStationCommonApi(ABC):
                 _LOGGER.debug("Unable to login using protocol %s", protocol)
                 continue
 
-        for protocol in ["https", "http"]:
+        for protocol in ["http", "https"]:
             try:
                 async with session.get(
                     f"{protocol}://{host}/api/users/details.jst?__id=3&X_INTERNAL_FIELDS=X_VODAFONE_WebUISecret",

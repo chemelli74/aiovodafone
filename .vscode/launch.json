@@ -8,8 +8,7 @@
       "program": "library_test.py",
       "args": ["-cf", "library_test.json"],
       "console": "integratedTerminal",
-      "justMyCode": true,
-      "env": { "PYTHONPATH": "${workspaceFolder}${/}src" }
+      "justMyCode": true
     }
   ]
 }
