@@ -1,7 +1,7 @@
 [project]
 name = "aiovodafone"
 version = "1.1.0"
-requires-python = "^3.12"
+requires-python = ">=3.12"
 description = "Python library to control Vodafone Station"
 authors = [
 { name = "Simone Chemelli", email = "simone.chemelli@gmail.com" },
@@ -20,8 +20,8 @@ packages = [
     { include = "aiovodafone", from = "src" },
 ]
 dependencies = [
-    "aiohttp",
-    "beautifulsoup4",
+"aiohttp (>=3.12.7)",
+"beautifulsoup4",
 ]
 
 [project.urls]
@@ -33,7 +33,7 @@ pytest = "^8.1"
 pytest-cov = ">=5,<7"
 
 [tool.semantic_release]
-version_toml = ["pyproject.toml:tool.poetry.version"]
+version_toml = ["pyproject.toml:project.version"]
 version_variables = ["src/aiovodafone/__init__.py:__version__",]
 build_command = "pip install poetry && poetry build"
 
