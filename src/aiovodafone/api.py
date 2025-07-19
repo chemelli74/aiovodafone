@@ -118,10 +118,7 @@ class VodafoneStationCommonApi(ABC):
                         and "var csrf_token = " in await response.text()
                     ):
                         return DeviceType.SERCOMM
-            except ClientConnectorSSLError:
-                _LOGGER.debug("Unable to login using protocol %s", protocol)
-                continue
-            except ClientConnectorError:
+            except (ClientConnectorSSLError, ClientConnectorError):
                 _LOGGER.debug("Unable to login using protocol %s", protocol)
                 continue
 
@@ -139,10 +136,7 @@ class VodafoneStationCommonApi(ABC):
                         and response.content_type == "application/json"
                     ):
                         return DeviceType.ULTRAHUB
-            except ClientConnectorSSLError:
-                _LOGGER.debug("Unable to login using protocol %s", protocol)
-                continue
-            except ClientConnectorError:
+            except (ClientConnectorSSLError, ClientConnectorError):
                 _LOGGER.debug("Unable to login using protocol %s", protocol)
                 continue
 
