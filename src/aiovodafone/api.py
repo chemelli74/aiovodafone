@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import hmac
 import re
+import ssl
 import urllib.parse
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -85,9 +86,14 @@ class VodafoneStationCommonApi(ABC):
             If neither of the device types match, it returns `None`.
 
         """
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+
         async with session.get(
             f"http://{host}/api/v1/login_conf",
             headers=HEADERS,
+            ssl=ssl_context,
         ) as response:
             if (
                 response.status == HTTPStatus.OK
@@ -102,7 +108,7 @@ class VodafoneStationCommonApi(ABC):
                 async with session.get(
                     f"{protocol}://{host}/login.html",
                     headers=HEADERS,
-                    ssl=False,
+                    ssl=ssl_context,
                 ) as response:
                     # To identify the Sercomm devices before the login
                     # There's no other sure way to identify a Sercomm device
@@ -123,7 +129,7 @@ class VodafoneStationCommonApi(ABC):
                 async with session.get(
                     f"{protocol}://{host}/api/users/details.jst?__id=3&X_INTERNAL_FIELDS=X_VODAFONE_WebUISecret",
                     headers=HEADERS,
-                    ssl=False,
+                    ssl=ssl_context,
                 ) as response:
                     # To identify the Sercomm devices before the login
                     # There's no other sure way to identify a Sercomm device
