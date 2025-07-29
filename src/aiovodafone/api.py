@@ -4,13 +4,17 @@ import asyncio
 import hashlib
 import hmac
 import re
-import ssl
 import urllib.parse
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from http import HTTPMethod, HTTPStatus
 from http.cookies import SimpleCookie
+from ssl import (
+    CERT_NONE,
+    SSLCertVerificationError,
+    create_default_context,
+)
 from typing import Any, cast
 
 from aiohttp import (
@@ -86,29 +90,30 @@ class VodafoneStationCommonApi(ABC):
             If neither of the device types match, it returns `None`.
 
         """
-        ssl_context = ssl.create_default_context()
+        ssl_context = create_default_context()
         ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
-
-        async with session.get(
-            f"http://{host}/api/v1/login_conf",
-            headers=HEADERS,
-            ssl=ssl_context,
-        ) as response:
-            if (
-                response.status == HTTPStatus.OK
-                and response.content_type == "application/json"
-            ):
-                response_json = await response.json()
-                if "data" in response_json and "ModelName" in response_json["data"]:
-                    return DeviceType.TECHNICOLOR
+        ssl_context.verify_mode = CERT_NONE
+        try:
+            async with session.get(
+                f"http://{host}/api/v1/login_conf",
+                headers=HEADERS,
+            ) as response:
+                if (
+                    response.status == HTTPStatus.OK
+                    and response.content_type == "application/json"
+                ):
+                    response_json = await response.json()
+                    if "data" in response_json and "ModelName" in response_json["data"]:
+                        return DeviceType.TECHNICOLOR
+        except SSLCertVerificationError:
+            pass
 
         for protocol in ["https", "http"]:
             try:
                 async with session.get(
                     f"{protocol}://{host}/login.html",
                     headers=HEADERS,
-                    ssl=ssl_context,
+                    ssl=False,
                 ) as response:
                     # To identify the Sercomm devices before the login
                     # There's no other sure way to identify a Sercomm device
@@ -118,7 +123,11 @@ class VodafoneStationCommonApi(ABC):
                         and "var csrf_token = " in await response.text()
                     ):
                         return DeviceType.SERCOMM
-            except (ClientConnectorSSLError, ClientConnectorError):
+            except (
+                ClientConnectorSSLError,
+                ClientConnectorError,
+                SSLCertVerificationError,
+            ):
                 _LOGGER.debug("Unable to login using protocol %s", protocol)
                 continue
 
