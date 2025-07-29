@@ -36,6 +36,7 @@ class DeviceType(str, Enum):
 
     SERCOMM = "Sercomm"
     TECHNICOLOR = "Technicolor"
+    ULTRAHUB = "UltraHub"
 
 
 DEFAULT_TIMEOUT = ClientTimeout(10)
