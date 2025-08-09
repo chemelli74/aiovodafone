@@ -1,8 +1,11 @@
 """Support for Vodafone Station."""
 
 import asyncio
+import base64
+import contextlib
 import hashlib
 import hmac
+import os
 import re
 import urllib.parse
 from abc import ABC, abstractmethod
@@ -10,6 +13,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from http import HTTPMethod, HTTPStatus
 from http.cookies import SimpleCookie
+from ssl import (
+    CERT_NONE,
+    SSLCertVerificationError,
+    create_default_context,
+)
 from typing import Any, cast
 
 from aiohttp import (
@@ -21,6 +29,9 @@ from aiohttp import (
     ClientTimeout,
 )
 from bs4 import BeautifulSoup, Tag
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers.aead import AESCCM
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from .const import (
     _LOGGER,
@@ -81,17 +92,27 @@ class VodafoneStationCommonApi(ABC):
             DeviceType:
             If the device is a Technicolor, it returns `DeviceType.TECHNICOLOR`.
             If the device is a Sercomm,     it returns `DeviceType.SERCOMM`.
+            If the device is a UltraHub,     it returns `DeviceType.ULTRAHUB`.
             If neither of the device types match, it returns `None`.
 
         """
-        async with session.get(
-            f"http://{host}/api/v1/login_conf",
-            headers=HEADERS,
-        ) as response:
-            if response.status == HTTPStatus.OK:
-                response_json = await response.json()
-                if "data" in response_json and "ModelName" in response_json["data"]:
-                    return DeviceType.TECHNICOLOR
+        ssl_context = create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = CERT_NONE
+        try:
+            async with session.get(
+                f"http://{host}/api/v1/login_conf",
+                headers=HEADERS,
+            ) as response:
+                if (
+                    response.status == HTTPStatus.OK
+                    and response.content_type == "application/json"
+                ):
+                    response_json = await response.json()
+                    if "data" in response_json and "ModelName" in response_json["data"]:
+                        return DeviceType.TECHNICOLOR
+        except SSLCertVerificationError:
+            pass
 
         for protocol in ["https", "http"]:
             try:
@@ -108,7 +129,31 @@ class VodafoneStationCommonApi(ABC):
                         and "var csrf_token = " in await response.text()
                     ):
                         return DeviceType.SERCOMM
-            except ClientConnectorSSLError:
+            except (
+                ClientConnectorSSLError,
+                ClientConnectorError,
+                SSLCertVerificationError,
+            ):
+                _LOGGER.debug("Unable to login using protocol %s", protocol)
+                continue
+
+            try:
+                async with session.get(
+                    f"{protocol}://{host}/api/config/details.jst",
+                    headers=HEADERS,
+                    ssl=ssl_context,
+                    params={"X_INTERNAL_FIELDS": "X_RDK_ONT_Veip_1_OperationalState"},
+                    allow_redirects=False,
+                ) as response:
+                    # To identify the Sercomm devices before the login
+                    # There's no other sure way to identify a Sercomm device
+                    # without login
+                    if (
+                        response.status == HTTPStatus.OK
+                        and response.content_type == "application/json"
+                    ):
+                        return DeviceType.ULTRAHUB
+            except (ClientConnectorSSLError, ClientConnectorError):
                 _LOGGER.debug("Unable to login using protocol %s", protocol)
                 continue
 
@@ -977,3 +1022,321 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
             )
         except asyncio.exceptions.TimeoutError:
             pass
+
+
+class VodafoneUltraHubApi(VodafoneStationCommonApi):
+    """Queries Vodafone Ultra Hub."""
+
+    def __init__(
+        self, host: str, username: str, password: str, session: ClientSession
+    ) -> None:
+        """Initialize id as it may change in the future."""
+        super().__init__(host, username, password, session)
+        self.id = "3"
+        self.ssl_context = create_default_context()
+        self.ssl_context.check_hostname = False
+        self.ssl_context.verify_mode = CERT_NONE
+
+    async def login(self, force_logout: bool = False) -> bool:
+        """Router login."""
+        _LOGGER.debug("Logging into %s", self.host)
+
+        if not force_logout:
+            self.session.cookie_jar.clear()
+            self.session.cookie_jar.update_cookies(
+                SimpleCookie(f"domain={self.host}; HttpOnly; Path=/; SameSite=Lax;"),
+            )
+
+            self.csrf_token = ""
+
+            for protocol in ["https", "http"]:
+                try:
+                    async with self.session.get(
+                        url=f"{protocol}://{self.host}/api/config/details.jst",
+                        headers=HEADERS,
+                        ssl=self.ssl_context,
+                        allow_redirects=False,
+                        params={
+                            "X_INTERNAL_FIELDS": "X_RDK_ONT_Veip_1_OperationalState"
+                        },
+                    ) as response:
+                        if (
+                            response.status == HTTPStatus.OK
+                            and response.content_type == "application/json"
+                        ):
+                            self.protocol = protocol
+                            reply_json = await response.json()
+
+                            if "csrf_token" in reply_json:
+                                self.csrf_token = reply_json["csrf_token"]
+
+                            if "X_INTERNAL_ID" in reply_json:
+                                self.id = reply_json["X_INTERNAL_ID"]
+
+                            self.session.cookie_jar.update_cookies(response.cookies)
+
+                except (ClientConnectorSSLError, ClientConnectorError):
+                    continue
+
+        if self.csrf_token == "":
+            raise CannotAuthenticate
+
+        reply = await self._auto_hub_request_page_result(
+            HTTPMethod.GET,
+            "/api/users/details.jst",
+            params={"__id": self.id, "X_INTERNAL_FIELDS": "X_VODAFONE_WebUISecret"},
+        )
+
+        reply_json = await reply.json()
+
+        if "X_VODAFONE_WebUISecret" in reply_json:
+            web_secret = reply_json["X_VODAFONE_WebUISecret"]
+            salt_web_ui = web_secret[:10]
+            salt = web_secret[10:]
+            password = await self._encrypt_string(salt, salt_web_ui)
+            payload = {
+                "__id": self.id,
+                "X_VODAFONE_Password": password,
+                "Push": str(force_logout).lower(),
+                "csrf_token": self.csrf_token,
+            }
+
+            reply = await self._auto_hub_request_page_result(
+                HTTPMethod.POST,
+                "/api/users/login.jst",
+                payload=payload,
+            )
+
+            self.session.cookie_jar.update_cookies(reply.cookies)
+            reply_json = await reply.json()
+
+            if (
+                "X_INTERNAL_Password_Status" in reply_json
+                and reply_json["X_INTERNAL_Password_Status"] == "Invalid_PWD"  # noqa: S105
+            ):
+                raise CannotAuthenticate
+
+            if (
+                "X_INTERNAL_Is_Duplicate" in reply_json
+                and reply_json["X_INTERNAL_Is_Duplicate"] == "true"
+                and not force_logout
+            ):
+                raise AlreadyLogged
+
+            return True
+
+        raise GenericLoginError
+
+    async def _encrypt_string(
+        self,
+        salt: str,
+        salt_web_ui: str,
+    ) -> str:
+        """Calculate login hash (password), the salt and the salt (web UI).
+
+        Args:
+        ----
+            salt (str): salt given by the login response
+            salt_web_ui (str): salt given by the web UI
+
+        Returns:
+        -------
+            str: the hash for the session API
+
+        """
+        _LOGGER.debug("Calculate credential hash")
+
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=16,
+            salt=bytes(salt, "utf-8"),
+            iterations=1000,
+        )
+
+        key = kdf.derive(bytes(salt_web_ui, "utf-8"))
+
+        iv = os.urandom(16)
+        nonce = self._truncate_iv(iv, len(self.password) * 8, 8)
+        aesccm = AESCCM(key, 8)
+        ct = aesccm.encrypt(nonce, bytes(self.password, "utf-8"), None)
+        b64_ct = base64.b64encode(ct).decode("ascii").strip()
+        b64_iv = base64.b64encode(iv).decode("ascii").strip()
+
+        value = '{"iv":"'
+        value += b64_iv
+        value += '","v":1,"iter":10000,"ks":128,"ts":64,"mode":"ccm",'
+        value += '"adata":"","cipher":"aes","ct":"'
+        value += b64_ct
+        value += '"}'
+        return value
+
+    def _truncate_iv(
+        self,
+        iv: bytes,
+        ol: int,  # in bytes
+        tlen: int,  # in bytes
+    ) -> bytes:
+        """Calculate the nonce as it can not be 16 bytes."""
+        ivl = len(iv)  # iv length in bytes
+        ol = (ol - tlen) // 8
+
+        # "compute the length of the length" (see ccm.js)
+        loop = 2
+        dumb_constant_to_keep_ruff_happy = 4
+        while (loop < dumb_constant_to_keep_ruff_happy) and (ol >> (8 * loop)) > 0:
+            loop += 1
+            loop = max(loop, 15 - ivl)
+
+        return iv[: (15 - loop)]
+
+    async def _auto_hub_request_page_result(
+        self,
+        method: str,
+        page: str,
+        payload: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+        timeout: ClientTimeout = DEFAULT_TIMEOUT,
+    ) -> ClientResponse:
+        """Request data from a web page."""
+        url = f"{self.base_url}{page}"
+        _LOGGER.debug("%s page %s", method, url)
+
+        try:
+            response = await self.session.request(
+                method,
+                url,
+                data=payload,
+                headers=self.headers,
+                timeout=timeout,
+                ssl=self.ssl_context,
+                allow_redirects=False,
+                params=params,
+            )
+            if (
+                response.status != HTTPStatus.OK
+                and response.content_type == "application/json"
+            ):
+                _LOGGER.warning(
+                    "%s page %s failed: %s",
+                    method,
+                    url,
+                    response.status,
+                )
+                raise GenericResponseError
+        except ClientResponseError as err:
+            _LOGGER.exception("%s page %s from host %s failed", method, page, self.host)
+            raise GenericResponseError from err
+        else:
+            reply_json = await response.json()
+            """So we do not have to play whack a mole for the csrf_token"""
+            if "csrf_token" in reply_json:
+                self.csrf_token = reply_json["csrf_token"]
+
+            return response
+
+    def convert_uptime(self, uptime: str) -> datetime:
+        """Convert uptime to datetime."""
+        return datetime.now(tz=UTC) - timedelta(
+            seconds=int(uptime),
+        )
+
+    async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
+        """Get router device data."""
+        _LOGGER.debug("Get hosts")
+
+        devices_dict = {}
+
+        reply = await self._auto_hub_request_page_result(
+            HTTPMethod.GET, "/api/device/bulk/details.jst"
+        )
+
+        reply_json = await reply.json()
+
+        if "hosts" in reply_json:
+            hosts = reply_json["hosts"]
+            for device in hosts:
+                connected = device["Active"] == "true"
+                connection_type = (
+                    "WiFi" if "WiFi" in device["Layer1Interface"] else "Ethernet"
+                )
+                ip_address = device["IPv4Address_1_IPAddress"]
+                name = device["HostName"]
+                mac = device["PhysAddress"]
+                dev_type = device["X_VODAFONE_Fingerprint_Class"]
+                wifi = device["X_CISCO_COM_RSSI"]
+
+                vdf_device = VodafoneStationDevice(
+                    connected=connected,
+                    connection_type=connection_type,
+                    ip_address=ip_address,
+                    name=name,
+                    mac=mac,
+                    type=dev_type,
+                    wifi=wifi,
+                )
+                devices_dict[mac] = vdf_device
+
+        return devices_dict
+
+    async def get_sensor_data(self) -> dict[str, Any]:
+        """Get router sensor data."""
+        reply = await self._auto_hub_request_page_result(
+            HTTPMethod.GET, "/api/device/details.jst"
+        )
+
+        reply_json = await reply.json()
+
+        data = {}
+
+        data["sys_firmware_version"] = reply_json["SoftwareVersion"]
+        data["sys_hardware_version"] = reply_json["HardwareVersion"]
+        data["sys_serial_number"] = reply_json["SerialNumber"]
+        data["sys_uptime"] = reply_json["UpTime"]
+        data["wan_status"] = ""
+        data["cm_status"] = ""
+        data["lan_mode"] = reply_json["X_VODAFONE_WANType"]
+
+        interface = reply_json["INTERNAL_CPEInterface_List"]
+        for device in interface:
+            if device["DisplayName"] == "WWAN":
+                data["wan_status"] = device["Phy_Status"]
+            if device["DisplayName"] == "WANoE":
+                data["cm_status"] = device["Phy_Status"]
+
+        return data
+
+    async def get_docis_data(self) -> dict[str, Any]:
+        """Get router docis data."""
+        return {}
+
+    async def get_voice_data(self) -> dict[str, Any]:
+        """Get router voice data."""
+        return {}
+
+    async def restart_router(self) -> None:
+        """Router restart."""
+        _LOGGER.debug("Restarting router %s", self.host)
+
+        payload = {"RebootDevice": "true", "csrf_token": self.csrf_token}
+
+        with contextlib.suppress(GenericResponseError):
+            await self._auto_hub_request_page_result(
+                HTTPMethod.POST, "/api/device/update.jst", payload=payload
+            )
+
+        self.csrf_token = ""
+        self.session.cookie_jar.clear()
+
+    async def logout(self) -> None:
+        """Router logout."""
+        _LOGGER.debug("Log out of router %s", self.host)
+        if hasattr(self, "session") and self.csrf_token is not None:
+            payload = {"__id": self.id, "csrf_token": self.csrf_token}
+
+            with contextlib.suppress(GenericResponseError):
+                await self._auto_hub_request_page_result(
+                    HTTPMethod.POST, "/api/users/logout.jst", payload=payload
+                )
+
+            self.csrf_token = ""
+            self.session.cookie_jar.clear()
