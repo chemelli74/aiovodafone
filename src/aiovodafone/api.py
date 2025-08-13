@@ -181,11 +181,6 @@ class VodafoneStationCommonApi(ABC):
         else:
             return response
 
-    async def close(self) -> None:
-        """Router close session."""
-        if hasattr(self, "session"):
-            await self.session.close()
-
     @abstractmethod
     def convert_uptime(self, uptime: str) -> datetime:
         """Convert uptime to datetime."""

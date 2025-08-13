@@ -1,5 +1,47 @@
 # Changelog
 
+## v1.2.0-rc.1 (2025-08-13)
+
+### Features
+
+- Remove close() method ([`97becbc`](https://github.com/chemelli74/aiovodafone/commit/97becbca8e8ec2eba9131afc795f7f519fed562f))
+
+
+### Build system
+
+- Update pyproject ([`b449df1`](https://github.com/chemelli74/aiovodafone/commit/b449df129b7d0a3a1fc7cfb37f5932594d31a11d))
+- Bump actions/checkout from 4 to 5 ([`76cba50`](https://github.com/chemelli74/aiovodafone/commit/76cba507e8ab82f0540ab67cb1749577bce02cc7))
+- Bump python-semantic-release/python-semantic-release from 10.3.0 to 10.3.1 ([`f39363b`](https://github.com/chemelli74/aiovodafone/commit/f39363b28cfd80e5632bec202e61a008e7a89235))
+- Bump python-semantic-release/python-semantic-release from 10.2.0 to 10.3.0 ([`10b83e1`](https://github.com/chemelli74/aiovodafone/commit/10b83e19e196abd7e0e65ecef047f180e111178d))
+- Bump akhilmhdh/contributors-readme-action from 2.3.10 to 2.3.11 ([`6a851dd`](https://github.com/chemelli74/aiovodafone/commit/6a851dd0e93db35c45852d8016b4681f1d8de82c))
+- Mypy and pyproject ([`ae2303b`](https://github.com/chemelli74/aiovodafone/commit/ae2303b782f5483d329e7b08501c79adf1734c28))
+- Bump aiohttp from 3.12.13 to 3.12.14 ([`8c59d21`](https://github.com/chemelli74/aiovodafone/commit/8c59d21f293fe38be2327cea83b6a54cd08d4691))
+- Bump python-semantic-release/python-semantic-release from 10.1.0 to 10.2.0 ([`c494659`](https://github.com/chemelli74/aiovodafone/commit/c494659002db491fbc3bc59680330c23856799ba))
+- Bump pytest from 8.4.0 to 8.4.1 ([`13d86e9`](https://github.com/chemelli74/aiovodafone/commit/13d86e9109e10f07e491fb333a23b639365465f5))
+- Bump pytest-cov from 6.1.1 to 6.2.1 ([`2eb7d68`](https://github.com/chemelli74/aiovodafone/commit/2eb7d68d98f4bb5dd6ae9768705b66ac6a0ce0b1))
+- Bump aiohttp from 3.12.11 to 3.12.13 ([`2aef3b2`](https://github.com/chemelli74/aiovodafone/commit/2aef3b291ce416315fb0bde0cbb66e36aacce031))
+- Bump python-semantic-release/python-semantic-release from 10.0.2 to 10.1.0 ([`85b59c2`](https://github.com/chemelli74/aiovodafone/commit/85b59c2961031e34151c3f4c1f30d09d3421c7f5))
+- Bump aiohttp from 3.12.6 to 3.12.11 ([`9834eb1`](https://github.com/chemelli74/aiovodafone/commit/9834eb1b781e723db642a01fa7fa1a96737d1a0b))
+- Bump pytest from 8.3.5 to 8.4.0 ([`c9a7c58`](https://github.com/chemelli74/aiovodafone/commit/c9a7c58c58d95d96043e5db67776d0ffa53ae1f3))
+
+
+### Documentation
+
+- Contrib-readme-action has updated readme ([`d50e5dd`](https://github.com/chemelli74/aiovodafone/commit/d50e5dd2a50832c585eba8a99a88c642588d1866))
+- Pylance clienttimeout ([`d263242`](https://github.com/chemelli74/aiovodafone/commit/d2632420c8e97aabd283aaf48580795022d97d40))
+
+
+### Refactoring
+
+- Improve dev container settings ([`a1c016b`](https://github.com/chemelli74/aiovodafone/commit/a1c016bdeb0be0dbd953049d8bd48e99bd9e556f))
+- Update pyproject.toml ([`6fb8e12`](https://github.com/chemelli74/aiovodafone/commit/6fb8e122601eb7e71e9009843ffc5eebd225f2f2))
+
+
+### Testing
+
+- Align code to aiohttp >= 3.12.7 ([`e44a064`](https://github.com/chemelli74/aiovodafone/commit/e44a064d4d82c88a74502d6e3a22314ba6f1bfe6))
+
+
 ## v1.1.0 (2025-06-06)
 
 ### Features

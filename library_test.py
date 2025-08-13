@@ -62,12 +62,14 @@ def get_arguments() -> tuple[ArgumentParser, Namespace]:
     return parser, arguments
 
 
-async def logout_close_session(api: VodafoneStationCommonApi) -> None:
+async def logout_close_session(
+    api: VodafoneStationCommonApi, session: ClientSession
+) -> None:
     """Logout and close aiohttp session."""
     print("-" * 20)
     print("Logout & close session")
     await api.logout()
-    await api.close()
+    await session.close()
 
 
 async def main() -> None:
@@ -129,7 +131,7 @@ async def main() -> None:
             print(f"Unable to login to router {api.host}")
             raise
     except VodafoneError:
-        await api.close()
+        await session.close()
         sys.exit(1)
 
     print("Logged-in.")
@@ -152,7 +154,7 @@ async def main() -> None:
 
     # Sercomm devices don't support Docis data and Voice data
     if device_type == DeviceType.SERCOMM:
-        await logout_close_session(api)
+        await logout_close_session(api, session)
         return
 
     print("-" * 20)
@@ -181,7 +183,7 @@ async def main() -> None:
     print(f"{'Line2 number:':>15} {data['line2'].get('call_number', 'N/A')}")
     print(f"{'Line2 status:':>15} {data['line2'].get('line_status', 'N/A')}")
 
-    await logout_close_session(api)
+    await logout_close_session(api, session)
 
 
 def set_logging() -> None:
