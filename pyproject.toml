@@ -10,7 +10,7 @@ license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/chemelli74/aiovodafone"
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Natural Language :: English",
     "Operating System :: OS Independent",
@@ -25,6 +25,7 @@ dependencies = [
 ]
 
 [project.urls]
+"Homepage" = "https://github.com/chemelli74/aiovodafone"
 "Bug Tracker" = "https://github.com/chemelli74/aiovodafone/issues"
 "Changelog" = "https://github.com/chemelli74/aiovodafone/blob/main/CHANGELOG.md"
 
@@ -91,5 +92,5 @@ module = "tests.*"
 allow_untyped_defs = true
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=2.0"]
 build-backend = "poetry.core.masonry.api"
