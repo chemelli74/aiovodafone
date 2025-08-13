@@ -1,10 +1,16 @@
 # Changelog
 
-## v1.2.0-rc.1 (2025-08-13)
+## v1.2.0 (2025-08-13)
 
 ### Features
 
-- Remove close() method ([`97becbc`](https://github.com/chemelli74/aiovodafone/commit/97becbca8e8ec2eba9131afc795f7f519fed562f))
+- Remove close() method ([`81279c3`](https://github.com/chemelli74/aiovodafone/commit/81279c3bf6e93146ff3e802cbe6b5e5d082c04fc))
+
+
+### Testing
+
+- Colorlog ([`0742b54`](https://github.com/chemelli74/aiovodafone/commit/0742b54df03d57cb75ba4ec8783e932719334835))
+- Align code to aiohttp >= 3.12.7 ([`e44a064`](https://github.com/chemelli74/aiovodafone/commit/e44a064d4d82c88a74502d6e3a22314ba6f1bfe6))
 
 
 ### Build system
@@ -35,11 +41,6 @@
 
 - Improve dev container settings ([`a1c016b`](https://github.com/chemelli74/aiovodafone/commit/a1c016bdeb0be0dbd953049d8bd48e99bd9e556f))
 - Update pyproject.toml ([`6fb8e12`](https://github.com/chemelli74/aiovodafone/commit/6fb8e122601eb7e71e9009843ffc5eebd225f2f2))
-
-
-### Testing
-
-- Align code to aiohttp >= 3.12.7 ([`e44a064`](https://github.com/chemelli74/aiovodafone/commit/e44a064d4d82c88a74502d6e3a22314ba6f1bfe6))
 
 
 ## v1.1.0 (2025-06-06)
