@@ -39,6 +39,9 @@ from .const import (
     FULL_FIELDS_NUM,
     HEADERS,
     LOGIN,
+    LOGIN_SERCOMM,
+    LOGIN_TECHNICOLOR,
+    LOGIN_ULTRAHUB,
     POST_RESTART_TIMEOUT,
     USER_ALREADY_LOGGED_IN,
     DeviceType,
@@ -92,70 +95,61 @@ class VodafoneStationCommonApi(ABC):
             DeviceType:
             If the device is a Technicolor, it returns `DeviceType.TECHNICOLOR`.
             If the device is a Sercomm,     it returns `DeviceType.SERCOMM`.
-            If the device is a UltraHub,     it returns `DeviceType.ULTRAHUB`.
+            If the device is a UltraHub,    it returns `DeviceType.ULTRAHUB`.
             If neither of the device types match, it returns `None`.
 
         """
-        ssl_context = create_default_context()
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = CERT_NONE
-        try:
-            async with session.get(
-                f"http://{host}/api/v1/login_conf",
-                headers=HEADERS,
-            ) as response:
-                if (
-                    response.status == HTTPStatus.OK
-                    and response.content_type == "application/json"
+        urls = [LOGIN_TECHNICOLOR, LOGIN_SERCOMM, LOGIN_ULTRAHUB]
+
+        for api_path in urls:
+            for protocol in ["https", "http"]:
+                try:
+                    url = f"{protocol}://{host}{api_path}"
+                    async with session.get(
+                        url,
+                        headers=HEADERS,
+                        allow_redirects=False,
+                        params={
+                            "X_INTERNAL_FIELDS": "X_RDK_ONT_Veip_1_OperationalState"
+                        },  # Needed by ULTRAHUN
+                        ssl=False,
+                    ) as response:
+                        _LOGGER.debug("REsponse for url %s: %s", url, response.status)
+                        if response.status != HTTPStatus.OK:
+                            continue
+
+                        response_json = (
+                            await response.json()
+                            if (response.content_type == "application/json")
+                            else {}
+                        )
+
+                        if (
+                            "data" in response_json
+                            and "ModelName" in response_json["data"]
+                        ):
+                            _LOGGER.debug(
+                                "Detected device type: %s", DeviceType.TECHNICOLOR
+                            )
+                            return DeviceType.TECHNICOLOR
+
+                        # TODO(chemelli74): find the right way to identify
+                        # 296
+                        if "something " in response_json:
+                            return DeviceType.ULTRAHUB
+
+                        if "var csrf_token = " in await response.text():
+                            _LOGGER.debug(
+                                "Detected device type: %s", DeviceType.SERCOMM
+                            )
+                            return DeviceType.SERCOMM
+                except (
+                    ClientConnectorSSLError,
+                    ClientConnectorError,
+                    SSLCertVerificationError,
                 ):
-                    response_json = await response.json()
-                    if "data" in response_json and "ModelName" in response_json["data"]:
-                        return DeviceType.TECHNICOLOR
-        except SSLCertVerificationError:
-            pass
-
-        for protocol in ["https", "http"]:
-            try:
-                async with session.get(
-                    f"{protocol}://{host}/login.html",
-                    headers=HEADERS,
-                    ssl=False,
-                ) as response:
-                    # To identify the Sercomm devices before the login
-                    # There's no other sure way to identify a Sercomm device
-                    # without login
-                    if (
-                        response.status == HTTPStatus.OK
-                        and "var csrf_token = " in await response.text()
-                    ):
-                        return DeviceType.SERCOMM
-            except (
-                ClientConnectorSSLError,
-                ClientConnectorError,
-                SSLCertVerificationError,
-            ):
-                _LOGGER.debug("Unable to login using protocol %s", protocol)
-                continue
-
-            try:
-                async with session.get(
-                    f"{protocol}://{host}/api/config/details.jst",
-                    headers=HEADERS,
-                    ssl=ssl_context,
-                    params={"X_INTERNAL_FIELDS": "X_RDK_ONT_Veip_1_OperationalState"},
-                    allow_redirects=False,
-                ) as response:
-                    # To identify the Sercomm devices before the login
-                    # There's no other sure way to identify a Sercomm device
-                    # without login
-                    if (
-                        response.status == HTTPStatus.OK
-                        and response.content_type == "application/json"
-                    ):
-                        return DeviceType.ULTRAHUB
-            except (ClientConnectorSSLError, ClientConnectorError):
-                _LOGGER.debug("Unable to login using protocol %s", protocol)
-                continue
+                    _LOGGER.debug("Unable to login using protocol %s", protocol)
+                    continue
 
         return None
 
