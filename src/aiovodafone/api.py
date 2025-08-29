@@ -14,9 +14,7 @@ from datetime import UTC, datetime, timedelta
 from http import HTTPMethod, HTTPStatus
 from http.cookies import SimpleCookie
 from ssl import (
-    CERT_NONE,
     SSLCertVerificationError,
-    create_default_context,
 )
 from typing import Any, cast
 
@@ -1017,9 +1015,6 @@ class VodafoneUltraHubApi(VodafoneStationCommonApi):
         """Initialize id as it may change in the future."""
         super().__init__(host, username, password, session)
         self.id = "3"
-        self.ssl_context = create_default_context()
-        self.ssl_context.check_hostname = False
-        self.ssl_context.verify_mode = CERT_NONE
 
     async def login(self, force_logout: bool = False) -> bool:
         """Router login."""
@@ -1038,7 +1033,7 @@ class VodafoneUltraHubApi(VodafoneStationCommonApi):
                     async with self.session.get(
                         url=f"{protocol}://{self.host}/api/config/details.jst",
                         headers=HEADERS,
-                        ssl=self.ssl_context,
+                        ssl=False,
                         allow_redirects=False,
                         params={
                             "X_INTERNAL_FIELDS": "X_RDK_ONT_Veip_1_OperationalState"
@@ -1061,6 +1056,7 @@ class VodafoneUltraHubApi(VodafoneStationCommonApi):
 
                 except (ClientConnectorSSLError, ClientConnectorError):
                     continue
+                break
 
         if self.csrf_token == "":
             raise CannotAuthenticate
@@ -1182,7 +1178,7 @@ class VodafoneUltraHubApi(VodafoneStationCommonApi):
         timeout: ClientTimeout = DEFAULT_TIMEOUT,
     ) -> ClientResponse:
         """Request data from a web page."""
-        url = f"{self.base_url}{page}"
+        url = f"{self._base_url()}{page}"
         _LOGGER.debug("%s page %s", method, url)
 
         try:
@@ -1192,7 +1188,7 @@ class VodafoneUltraHubApi(VodafoneStationCommonApi):
                 data=payload,
                 headers=self.headers,
                 timeout=timeout,
-                ssl=self.ssl_context,
+                ssl=False,
                 allow_redirects=False,
                 params=params,
             )
