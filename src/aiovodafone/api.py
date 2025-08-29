@@ -109,12 +109,9 @@ class VodafoneStationCommonApi(ABC):
                         url,
                         headers=HEADERS,
                         allow_redirects=False,
-                        params={
-                            "X_INTERNAL_FIELDS": "X_RDK_ONT_Veip_1_OperationalState"
-                        },  # Needed by ULTRAHUN
                         ssl=False,
                     ) as response:
-                        _LOGGER.debug("REsponse for url %s: %s", url, response.status)
+                        _LOGGER.debug("Response for url %s: %s", url, response.status)
                         if response.status != HTTPStatus.OK:
                             continue
 
@@ -133,9 +130,7 @@ class VodafoneStationCommonApi(ABC):
                             )
                             return DeviceType.TECHNICOLOR
 
-                        # TODO(chemelli74): find the right way to identify
-                        # 296
-                        if "something " in response_json:
+                        if "X_VODAFONE_ServiceStatus_1" in response_json:
                             return DeviceType.ULTRAHUB
 
                         if "var csrf_token = " in await response.text():
