@@ -4,6 +4,7 @@ from aiovodafone.api import (
     VodafoneStationDevice,
     VodafoneStationSercommApi,
     VodafoneStationTechnicolorApi,
+    VodafoneUltraHubApi,
 )
 from aiovodafone.exceptions import (
     AlreadyLogged,
@@ -19,6 +20,7 @@ def test_objects_can_be_imported() -> None:
     assert type(VodafoneStationDevice)
     assert type(VodafoneStationSercommApi)
     assert type(VodafoneStationTechnicolorApi)
+    assert type(VodafoneUltraHubApi)
     assert type(VodafoneError)
     assert type(AlreadyLogged)
     assert type(CannotConnect)
