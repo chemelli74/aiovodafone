@@ -13,6 +13,7 @@ HEADERS = {
     ),
     "Accept-Language": "en-GB,en;q=0.5",
     "X-Requested-With": "XMLHttpRequest",
+    "Priority": "u=1",
 }
 
 LOGIN = [
@@ -36,7 +37,12 @@ class DeviceType(str, Enum):
 
     SERCOMM = "Sercomm"
     TECHNICOLOR = "Technicolor"
+    ULTRAHUB = "UltraHub"
 
 
 DEFAULT_TIMEOUT = ClientTimeout(10)
 POST_RESTART_TIMEOUT = ClientTimeout(2)
+
+LOGIN_TECHNICOLOR = "/api/v1/login_conf"
+LOGIN_SERCOMM = "/login.html"
+LOGIN_ULTRAHUB = "/api/config/details.jst"

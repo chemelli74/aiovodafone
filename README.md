@@ -96,14 +96,21 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
                 </a>
             </td>
             <td align="center">
+                <a href="https://github.com/Cmd12345">
+                    <img src="https://avatars.githubusercontent.com/u/135260576?v=4" width="100;" alt="Cmd12345"/>
+                    <br />
+                    <sub><b>Cmd12345</b></sub>
+                </a>
+            </td>
+		</tr>
+		<tr>
+            <td align="center">
                 <a href="https://github.com/joostlek">
                     <img src="https://avatars.githubusercontent.com/u/7083755?v=4" width="100;" alt="joostlek"/>
                     <br />
                     <sub><b>Joost Lekkerkerker</b></sub>
                 </a>
             </td>
-		</tr>
-		<tr>
             <td align="center">
                 <a href="https://github.com/myhomeiot">
                     <img src="https://avatars.githubusercontent.com/u/70070601?v=4" width="100;" alt="myhomeiot"/>

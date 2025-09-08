@@ -14,6 +14,7 @@ from aiovodafone.api import (
     VodafoneStationCommonApi,
     VodafoneStationSercommApi,
     VodafoneStationTechnicolorApi,
+    VodafoneUltraHubApi,
 )
 from aiovodafone.const import DeviceType
 from aiovodafone.exceptions import (
@@ -108,13 +109,27 @@ async def main() -> None:
             args.password,
             session,
         )
+    elif device_type == DeviceType.ULTRAHUB:
+        api = VodafoneUltraHubApi(
+            args.router,
+            args.username,
+            args.password,
+            session,
+        )
     else:
         print("The device is not a supported Vodafone Station.")
         sys.exit(1)
 
     try:
         try:
-            await api.login()
+            try:
+                await api.login()
+            except AlreadyLogged:
+                if device_type == DeviceType.ULTRAHUB:
+                    print(f"Only one user at a time can connect to router {api.host}")
+                    await api.login(True)
+                else:
+                    raise
         except ModelNotSupported:
             print(f"Model is not supported yet for router {api.host}")
             raise
@@ -153,7 +168,8 @@ async def main() -> None:
     print(f"{'LAN mode:':>20} {data.get('lan_mode')}")
 
     # Sercomm devices don't support Docis data and Voice data
-    if device_type == DeviceType.SERCOMM:
+    # and neither does ultra hub
+    if device_type in (DeviceType.SERCOMM, DeviceType.ULTRAHUB):
         await logout_close_session(api, session)
         return
 
