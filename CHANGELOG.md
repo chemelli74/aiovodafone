@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.2.1 (2025-09-08)
+
+### Bug fixes
+
+- Malformed sercomm device response ([`ca976b3`](https://github.com/chemelli74/aiovodafone/commit/ca976b34894e59d68ae3458b88a7b4d04855780d))
+
+
+### Build system
+
+- Bump pytest from 8.4.1 to 8.4.2 ([`dd6c47d`](https://github.com/chemelli74/aiovodafone/commit/dd6c47dbc43eab8715dca524565fbd84b5ef3d5c))
+- Bump python-semantic-release/python-semantic-release from 10.3.1 to 10.3.2 ([`091f15c`](https://github.com/chemelli74/aiovodafone/commit/091f15cb9a6a98804162b7d1434498d54acdc29c))
+- Bump pytest-cov from 6.2.1 to 6.3.0 ([`d19ff11`](https://github.com/chemelli74/aiovodafone/commit/d19ff115c297cf08bcb1f28dc6acd8f569c56f07))
+- Bump actions/setup-python from 5 to 6 ([`d18290e`](https://github.com/chemelli74/aiovodafone/commit/d18290e0085581dffe0cfecc9802dc32122922f2))
+
+
 ## v1.2.0 (2025-08-13)
 
 ### Features
