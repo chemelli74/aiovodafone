@@ -75,7 +75,7 @@ class VodafoneStationCommonApi(ABC):
     async def get_device_type(
         host: str,
         session: ClientSession,
-    ) -> DeviceType | None:
+    ) -> tuple[DeviceType, str, bool, bool]:
         """Find out the device type of a Vodafone Stations and returns it as enum.
 
         The Technicolor devices always answer with a valid HTTP response, the
@@ -90,11 +90,16 @@ class VodafoneStationCommonApi(ABC):
 
         Returns:
         -------
-            DeviceType:
+        [
+            deviceType:
             If the device is a Technicolor, it returns `DeviceType.TECHNICOLOR`.
             If the device is a Sercomm,     it returns `DeviceType.SERCOMM`.
             If the device is a UltraHub,    it returns `DeviceType.ULTRAHUB`.
             If neither of the device types match, it returns `None`.
+            , protocol: str http or https
+            , canDoForceLogout: bool on login force_logout will work
+            , doCloseSession: bool must call close session
+        ]
 
         """
         urls = [LOGIN_TECHNICOLOR, LOGIN_SERCOMM, LOGIN_ULTRAHUB]
@@ -126,16 +131,16 @@ class VodafoneStationCommonApi(ABC):
                             _LOGGER.debug(
                                 "Detected device type: %s", DeviceType.TECHNICOLOR
                             )
-                            return DeviceType.TECHNICOLOR
+                            return DeviceType.TECHNICOLOR, protocol, False, False
 
                         if "X_VODAFONE_ServiceStatus_1" in response_json:
-                            return DeviceType.ULTRAHUB
+                            return DeviceType.ULTRAHUB, protocol, True, True
 
                         if "var csrf_token = " in await response.text():
                             _LOGGER.debug(
                                 "Detected device type: %s", DeviceType.SERCOMM
                             )
-                            return DeviceType.SERCOMM
+                            return DeviceType.SERCOMM, protocol, False, True
                 except (
                     ClientConnectorSSLError,
                     ClientConnectorError,
@@ -143,8 +148,7 @@ class VodafoneStationCommonApi(ABC):
                 ):
                     _LOGGER.debug("Unable to login using protocol %s", protocol)
                     continue
-
-        return None
+        raise ModelNotSupported
 
     def __init__(
         self,
@@ -152,10 +156,11 @@ class VodafoneStationCommonApi(ABC):
         username: str,
         password: str,
         session: ClientSession,
+        protocol: str | None = "http",
     ) -> None:
         """Initialize the scanner."""
         self.host = host
-        self.protocol = "http"
+        self.protocol = protocol
         self.username = username
         self.password = password
         self.base_url = self._base_url()
@@ -1010,10 +1015,15 @@ class VodafoneUltraHubApi(VodafoneStationCommonApi):
     """Queries Vodafone Ultra Hub."""
 
     def __init__(
-        self, host: str, username: str, password: str, session: ClientSession
+        self,
+        host: str,
+        username: str,
+        password: str,
+        session: ClientSession,
+        protocol: str,
     ) -> None:
         """Initialize id as it may change in the future."""
-        super().__init__(host, username, password, session)
+        super().__init__(host, username, password, session, protocol)
         self.id = "3"
 
     async def login(self, force_logout: bool = False) -> bool:
@@ -1028,35 +1038,18 @@ class VodafoneUltraHubApi(VodafoneStationCommonApi):
 
             self.csrf_token = ""
 
-            for protocol in ["https", "http"]:
-                try:
-                    async with self.session.get(
-                        url=f"{protocol}://{self.host}/api/config/details.jst",
-                        headers=HEADERS,
-                        ssl=False,
-                        allow_redirects=False,
-                        params={
-                            "X_INTERNAL_FIELDS": "X_RDK_ONT_Veip_1_OperationalState"
-                        },
-                    ) as response:
-                        if (
-                            response.status == HTTPStatus.OK
-                            and response.content_type == "application/json"
-                        ):
-                            self.protocol = protocol
-                            reply_json = await response.json()
+            reply = await self._auto_hub_request_page_result(
+                HTTPMethod.GET,
+                "/api/config/details.jst",
+                params={"X_INTERNAL_FIELDS": "X_RDK_ONT_Veip_1_OperationalState"},
+            )
 
-                            if "csrf_token" in reply_json:
-                                self.csrf_token = reply_json["csrf_token"]
+            reply_json = await reply.json()
 
-                            if "X_INTERNAL_ID" in reply_json:
-                                self.id = reply_json["X_INTERNAL_ID"]
+            if "X_INTERNAL_ID" in reply_json:
+                self.id = reply_json["X_INTERNAL_ID"]
 
-                            self.session.cookie_jar.update_cookies(response.cookies)
-
-                except (ClientConnectorSSLError, ClientConnectorError):
-                    continue
-                break
+                self.session.cookie_jar.update_cookies(reply.cookies)
 
         if self.csrf_token == "":
             raise CannotAuthenticate
@@ -1142,13 +1135,10 @@ class VodafoneUltraHubApi(VodafoneStationCommonApi):
         b64_ct = base64.b64encode(ct).decode("ascii").strip()
         b64_iv = base64.b64encode(iv).decode("ascii").strip()
 
-        value = '{"iv":"'
-        value += b64_iv
-        value += '","v":1,"iter":10000,"ks":128,"ts":64,"mode":"ccm",'
-        value += '"adata":"","cipher":"aes","ct":"'
-        value += b64_ct
-        value += '"}'
-        return value
+        return (
+            f'{{"iv":"{b64_iv}","v":1,"iter":10000,"ks":128,"ts":64,"mode":"ccm",'
+            f'"adata":"","cipher":"aes","ct":"{b64_ct}"}}'
+        )
 
     def _truncate_iv(
         self,

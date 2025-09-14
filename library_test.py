@@ -87,36 +87,41 @@ async def main() -> None:
     session = ClientSession(cookie_jar=jar)
 
     print("Determining device type")
-    device_type = await VodafoneStationCommonApi.get_device_type(
-        args.router,
-        session,
-    )
-    print(device_type)
+    try:
+        (
+            device_type,
+            protocol,
+            can_do_force_logout,
+            do_close_session,
+        ) = await VodafoneStationCommonApi.get_device_type(
+            args.router,
+            session,
+        )
+        print(device_type)
 
-    print("-" * 20)
-    api: VodafoneStationCommonApi
-    if device_type == DeviceType.TECHNICOLOR:
-        api = VodafoneStationTechnicolorApi(
-            args.router,
-            args.username,
-            args.password,
-            session,
-        )
-    elif device_type == DeviceType.SERCOMM:
-        api = VodafoneStationSercommApi(
-            args.router,
-            args.username,
-            args.password,
-            session,
-        )
-    elif device_type == DeviceType.ULTRAHUB:
-        api = VodafoneUltraHubApi(
-            args.router,
-            args.username,
-            args.password,
-            session,
-        )
-    else:
+        print("-" * 20)
+        api: VodafoneStationCommonApi
+        if device_type == DeviceType.TECHNICOLOR:
+            api = VodafoneStationTechnicolorApi(
+                args.router, args.username, args.password, session, protocol
+            )
+        elif device_type == DeviceType.SERCOMM:
+            api = VodafoneStationSercommApi(
+                args.router,
+                args.username,
+                args.password,
+                session,
+                protocol,
+            )
+        elif device_type == DeviceType.ULTRAHUB:
+            api = VodafoneUltraHubApi(
+                args.router,
+                args.username,
+                args.password,
+                session,
+                protocol,
+            )
+    except ModelNotSupported:
         print("The device is not a supported Vodafone Station.")
         sys.exit(1)
 
@@ -125,7 +130,7 @@ async def main() -> None:
             try:
                 await api.login()
             except AlreadyLogged:
-                if device_type == DeviceType.ULTRAHUB:
+                if can_do_force_logout:
                     print(f"Only one user at a time can connect to router {api.host}")
                     await api.login(True)
                 else:
@@ -169,7 +174,7 @@ async def main() -> None:
 
     # Sercomm devices don't support Docis data and Voice data
     # and neither does ultra hub
-    if device_type in (DeviceType.SERCOMM, DeviceType.ULTRAHUB):
+    if do_close_session:
         await logout_close_session(api, session)
         return
 
