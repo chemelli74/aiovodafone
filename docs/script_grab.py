@@ -26,7 +26,7 @@ def get_arguments() -> tuple[ArgumentParser, Namespace]:
 
 async def main() -> None:
     """Run main."""
-    parser, args = get_arguments()
+    _, args = get_arguments()
 
     print("-" * 20)
 
