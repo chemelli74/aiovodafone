@@ -1,7 +1,6 @@
 """Constants for Vodafone Station."""
 
 import logging
-from enum import Enum
 
 from aiohttp import ClientTimeout
 
@@ -31,12 +30,8 @@ USER_ALREADY_LOGGED_IN = "MSG_LOGIN_150"
 FULL_FIELDS_NUM = 8
 
 
-class DeviceType(str, Enum):
-    """Supported device types."""
-
-    SERCOMM = "Sercomm"
-    TECHNICOLOR = "Technicolor"
-
-
 DEFAULT_TIMEOUT = ClientTimeout(10)
 POST_RESTART_TIMEOUT = ClientTimeout(2)
+
+LOGIN_TECHNICOLOR = "api/v1/login_conf"
+LOGIN_SERCOMM = "login.html"
