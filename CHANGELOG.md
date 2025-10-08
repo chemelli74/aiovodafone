@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.0.0-rc.1 (2025-10-08)
+
+### Features
+
+- Reworked to allow for easy addition of other device types ([`96ae9dc`](https://github.com/chemelli74/aiovodafone/commit/96ae9dc88c5230989ab3294218c67d385a02d0b1))
+
+
+### Build system
+
+- Bump python-semantic-release/python-semantic-release from 10.4.0 to 10.4.1 ([`821e485`](https://github.com/chemelli74/aiovodafone/commit/821e4858bf48e33f0856a21699fb270596350c50))
+- Bump pytest-cov from 6.3.0 to 7.0.0 ([`1a92715`](https://github.com/chemelli74/aiovodafone/commit/1a92715e58e141980cd4a9b36ad3ba77a6174253))
+- Bump python-semantic-release/python-semantic-release from 10.3.2 to 10.4.0 ([`93d768f`](https://github.com/chemelli74/aiovodafone/commit/93d768fdefd432b070d829ffa864e8eb5f143ef6))
+
+
 ## v1.2.1 (2025-09-08)
 
 ### Bug fixes
