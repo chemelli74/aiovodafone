@@ -1,7 +1,6 @@
 """Constants for Vodafone Station."""
 
 import logging
-from enum import Enum
 
 from aiohttp import ClientTimeout
 
@@ -14,8 +13,10 @@ HEADERS = {
     "Accept-Language": "en-GB,en;q=0.5",
     "X-Requested-With": "XMLHttpRequest",
 }
+DEFAULT_TIMEOUT = ClientTimeout(10)
+POST_RESTART_TIMEOUT = ClientTimeout(2)
 
-LOGIN = [
+DEVICE_SERCOMM_LOGIN_STATUS = [
     "not logged",
     "logged",
     "already logged",
@@ -25,18 +26,8 @@ LOGIN = [
     "incorrect challenge",
     "password mismatch",
 ]
+DEVICE_SERCOMM_LOGIN_URL = "login.html"
+DEVICE_SERCOMM_TOTAL_FIELDS_NUM = 8
 
-USER_ALREADY_LOGGED_IN = "MSG_LOGIN_150"
-
-FULL_FIELDS_NUM = 8
-
-
-class DeviceType(str, Enum):
-    """Supported device types."""
-
-    SERCOMM = "Sercomm"
-    TECHNICOLOR = "Technicolor"
-
-
-DEFAULT_TIMEOUT = ClientTimeout(10)
-POST_RESTART_TIMEOUT = ClientTimeout(2)
+DEVICE_TECHNICOLOR_LOGIN_URL = "api/v1/login_conf"
+DEVICE_TECHNICOLOR_USER_ALREADY_LOGGED_IN = "MSG_LOGIN_150"
