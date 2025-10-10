@@ -114,7 +114,7 @@ class VodafoneStationCommonApi(ABC):
                         allow_redirects=False,
                         params={
                             "X_INTERNAL_FIELDS": "X_RDK_ONT_Veip_1_OperationalState"
-                        },  # Needed by ULTRAHUN
+                        },  # Needed by ULTRAHUB, not used by other models
                         ssl=False,
                     ) as response:
                         _LOGGER.debug("Response for url %s: %s", url, response.status)
@@ -1077,17 +1077,10 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
             self.session.cookie_jar.update_cookies(reply.cookies)
             reply_json = await reply.json()
 
-            if (
-                "X_INTERNAL_Password_Status" in reply_json
-                and reply_json["X_INTERNAL_Password_Status"] == "Invalid_PWD"  # noqa: S105
-            ):
+            if reply_json.get("X_INTERNAL_Password_Status") == "Invalid_PWD":
                 raise CannotAuthenticate
 
-            if (
-                "X_INTERNAL_Is_Duplicate" in reply_json
-                and reply_json["X_INTERNAL_Is_Duplicate"] == "true"
-                and not force_logout
-            ):
+            if reply_json.get("X_INTERNAL_Is_Duplicate") == "true" and not force_logout:
                 raise AlreadyLogged
 
             return True
@@ -1129,13 +1122,18 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         b64_ct = base64.b64encode(ct).decode("ascii").strip()
         b64_iv = base64.b64encode(iv).decode("ascii").strip()
 
-        value = '{"iv":"'
-        value += b64_iv
-        value += '","v":1,"iter":10000,"ks":128,"ts":64,"mode":"ccm",'
-        value += '"adata":"","cipher":"aes","ct":"'
-        value += b64_ct
-        value += '"}'
-        return value
+        value_dict = {
+            "iv": b64_iv,
+            "v": 1,
+            "iter": 10000,
+            "ks": 128,
+            "ts": 64,
+            "mode": "ccm",
+            "adata": "",
+            "cipher": "aes",
+            "ct": b64_ct,
+        }
+        return str(value_dict)
 
     def _truncate_iv(
         self,
@@ -1197,7 +1195,6 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
             raise GenericResponseError from err
         else:
             reply_json = await response.json()
-            """So we do not have to play whack a mole for the csrf_token"""
             if "csrf_token" in reply_json:
                 self.csrf_token = reply_json["csrf_token"]
 
@@ -1265,8 +1262,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         data["cm_status"] = ""
         data["lan_mode"] = reply_json["X_VODAFONE_WANType"]
 
-        interface = reply_json["INTERNAL_CPEInterface_List"]
-        for device in interface:
+        for device in reply_json["INTERNAL_CPEInterface_List"]:
             if device["DisplayName"] == "WWAN":
                 data["wan_status"] = device["Phy_Status"]
             if device["DisplayName"] == "WANoE":
