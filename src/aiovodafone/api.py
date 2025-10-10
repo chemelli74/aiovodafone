@@ -982,6 +982,8 @@ def init_api_class(
     url: URL, device_type: str, data: Mapping[str, Any], session: ClientSession
 ) -> VodafoneStationCommonApi:
     """Return the inited API class."""
+    if device_type not in class_registry:
+        raise ModelNotSupported(f"Device type '{device_type}' not supported")
     api_class: type[VodafoneStationCommonApi] = class_registry[device_type]
 
     return api_class(
