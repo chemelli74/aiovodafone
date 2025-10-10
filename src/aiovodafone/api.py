@@ -227,6 +227,10 @@ class VodafoneStationCommonApi(ABC):
         """Get router voice data."""
 
     @abstractmethod
+    async def restart_connection(self, connection_type: str) -> None:
+        """Internet Connection restart."""
+
+    @abstractmethod
     async def restart_router(self) -> None:
         """Router restart."""
 
@@ -528,6 +532,12 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
                     }
 
         return data
+
+    async def restart_connection(self, connection_type: str) -> None:  # noqa: ARG002
+        """Internet Connection restart."""
+        msg = f"Method not implemented for Technicolor device {self.base_url.host}"
+        _LOGGER.error(msg)
+        raise NotImplementedError(msg)
 
     async def restart_router(self) -> None:
         """Router restart."""
