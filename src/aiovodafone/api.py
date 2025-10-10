@@ -1125,7 +1125,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         value_dict = {
             "iv": b64_iv,
             "v": 1,
-            "iter": 10000,
+            "iter": 1000,
             "ks": 128,
             "ts": 64,
             "mode": "ccm",
@@ -1133,7 +1133,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
             "cipher": "aes",
             "ct": b64_ct,
         }
-        return str(value_dict)
+        return cast("str", orjson.dumps(value_dict).decode("utf-8"))
 
     def _truncate_iv(
         self,
@@ -1163,7 +1163,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         timeout: ClientTimeout = DEFAULT_TIMEOUT,
     ) -> ClientResponse:
         """Request data from a web page."""
-        url = f"{self.base_url}{page}"
+        url = self.base_url.joinpath(page)
         _LOGGER.debug("%s page %s", method, url)
 
         try:
@@ -1177,10 +1177,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
                 timeout=timeout,
                 ssl=False,
             )
-            if (
-                response.status != HTTPStatus.OK
-                and response.content_type == "application/json"
-            ):
+            if response.status != HTTPStatus.OK:
                 _LOGGER.warning(
                     "%s page %s failed: %s",
                     method,
@@ -1301,7 +1298,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
     async def logout(self) -> None:
         """Router logout."""
         _LOGGER.debug("Log out of router %s", self.base_url.host)
-        if hasattr(self, "session") and self.csrf_token is not None:
+        if hasattr(self, "session") and self.csrf_token != "":
             payload = {"__id": self.id, "csrf_token": self.csrf_token}
 
             with contextlib.suppress(GenericResponseError):
