@@ -1035,7 +1035,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
 
             reply = await self._auto_hub_request_page_result(
                 HTTPMethod.GET,
-                "/api/config/details.jst",
+                "api/config/details.jst",
                 params={"X_INTERNAL_FIELDS": "X_RDK_ONT_Veip_1_OperationalState"},
             )
 
@@ -1050,7 +1050,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
 
         reply = await self._auto_hub_request_page_result(
             HTTPMethod.GET,
-            "/api/users/details.jst",
+            "api/users/details.jst",
             params={"__id": self.id, "X_INTERNAL_FIELDS": "X_VODAFONE_WebUISecret"},
         )
 
@@ -1210,7 +1210,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         devices_dict = {}
 
         reply = await self._auto_hub_request_page_result(
-            HTTPMethod.GET, "/api/device/bulk/details.jst"
+            HTTPMethod.GET, "api/device/bulk/details.jst"
         )
 
         reply_json = await reply.json()
@@ -1244,7 +1244,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
     async def get_sensor_data(self) -> dict[str, Any]:
         """Get router sensor data."""
         reply = await self._auto_hub_request_page_result(
-            HTTPMethod.GET, "/api/device/details.jst"
+            HTTPMethod.GET, "api/device/details.jst"
         )
 
         reply_json = await reply.json()
