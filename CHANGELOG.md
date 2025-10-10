@@ -1,10 +1,10 @@
 # Changelog
 
-## v2.0.1-rc.1 (2025-10-10)
+## v2.0.1 (2025-10-10)
 
 ### Bug fixes
 
-- Missing method definition ([`d1358b5`](https://github.com/chemelli74/aiovodafone/commit/d1358b5c7f1023f2b0603656d4ac7d93e65dc5a3))
+- Missing method definition ([`f2244b9`](https://github.com/chemelli74/aiovodafone/commit/f2244b93ceceb3d2a8c78b6f173a7cd6731991f6))
 
 
 ## v2.0.0 (2025-10-10)
