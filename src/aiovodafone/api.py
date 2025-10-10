@@ -706,9 +706,13 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
     async def _get_csrf_token(self, reply_text: str) -> None:
         """Load login page to get csrf token."""
         soup = BeautifulSoup(reply_text, "html.parser")
-        script_tag = soup.find("script", string=True)
+        script_tags = [
+            tag for tag in soup.find_all("script") if tag.get_text(strip=True)
+        ]
         try:
-            token = re.findall("(?<=csrf_token)|[^']+", str(script_tag))[1]
+            # Concatenate all script content to search for token
+            scripts_text = " ".join(tag.get_text() for tag in script_tags)
+            token = re.findall("(?<=csrf_token)|[^']+", scripts_text)[1]
         except IndexError as err:
             raise ModelNotSupported from err
         if not token:
