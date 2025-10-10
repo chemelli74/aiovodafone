@@ -765,7 +765,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         reply_json = await self._post_sercomm_page("data/login.json", payload)
         reply_str = str(reply_json)
         if not reply_str.isdigit():
-            raise GenericResponseError("Unexpected login response: %s", reply_str)
+            raise GenericResponseError(f"Unexpected login response: {reply_str}")
 
         _LOGGER.debug(
             "Login result: %s[%s]",
@@ -950,7 +950,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         try:
             if not await self._check_logged_in():
                 await self.login()
-            await self._post_sercomm_page("/data/statussupportrestart.json", payload)
+            await self._post_sercomm_page("data/statussupportrestart.json", payload)
         except ClientResponseError as ex:
             _LOGGER.debug(
                 'Client response error for "restart_connection" is: %s',
