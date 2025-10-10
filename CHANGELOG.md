@@ -1,5 +1,27 @@
 # Changelog
 
+## v2.0.0 (2025-10-10)
+
+### Features
+
+- Reworked to allow for easy addition of other device types ([`656bee9`](https://github.com/chemelli74/aiovodafone/commit/656bee96b6c6c16bf0d28ae911039bccf7b4815c))
+
+
+### Refactoring
+
+- Pylance warnings ([`7e4f398`](https://github.com/chemelli74/aiovodafone/commit/7e4f398ca48a87379fdc61196dfed3d94187985a))
+
+
+### Build system
+
+- Bump browniebroke/hacktoberfest-labeler-action from 2.4.0 to 2.4.2 ([`a4afdc9`](https://github.com/chemelli74/aiovodafone/commit/a4afdc9dd95d1d5ab189f23f0a8b3065b3f1c8d4))
+- Bump tiangolo/issue-manager from 0.5.1 to 0.6.0 ([`4aca9dc`](https://github.com/chemelli74/aiovodafone/commit/4aca9dc6e430ffdbb6ee57f68cdf442f26985541))
+- Bump browniebroke/hacktoberfest-labeler-action from 2.3.0 to 2.4.0 ([`e2f81ef`](https://github.com/chemelli74/aiovodafone/commit/e2f81ef32eda8d534611516b1c8dd13161e344e1))
+- Bump python-semantic-release/python-semantic-release from 10.4.0 to 10.4.1 ([`821e485`](https://github.com/chemelli74/aiovodafone/commit/821e4858bf48e33f0856a21699fb270596350c50))
+- Bump pytest-cov from 6.3.0 to 7.0.0 ([`1a92715`](https://github.com/chemelli74/aiovodafone/commit/1a92715e58e141980cd4a9b36ad3ba77a6174253))
+- Bump python-semantic-release/python-semantic-release from 10.3.2 to 10.4.0 ([`93d768f`](https://github.com/chemelli74/aiovodafone/commit/93d768fdefd432b070d829ffa864e8eb5f143ef6))
+
+
 ## v1.2.1 (2025-09-08)
 
 ### Bug fixes
