@@ -12,6 +12,7 @@ HEADERS = {
     ),
     "Accept-Language": "en-GB,en;q=0.5",
     "X-Requested-With": "XMLHttpRequest",
+    "Priority": "u=1",
 }
 DEFAULT_TIMEOUT = ClientTimeout(10)
 POST_RESTART_TIMEOUT = ClientTimeout(2)
@@ -31,3 +32,5 @@ DEVICE_SERCOMM_TOTAL_FIELDS_NUM = 8
 
 DEVICE_TECHNICOLOR_LOGIN_URL = "api/v1/login_conf"
 DEVICE_TECHNICOLOR_USER_ALREADY_LOGGED_IN = "MSG_LOGIN_150"
+
+DEVICE_ULTRAHUB_LOGIN_URL = "/api/config/details.jst"
