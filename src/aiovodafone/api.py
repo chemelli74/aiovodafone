@@ -711,7 +711,9 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
     async def _get_csrf_token(self, reply_text: str) -> None:
         """Load login page to get csrf token."""
         soup = BeautifulSoup(reply_text, "html.parser")
-        script_tag = soup.find("script", string=True)
+        script_tag = [
+            tag for tag in soup.find_all("script") if tag.get_text(strip=True)
+        ]
         try:
             token = re.findall("(?<=csrf_token)|[^']+", str(script_tag))[1]
         except IndexError as err:
@@ -770,7 +772,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         reply_json = await self._post_sercomm_page("/data/login.json", payload)
         reply_str = str(reply_json)
         if not reply_str.isdigit():
-            raise GenericResponseError("Unexpected login response: %s", reply_str)
+            raise GenericResponseError(f"Unexpected login response: {reply_str}")
 
         _LOGGER.debug(
             "Login result: %s[%s]",
