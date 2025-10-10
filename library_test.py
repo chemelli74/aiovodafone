@@ -12,10 +12,8 @@ from colorlog import ColoredFormatter
 
 from aiovodafone.api import (
     VodafoneStationCommonApi,
-    VodafoneStationSercommApi,
-    VodafoneStationTechnicolorApi,
+    init_api_class,
 )
-from aiovodafone.const import DeviceType
 from aiovodafone.exceptions import (
     AlreadyLogged,
     CannotAuthenticate,
@@ -86,49 +84,39 @@ async def main() -> None:
     session = ClientSession(cookie_jar=jar)
 
     print("Determining device type")
-    device_type = await VodafoneStationCommonApi.get_device_type(
+    device_type, url = await VodafoneStationCommonApi.get_device_type(
         args.router,
         session,
     )
-    print(device_type)
+
+    print(f"Device type: {device_type} ({url})")
 
     print("-" * 20)
-    api: VodafoneStationCommonApi
-    if device_type == DeviceType.TECHNICOLOR:
-        api = VodafoneStationTechnicolorApi(
-            args.router,
-            args.username,
-            args.password,
-            session,
-        )
-    elif device_type == DeviceType.SERCOMM:
-        api = VodafoneStationSercommApi(
-            args.router,
-            args.username,
-            args.password,
-            session,
-        )
-    else:
-        print("The device is not a supported Vodafone Station.")
-        sys.exit(1)
+
+    api = init_api_class(
+        url,
+        device_type,
+        {"username": args.username, "password": args.password},
+        session,
+    )
 
     try:
         try:
             await api.login()
         except ModelNotSupported:
-            print(f"Model is not supported yet for router {api.host}")
+            print(f"Model is not supported yet for router {url.host}")
             raise
         except CannotAuthenticate:
-            print(f"Cannot authenticate to router {api.host}")
+            print(f"Cannot authenticate to router {url.host}")
             raise
         except CannotConnect:
-            print(f"Cannot connect to router {api.host}")
+            print(f"Cannot connect to router {url.host}")
             raise
         except AlreadyLogged:
-            print(f"Only one user at a time can connect to router {api.host}")
+            print(f"Only one user at a time can connect to router {url.host}")
             raise
         except GenericLoginError:
-            print(f"Unable to login to router {api.host}")
+            print(f"Unable to login to router {url.host}")
             raise
     except VodafoneError:
         await session.close()
@@ -152,36 +140,35 @@ async def main() -> None:
     print(f"{'Cable modem status:':>20} {data.get('cm_status')}")
     print(f"{'LAN mode:':>20} {data.get('lan_mode')}")
 
-    # Sercomm devices don't support Docis data and Voice data
-    if device_type == DeviceType.SERCOMM:
-        await logout_close_session(api, session)
-        return
-
-    print("-" * 20)
     data = await api.get_docis_data()
-    print(f"Docis data: {data}")
-    print("-" * 20)
-    for which in ["downstream", "upstream"]:
-        print(f"{which}")
-        for channel in data[which]:
-            print(f"{channel}:")
-            print(f"{'Type:':>15} {data[which][channel]['channel_type']}")
-            print(f"{'Frequency:':>15} {data[which][channel]['channel_frequency']}")
-            print(f"{'Modulation:':>15} {data[which][channel]['channel_modulation']}")
-            print(f"{'Power:':>15} {data[which][channel]['channel_power']}")
-            print(f"{'Locked:':>15} {data[which][channel]['channel_locked']}")
+    if data:
+        print("-" * 20)
+        print(f"Docis data: {data}")
+        print("-" * 20)
+        for which in ["downstream", "upstream"]:
+            print(f"{which}")
+            for channel in data[which]:
+                print(f"{channel}:")
+                print(f"{'Type:':>15} {data[which][channel]['channel_type']}")
+                print(f"{'Frequency:':>15} {data[which][channel]['channel_frequency']}")
+                print(
+                    f"{'Modulation:':>15} {data[which][channel]['channel_modulation']}"
+                )
+                print(f"{'Power:':>15} {data[which][channel]['channel_power']}")
+                print(f"{'Locked:':>15} {data[which][channel]['channel_locked']}")
 
-    print("-" * 20)
     data = await api.get_voice_data()
-    print(f"Voice data: {data}")
-    print("-" * 20)
-    print(f"{'VoIP status:':>15} {data['general'].get('status', 'N/A')}")
-    print(f"{'Line1:':>15} {data['line1'].get('status', 'N/A')}")
-    print(f"{'Line1 number:':>15} {data['line1'].get('call_number', 'N/A')}")
-    print(f"{'Line1 status:':>15} {data['line1'].get('line_status', 'N/A')}")
-    print(f"{'Line2:':>15} {data['line2'].get('status', 'N/A')}")
-    print(f"{'Line2 number:':>15} {data['line2'].get('call_number', 'N/A')}")
-    print(f"{'Line2 status:':>15} {data['line2'].get('line_status', 'N/A')}")
+    if data:
+        print("-" * 20)
+        print(f"Voice data: {data}")
+        print("-" * 20)
+        print(f"{'VoIP status:':>15} {data['general'].get('status', 'N/A')}")
+        print(f"{'Line1:':>15} {data['line1'].get('status', 'N/A')}")
+        print(f"{'Line1 number:':>15} {data['line1'].get('call_number', 'N/A')}")
+        print(f"{'Line1 status:':>15} {data['line1'].get('line_status', 'N/A')}")
+        print(f"{'Line2:':>15} {data['line2'].get('status', 'N/A')}")
+        print(f"{'Line2 number:':>15} {data['line2'].get('call_number', 'N/A')}")
+        print(f"{'Line2 status:':>15} {data['line2'].get('line_status', 'N/A')}")
 
     await logout_close_session(api, session)
 

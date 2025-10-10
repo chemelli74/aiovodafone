@@ -4,14 +4,15 @@ import asyncio
 import hashlib
 import hmac
 import re
-import urllib.parse
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from http import HTTPMethod, HTTPStatus
 from http.cookies import SimpleCookie
 from typing import Any, cast
 
+import orjson
 from aiohttp import (
     ClientConnectorError,
     ClientConnectorSSLError,
@@ -20,17 +21,19 @@ from aiohttp import (
     ClientSession,
     ClientTimeout,
 )
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup
+from yarl import URL
 
 from .const import (
     _LOGGER,
     DEFAULT_TIMEOUT,
-    FULL_FIELDS_NUM,
+    DEVICE_SERCOMM_LOGIN_STATUS,
+    DEVICE_SERCOMM_LOGIN_URL,
+    DEVICE_SERCOMM_TOTAL_FIELDS_NUM,
+    DEVICE_TECHNICOLOR_LOGIN_URL,
+    DEVICE_TECHNICOLOR_USER_ALREADY_LOGGED_IN,
     HEADERS,
-    LOGIN,
     POST_RESTART_TIMEOUT,
-    USER_ALREADY_LOGGED_IN,
-    DeviceType,
 )
 from .exceptions import (
     AlreadyLogged,
@@ -63,7 +66,7 @@ class VodafoneStationCommonApi(ABC):
     async def get_device_type(
         host: str,
         session: ClientSession,
-    ) -> DeviceType | None:
+    ) -> tuple[str, URL]:
         """Find out the device type of a Vodafone Stations and returns it as enum.
 
         The Technicolor devices always answer with a valid HTTP response, the
@@ -78,55 +81,73 @@ class VodafoneStationCommonApi(ABC):
 
         Returns:
         -------
-            DeviceType:
-            If the device is a Technicolor, it returns `DeviceType.TECHNICOLOR`.
-            If the device is a Sercomm,     it returns `DeviceType.SERCOMM`.
-            If neither of the device types match, it returns `None`.
+        [
+            device_type:
+                returns `Sercomm`, `Technicolor` or raises `ModelNotSupported`
+            url:
+               full router url with scheme and host, e.g. `http://192.168.1.1`
+        ]
 
         """
-        async with session.get(
-            f"http://{host}/api/v1/login_conf",
-            headers=HEADERS,
-        ) as response:
-            if response.status == HTTPStatus.OK:
-                response_json = await response.json()
-                if "data" in response_json and "ModelName" in response_json["data"]:
-                    return DeviceType.TECHNICOLOR
+        urls = [DEVICE_TECHNICOLOR_LOGIN_URL, DEVICE_SERCOMM_LOGIN_URL]
 
-        for protocol in ["https", "http"]:
-            try:
-                async with session.get(
-                    f"{protocol}://{host}/login.html",
-                    headers=HEADERS,
-                    ssl=False,
-                ) as response:
-                    # To identify the Sercomm devices before the login
-                    # There's no other sure way to identify a Sercomm device
-                    # without login
-                    if (
-                        response.status == HTTPStatus.OK
-                        and "var csrf_token = " in await response.text()
-                    ):
-                        return DeviceType.SERCOMM
-            except ClientConnectorSSLError:
-                _LOGGER.debug("Unable to login using protocol %s", protocol)
-                continue
+        for api_path in urls:
+            for protocol in ["https", "http"]:
+                try:
+                    return_url = URL(f"{protocol}://{host}")
+                    url = return_url.joinpath(api_path)
+                    _LOGGER.debug("Trying url %s", url)
+                    async with session.get(
+                        url,
+                        headers=HEADERS,
+                        allow_redirects=False,
+                        ssl=False,
+                    ) as response:
+                        _LOGGER.debug("Response for url %s: %s", url, response.status)
+                        if response.status != HTTPStatus.OK:
+                            continue
 
-        return None
+                        response_text = await response.text()
+                        response_json: dict[str, Any] = {}
+                        if response.content_type == "application/json":
+                            try:
+                                response_json = orjson.loads(response_text)
+                            except orjson.JSONDecodeError:
+                                _LOGGER.debug(
+                                    "Failed to decode JSON response from %s", url
+                                )
+
+                        if (
+                            "data" in response_json
+                            and "ModelName" in response_json["data"]
+                        ):
+                            _LOGGER.debug("Detected device type: Technicolor")
+                            return "Technicolor", return_url
+
+                        if "var csrf_token = " in response_text:
+                            _LOGGER.debug("Detected device type: Sercomm")
+                            return "Sercomm", return_url
+
+                except (
+                    ClientConnectorSSLError,
+                    ClientConnectorError,
+                ):
+                    _LOGGER.debug("Unable to login using protocol %s", protocol)
+                    continue
+
+        raise ModelNotSupported
 
     def __init__(
         self,
-        host: str,
+        url: URL,
         username: str,
         password: str,
         session: ClientSession,
     ) -> None:
         """Initialize the scanner."""
-        self.host = host
-        self.protocol = "http"
         self.username = username
         self.password = password
-        self.base_url = self._base_url()
+        self.base_url = url
         self.headers = HEADERS
         self.session = session
         self.csrf_token: str = ""
@@ -135,14 +156,10 @@ class VodafoneStationCommonApi(ABC):
         self._overview: dict[str, Any] = {}
         self._devices: dict[str, VodafoneStationDevice] = {}
 
-    def _base_url(self) -> str:
-        """Create base URL."""
-        return f"{self.protocol}://{self.host}"
-
     async def _set_cookie(self) -> None:
         """Enable required session cookie."""
         self.session.cookie_jar.update_cookies(
-            SimpleCookie(f"domain={self.host}; name=login_uid; value=1;"),
+            SimpleCookie(f"domain={self.base_url.host}; name=login_uid; value=1;"),
         )
 
     async def _request_page_result(
@@ -153,9 +170,11 @@ class VodafoneStationCommonApi(ABC):
         timeout: ClientTimeout = DEFAULT_TIMEOUT,
     ) -> ClientResponse:
         """Request data from a web page."""
-        _LOGGER.debug("%s page %s from host %s", method, page, self.host)
+        _LOGGER.debug("%s page %s from host %s", method, page, self.base_url.host)
         timestamp = int(datetime.now(tz=UTC).timestamp())
-        url = f"{self.base_url}{page}?_={timestamp}&csrf_token={self.csrf_token}"
+        url = self.base_url.joinpath(page).with_query(
+            _=timestamp, csrf_token=self.csrf_token
+        )
         try:
             response = await self.session.request(
                 method,
@@ -171,12 +190,14 @@ class VodafoneStationCommonApi(ABC):
                     "%s page %s from host %s failed: %s",
                     method,
                     page,
-                    self.host,
+                    self.base_url.host,
                     response.status,
                 )
                 raise GenericResponseError
         except ClientResponseError as err:
-            _LOGGER.exception("%s page %s from host %s failed", method, page, self.host)
+            _LOGGER.exception(
+                "%s page %s from host %s failed", method, page, self.base_url.host
+            )
             raise GenericResponseError from err
         else:
             return response
@@ -267,7 +288,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         # Any existing URL will do the job here
         csrf_res = await self._request_page_result(
-            HTTPMethod.GET, "/api/v1/wifi/1/SSIDEnable"
+            HTTPMethod.GET, "api/v1/wifi/1/SSIDEnable"
         )
         csrf_json = await csrf_res.json()
         _LOGGER.debug("csrf call response: %s", csrf_json)
@@ -289,14 +310,14 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         """Trigger a specific diagnostic request to the router."""
         await self._get_csrf_token(force_update=True)
 
-        url = f"/api/v1/sta_diagnostic_utility/{check_url}"
+        url = f"api/v1/sta_diagnostic_utility/{check_url}"
         await self._request_page_result(
             HTTPMethod.POST,
             url,
             payload,
         )
 
-        url = f"/api/v1/sta_diagnostic_utility/{data_url}"
+        url = f"api/v1/sta_diagnostic_utility/{data_url}"
         for attempt in range(retries):
             try:
                 response = await self._request_page_result(HTTPMethod.GET, url)
@@ -323,13 +344,13 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
     async def login(self, force_logout: bool = False) -> bool:
         """Router login."""
-        _LOGGER.debug("Logging into %s (force: %s)", self.host, force_logout)
+        _LOGGER.debug("Logging into %s (force: %s)", self.base_url.host, force_logout)
 
         _LOGGER.debug("Get salt for login")
         payload = {"username": self.username, "password": "seeksalthash"}
         salt_response = await self._request_page_result(
             HTTPMethod.POST,
-            page="/api/v1/session/login",
+            page="api/v1/session/login",
             payload=payload,
         )
 
@@ -352,19 +373,19 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             payload["logout"] = "true"
         login_response = await self._request_page_result(
             HTTPMethod.POST,
-            page="/api/v1/session/login",
+            page="api/v1/session/login",
             payload=payload,
         )
         login_json = await login_response.json()
         if "error" in login_json and login_json["error"] == "error":
-            if login_json["message"] == USER_ALREADY_LOGGED_IN:
+            if login_json["message"] == DEVICE_TECHNICOLOR_USER_ALREADY_LOGGED_IN:
                 raise AlreadyLogged
             _LOGGER.error(login_json)
             raise CannotAuthenticate
 
         # Request menu otherwise the next call fails
         _LOGGER.debug("Get menu")
-        await self._request_page_result(HTTPMethod.GET, "/api/v1/session/menu")
+        await self._request_page_result(HTTPMethod.GET, "api/v1/session/menu")
 
         return True
 
@@ -378,7 +399,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         """
         _LOGGER.debug("Get hosts")
         host_response = await self._request_page_result(
-            HTTPMethod.GET, "/api/v1/host/hostTbl"
+            HTTPMethod.GET, "api/v1/host/hostTbl"
         )
         host_json = await host_response.json()
         _LOGGER.debug("GET reply (%s)", host_json)
@@ -412,7 +433,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         """Get all sensors data."""
         _LOGGER.debug("Get sensors")
         status_response = await self._request_page_result(
-            HTTPMethod.GET, "/api/v1/sta_status"
+            HTTPMethod.GET, "api/v1/sta_status"
         )
         status_json = await status_response.json()
         _LOGGER.debug("GET reply (%s)", status_json)
@@ -431,7 +452,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         """Get docis data."""
         _LOGGER.debug("Get docis data")
         response = await self._request_page_result(
-            HTTPMethod.GET, "/api/v1/sta_docsis_status"
+            HTTPMethod.GET, "api/v1/sta_docsis_status"
         )
         response_json = await response.json()
         _LOGGER.debug("GET reply (%s)", response_json)
@@ -485,7 +506,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         """Get voice data."""
         _LOGGER.debug("Get voice data")
         response = await self._request_page_result(
-            HTTPMethod.GET, "/api/v1/sta_voice_status"
+            HTTPMethod.GET, "api/v1/sta_voice_status"
         )
         response_json = await response.json()
         _LOGGER.debug("GET reply (%s)", response_json)
@@ -510,20 +531,20 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
     async def restart_router(self) -> None:
         """Router restart."""
-        _LOGGER.debug("Restarting router %s", self.host)
+        _LOGGER.debug("Restarting router %s", self.base_url.host)
         # NOTE This payload is identical to the request sent by the UI.
         payload = {
             "restart": "Router,Wifi,VoIP,Dect,MoCA",
             "ui_access": "reboot_device",
         }
 
-        await self._request_page_result(HTTPMethod.POST, "/api/v1/sta_restart", payload)
+        await self._request_page_result(HTTPMethod.POST, "api/v1/sta_restart", payload)
 
     async def logout(self) -> None:
         """Router logout."""
         _LOGGER.debug("Logout")
         await self._request_page_result(
-            HTTPMethod.POST, "/api/v1/session/logout", payload={}
+            HTTPMethod.POST, "api/v1/session/logout", payload={}
         )
 
     async def ping(
@@ -675,38 +696,12 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
     async def _check_logged_in(self) -> bool:
         """Check if logged in or not."""
         reply = await self._post_sercomm_page(
-            "/data/login.json",
+            "data/login.json",
             {"loginUserChkLoginTimeout": self.username},
         )
         index = int(str(reply)) if reply else 0
-        _LOGGER.debug("Login status: %s[%s]", LOGIN[index], reply)
+        _LOGGER.debug("Login status: %s[%s]", DEVICE_SERCOMM_LOGIN_STATUS[index], reply)
         return bool(reply)
-
-    async def _find_login_url(self) -> str:
-        """Find the login page.
-
-        Router reply with 200 and a html body instead of a formal redirect
-        """
-        page = "/login.html"
-        _LOGGER.debug("Requested login url: <%s/%s>", self.base_url, page)
-        reply = await self._request_page_result(HTTPMethod.GET, page)
-        if reply.status in [HTTPStatus.FORBIDDEN, HTTPStatus.NOT_FOUND]:
-            raise ModelNotSupported
-        reply_text = await reply.text()
-        soup = BeautifulSoup(reply_text, "html.parser")
-        meta_refresh = soup.find("meta", {"http-equiv": "Refresh"})
-        if isinstance(meta_refresh, Tag) and "content" in meta_refresh.attrs:
-            meta_content = meta_refresh.get("content")
-            parsed_qs = urllib.parse.parse_qs(str(meta_content), separator="; ")
-            reply_url: str = parsed_qs["URL"][0]
-            redirect_url = urllib.parse.urlparse(reply_url)
-            if redirect_url.scheme != self.protocol:
-                self.protocol = redirect_url.scheme
-                self.base_url = self._base_url()
-                _LOGGER.debug("Redirected login!")
-                reply_text = await self._find_login_url()
-
-        return cast("str", reply_text)
 
     async def _get_csrf_token(self, reply_text: str) -> None:
         """Load login page to get csrf token."""
@@ -727,7 +722,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
     async def _get_user_lang(self) -> None:
         """Load user_lang page to get."""
-        return_dict = await self._get_sercomm_page("/data/user_lang.json")
+        return_dict = await self._get_sercomm_page("data/user_lang.json")
         self.encryption_key = return_dict["encryption_key"]
         _LOGGER.debug("encryption_key: <%s>", self.encryption_key)
 
@@ -753,7 +748,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
     async def _get_challenge(self) -> str:
         """Return challenge or login."""
-        return_dict = await self._get_sercomm_page("/data/login.json")
+        return_dict = await self._get_sercomm_page("data/login.json")
         challenge: str = return_dict["challenge"]
         _LOGGER.debug("challenge: <%s>", challenge)
         return challenge
@@ -762,7 +757,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         """Reset page content before loading."""
         payload = {"chk_sys_busy": ""}
         reply = await self._request_page_result(
-            HTTPMethod.POST, "/data/reset.json", payload
+            HTTPMethod.POST, "data/reset.json", payload
         )
         if isinstance(reply, ClientResponse):
             return bool(reply.status == HTTPStatus.OK)
@@ -771,14 +766,16 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
     async def _login_json(self, payload: dict[str, Any]) -> bool:
         """Login via json page."""
-        reply_json = await self._post_sercomm_page("/data/login.json", payload)
+        reply_json = await self._post_sercomm_page("data/login.json", payload)
         reply_str = str(reply_json)
         if not reply_str.isdigit():
             raise GenericResponseError(f"Unexpected login response: {reply_str}")
 
         _LOGGER.debug(
             "Login result: %s[%s]",
-            LOGIN[int(reply_str)] if 0 <= int(reply_str) < len(LOGIN) else "unknown",
+            DEVICE_SERCOMM_LOGIN_STATUS[int(reply_str)]
+            if 0 <= int(reply_str) < len(DEVICE_SERCOMM_LOGIN_STATUS)
+            else "unknown",
             reply_json,
         )
 
@@ -807,14 +804,16 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
     async def login(self, force_logout: bool = False) -> bool:  # noqa: ARG002
         """Router login."""
-        _LOGGER.debug("Logging into %s", self.host)
+        _LOGGER.debug("Logging into %s", self.base_url.host)
         try:
-            html_page = await self._find_login_url()
+            reply = await self._request_page_result(
+                HTTPMethod.GET, DEVICE_SERCOMM_LOGIN_URL
+            )
         except (asyncio.exceptions.TimeoutError, ClientConnectorError) as exc:
-            _LOGGER.warning("Connection error for %s", self.host)
+            _LOGGER.warning("Connection error for %s", self.base_url.host)
             raise CannotConnect from exc
 
-        await self._get_csrf_token(html_page)
+        await self._get_csrf_token(await reply.text())
         await self._get_user_lang()
         await self._set_cookie()
         await self._reset()
@@ -856,8 +855,8 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
     async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
         """Get all connected devices."""
-        _LOGGER.debug("Getting all devices for host %s", self.host)
-        return_dict = await self._get_sercomm_page("/data/overview.json")
+        _LOGGER.debug("Getting all devices for host %s", self.base_url.host)
+        return_dict = await self._get_sercomm_page("data/overview.json")
 
         # Cleanup sensor data from devices in order to be merged later
         self._overview.update(return_dict)
@@ -870,7 +869,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
             and "wifi_guest" not in return_dict
             and "ethernet" not in return_dict
         ):
-            _LOGGER.info("No device in response from %s", self.host)
+            _LOGGER.info("No device in response from %s", self.base_url.host)
             return self._devices
 
         _arr_devices: list[list[str]] = []
@@ -901,7 +900,9 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         for device_line in arr_devices:
             device_fields: list[str] = device_line.split("|")
             wifi_band = (
-                device_fields[7] if len(device_fields) == FULL_FIELDS_NUM else ""
+                device_fields[7]
+                if len(device_fields) == DEVICE_SERCOMM_TOTAL_FIELDS_NUM
+                else ""
             )
             try:
                 dev_info = VodafoneStationDevice(
@@ -921,11 +922,11 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
     async def get_sensor_data(self) -> dict[str, Any]:
         """Load user_data page information."""
-        _LOGGER.debug("Getting sensor data for host %s", self.host)
+        _LOGGER.debug("Getting sensor data for host %s", self.base_url.host)
 
-        reply_dict_1 = await self._get_sercomm_page("/data/user_data.json")
-        reply_dict_2 = await self._get_sercomm_page("/data/statussupportstatus.json")
-        reply_dict_3 = await self._get_sercomm_page("/data/statussupportrestart.json")
+        reply_dict_1 = await self._get_sercomm_page("data/user_data.json")
+        reply_dict_2 = await self._get_sercomm_page("data/statussupportstatus.json")
+        reply_dict_3 = await self._get_sercomm_page("data/statussupportrestart.json")
 
         return reply_dict_1 | reply_dict_2 | reply_dict_3 | self._overview
 
@@ -947,13 +948,13 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         _LOGGER.debug(
             "Restarting %s connection for router %s",
             connection_type,
-            self.host,
+            self.base_url.host,
         )
         payload = {f"{connection_type}_reconnect": "1"}
         try:
             if not await self._check_logged_in():
                 await self.login()
-            await self._post_sercomm_page("/data/statussupportrestart.json", payload)
+            await self._post_sercomm_page("data/statussupportrestart.json", payload)
         except ClientResponseError as ex:
             _LOGGER.debug(
                 'Client response error for "restart_connection" is: %s',
@@ -966,16 +967,38 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
     async def restart_router(self) -> None:
         """Router restart."""
-        _LOGGER.debug("Restarting router %s", self.host)
+        _LOGGER.debug("Restarting router %s", self.base_url.host)
         payload = {"restart_device": "1"}
         try:
             if not await self._check_logged_in():
                 await self.login()
             await self._request_page_result(
                 HTTPMethod.POST,
-                "/data/statussupportrestart.json",
+                "data/statussupportrestart.json",
                 payload,
                 POST_RESTART_TIMEOUT,
             )
         except asyncio.exceptions.TimeoutError:
             pass
+
+
+def init_api_class(
+    url: URL, device_type: str, data: Mapping[str, Any], session: ClientSession
+) -> VodafoneStationCommonApi:
+    """Return the inited API class."""
+    if device_type not in class_registry:
+        raise ModelNotSupported(f"Device type '{device_type}' not supported")
+    api_class: type[VodafoneStationCommonApi] = class_registry[device_type]
+
+    return api_class(
+        url,
+        data["username"],
+        data["password"],
+        session,
+    )
+
+
+class_registry: dict[str, type[VodafoneStationCommonApi]] = {
+    "Sercomm": VodafoneStationSercommApi,
+    "Technicolor": VodafoneStationTechnicolorApi,
+}
