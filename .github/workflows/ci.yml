@@ -90,7 +90,8 @@ jobs:
         if: github.ref_name != 'main'
         with:
           root_options: --noop
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Use the read-only automation token so forks can authenticate
+          github_token: ${{ github.token }}
 
       # On main branch: actual PSR + upload to PyPI & GitHub
       - name: Release
