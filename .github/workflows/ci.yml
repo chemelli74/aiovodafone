@@ -90,8 +90,8 @@ jobs:
         if: github.event_name == 'pull_request'
         with:
           root_options: --noop
-          # No secrets for forks dry run
-          github_token: ""
+          # Use the read-only automation token so forks can authenticate
+          github_token: ${{ github.token }}
 
       # On main branch: actual PSR + upload to PyPI & GitHub
       - name: Release
