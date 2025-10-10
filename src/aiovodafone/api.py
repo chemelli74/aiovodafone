@@ -703,19 +703,6 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         _LOGGER.debug("Login status: %s[%s]", DEVICE_SERCOMM_LOGIN_STATUS[index], reply)
         return bool(reply)
 
-    async def _find_login_url(self) -> str:
-        """Find the login page.
-
-        Router reply with 200 and a html body instead of a formal redirect
-        """
-        page = DEVICE_SERCOMM_LOGIN_URL
-        _LOGGER.debug("Requested login url: <%s/%s>", self.base_url, page)
-        reply = await self._request_page_result(HTTPMethod.GET, page)
-        if reply.status in [HTTPStatus.FORBIDDEN, HTTPStatus.NOT_FOUND]:
-            raise ModelNotSupported
-
-        return cast("str", await reply.text())
-
     async def _get_csrf_token(self, reply_text: str) -> None:
         """Load login page to get csrf token."""
         soup = BeautifulSoup(reply_text, "html.parser")
@@ -815,12 +802,14 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         """Router login."""
         _LOGGER.debug("Logging into %s", self.base_url.host)
         try:
-            html_page = await self._find_login_url()
+            reply = await self._request_page_result(
+                HTTPMethod.GET, DEVICE_SERCOMM_LOGIN_URL
+            )
         except (asyncio.exceptions.TimeoutError, ClientConnectorError) as exc:
             _LOGGER.warning("Connection error for %s", self.base_url.host)
             raise CannotConnect from exc
 
-        await self._get_csrf_token(html_page)
+        await self._get_csrf_token(await reply.text())
         await self._get_user_lang()
         await self._set_cookie()
         await self._reset()
