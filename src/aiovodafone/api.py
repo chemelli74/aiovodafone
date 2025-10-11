@@ -1207,7 +1207,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
 
         reply_json = await reply.json()
 
-        for device in reply_json.get("hosts"):
+        for device in reply_json.get("hosts", []):
             connected = device["Active"] == "true"
             connection_type = (
                 "WiFi" if "WiFi" in device["Layer1Interface"] else "Ethernet"
