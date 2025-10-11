@@ -27,6 +27,10 @@ DEVICES_SETTINGS: dict[str, Any] = {
         "login_url": "api/v1/login_conf",
         "user_already_logged_in": "MSG_LOGIN_150",
     },
+    "UltraHub": {
+        "login_url": "/api/config/details.jst",
+        "params": {"X_INTERNAL_FIELDS": "X_RDK_ONT_Veip_1_OperationalState"},
+    },
 }
 
 DEVICE_SERCOMM_LOGIN_STATUS = [

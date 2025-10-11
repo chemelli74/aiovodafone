@@ -92,9 +92,8 @@ class VodafoneStationCommonApi(ABC):
         ]
 
         """
-        urls = [device["login_url"] for device in DEVICES_SETTINGS.values()]
-
-        for api_path in urls:
+        for device_info in DEVICES_SETTINGS.values():
+            api_path = device_info.get("login_url")
             for protocol in ["https", "http"]:
                 try:
                     return_url = URL(f"{protocol}://{host}")
@@ -104,9 +103,7 @@ class VodafoneStationCommonApi(ABC):
                         url,
                         headers=HEADERS,
                         allow_redirects=False,
-                        params={
-                            "X_INTERNAL_FIELDS": "X_RDK_ONT_Veip_1_OperationalState"
-                        },  # Needed by ULTRAHUB, not used by other models
+                        params=device_info.get("params"),
                         ssl=False,
                     ) as response:
                         _LOGGER.debug("Response for url %s: %s", url, response.status)
