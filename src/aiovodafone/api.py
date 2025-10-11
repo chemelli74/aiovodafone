@@ -129,8 +129,8 @@ class VodafoneStationCommonApi(ABC):
 
                         if "X_VODAFONE_ServiceStatus_1" in response_json:
                             session.cookie_jar.clear()  # Needed to cleanup session
-                            _LOGGER.debug("Detected device type: Ultrahub")
-                            return "Ultrahub", return_url
+                            _LOGGER.debug("Detected device type: UltraHub")
+                            return "UltraHub", return_url
 
                         if "var csrf_token = " in response_text:
                             _LOGGER.debug("Detected device type: Sercomm")
@@ -1319,5 +1319,5 @@ def init_api_class(
 class_registry: dict[str, type[VodafoneStationCommonApi]] = {
     "Sercomm": VodafoneStationSercommApi,
     "Technicolor": VodafoneStationTechnicolorApi,
-    "Ultrahub": VodafoneStationUltraHubApi,
+    "UltraHub": VodafoneStationUltraHubApi,
 }
