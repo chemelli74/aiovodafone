@@ -1136,8 +1136,8 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
 
         # "compute the length of the length" (see ccm.js)
         loop = 2
-        dumb_constant_to_keep_ruff_happy = 4
-        while (loop < dumb_constant_to_keep_ruff_happy) and (ol >> (8 * loop)) > 0:
+        max_length_field_bytes = 4  # Maximum L parameter per CCM spec
+        while (loop < max_length_field_bytes) and (ol >> (8 * loop)) > 0:
             loop += 1
             loop = max(loop, 15 - ivl)
 
