@@ -1,6 +1,7 @@
 """Constants for Vodafone Station."""
 
 import logging
+from typing import Any
 
 from aiohttp import ClientTimeout
 
@@ -17,6 +18,17 @@ HEADERS = {
 DEFAULT_TIMEOUT = ClientTimeout(10)
 POST_RESTART_TIMEOUT = ClientTimeout(2)
 
+DEVICES_SETTINGS: dict[str, Any] = {
+    "Sercomm": {
+        "login_url": "login.html",
+        "total_fields_num": 8,
+    },
+    "Technicolor": {
+        "login_url": "api/v1/login_conf",
+        "user_already_logged_in": "MSG_LOGIN_150",
+    },
+}
+
 DEVICE_SERCOMM_LOGIN_STATUS = [
     "not logged",
     "logged",
@@ -27,10 +39,3 @@ DEVICE_SERCOMM_LOGIN_STATUS = [
     "incorrect challenge",
     "password mismatch",
 ]
-DEVICE_SERCOMM_LOGIN_URL = "login.html"
-DEVICE_SERCOMM_TOTAL_FIELDS_NUM = 8
-
-DEVICE_TECHNICOLOR_LOGIN_URL = "api/v1/login_conf"
-DEVICE_TECHNICOLOR_USER_ALREADY_LOGGED_IN = "MSG_LOGIN_150"
-
-DEVICE_ULTRAHUB_LOGIN_URL = "/api/config/details.jst"

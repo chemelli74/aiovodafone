@@ -34,11 +34,7 @@ from .const import (
     _LOGGER,
     DEFAULT_TIMEOUT,
     DEVICE_SERCOMM_LOGIN_STATUS,
-    DEVICE_SERCOMM_LOGIN_URL,
-    DEVICE_SERCOMM_TOTAL_FIELDS_NUM,
-    DEVICE_TECHNICOLOR_LOGIN_URL,
-    DEVICE_TECHNICOLOR_USER_ALREADY_LOGGED_IN,
-    DEVICE_ULTRAHUB_LOGIN_URL,
+    DEVICES_SETTINGS,
     HEADERS,
     POST_RESTART_TIMEOUT,
 )
@@ -96,11 +92,7 @@ class VodafoneStationCommonApi(ABC):
         ]
 
         """
-        urls = [
-            DEVICE_TECHNICOLOR_LOGIN_URL,
-            DEVICE_SERCOMM_LOGIN_URL,
-            DEVICE_ULTRAHUB_LOGIN_URL,
-        ]
+        urls = [device["login_url"] for device in DEVICES_SETTINGS.values()]
 
         for api_path in urls:
             for protocol in ["https", "http"]:
@@ -399,7 +391,10 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         )
         login_json = await login_response.json()
         if "error" in login_json and login_json["error"] == "error":
-            if login_json["message"] == DEVICE_TECHNICOLOR_USER_ALREADY_LOGGED_IN:
+            if (
+                login_json["message"]
+                == DEVICES_SETTINGS["Technicolor"]["user_already_logged_in"]
+            ):
                 raise AlreadyLogged
             _LOGGER.error(login_json)
             raise CannotAuthenticate
@@ -834,7 +829,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         _LOGGER.debug("Logging into %s", self.base_url.host)
         try:
             reply = await self._request_page_result(
-                HTTPMethod.GET, DEVICE_SERCOMM_LOGIN_URL
+                HTTPMethod.GET, DEVICES_SETTINGS["Sercomm"]["login_url"]
             )
         except (asyncio.exceptions.TimeoutError, ClientConnectorError) as exc:
             _LOGGER.warning("Connection error for %s", self.base_url.host)
@@ -928,7 +923,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
             device_fields: list[str] = device_line.split("|")
             wifi_band = (
                 device_fields[7]
-                if len(device_fields) == DEVICE_SERCOMM_TOTAL_FIELDS_NUM
+                if len(device_fields) == DEVICES_SETTINGS["Sercomm"]["total_fields_num"]
                 else ""
             )
             try:
