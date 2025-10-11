@@ -13,6 +13,7 @@ HEADERS = {
     ),
     "Accept-Language": "en-GB,en;q=0.5",
     "X-Requested-With": "XMLHttpRequest",
+    "Priority": "u=1",
 }
 DEFAULT_TIMEOUT = ClientTimeout(10)
 POST_RESTART_TIMEOUT = ClientTimeout(2)
@@ -25,6 +26,11 @@ DEVICES_SETTINGS: dict[str, Any] = {
     "Technicolor": {
         "login_url": "api/v1/login_conf",
         "user_already_logged_in": "MSG_LOGIN_150",
+    },
+    "UltraHub": {
+        "login_url": "api/config/details.jst",
+        "params": {"X_INTERNAL_FIELDS": "X_VODAFONE_ServiceStatus_1"},
+        "default_id": 3,
     },
 }
 
