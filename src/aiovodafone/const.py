@@ -30,6 +30,7 @@ DEVICES_SETTINGS: dict[str, Any] = {
     "UltraHub": {
         "login_url": "api/config/details.jst",
         "params": {"X_INTERNAL_FIELDS": "X_VODAFONE_ServiceStatus_1"},
+        "default_id": 3,
     },
 }
 

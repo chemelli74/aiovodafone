@@ -128,6 +128,8 @@ class VodafoneStationCommonApi(ABC):
                             return "Technicolor", return_url
 
                         if "X_VODAFONE_ServiceStatus_1" in response_json:
+                            session.cookie_jar.clear()  # Needed to cleanup session
+                            _LOGGER.debug("Detected device type: Ultrahub")
                             return "Ultrahub", return_url
 
                         if "var csrf_token = " in response_text:
@@ -1009,33 +1011,26 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
     ) -> None:
         """Initialize id as it may change in the future."""
         super().__init__(url, username, password, session)
-        self.id = "3"
+        self.id = DEVICES_SETTINGS["UltraHub"]["default_id"]
 
     async def login(self, force_logout: bool = False) -> bool:
         """Router login."""
         _LOGGER.debug("Logging into %s", self.base_url.host)
 
         if not force_logout:
-            self.session.cookie_jar.clear()
-            self.session.cookie_jar.update_cookies(
-                SimpleCookie(
-                    f"domain={self.base_url.host}; HttpOnly; Path=/; SameSite=Lax;"
-                ),
-            )
-
             self.csrf_token = ""
 
-            reply = await self._auto_hub_request_page_result(
-                HTTPMethod.GET,
-                "api/config/details.jst",
-                params={"X_INTERNAL_FIELDS": "X_RDK_ONT_Veip_1_OperationalState"},
-            )
+        reply = await self._auto_hub_request_page_result(
+            HTTPMethod.GET,
+            "api/config/details.jst",
+            params={"X_INTERNAL_FIELDS": "X_RDK_ONT_Veip_1_OperationalState"},
+        )
 
-            reply_json = await reply.json()
+        reply_json = await reply.json()
 
-            if "X_INTERNAL_ID" in reply_json:
-                self.id = reply_json["X_INTERNAL_ID"]
-                self.session.cookie_jar.update_cookies(reply.cookies)
+        if "X_INTERNAL_ID" in reply_json:
+            self.id = reply_json["X_INTERNAL_ID"]
+            self.session.cookie_jar.update_cookies(reply.cookies)
 
         if self.csrf_token == "":
             raise CannotAuthenticate
