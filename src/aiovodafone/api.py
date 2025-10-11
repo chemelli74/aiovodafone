@@ -1127,7 +1127,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
     def _truncate_iv(
         self,
         iv: bytes,
-        ol: int,  # in bytes
+        ol: int,  # in bits (output length including tag)
         tlen: int,  # in bytes
     ) -> bytes:
         """Calculate the nonce as it can not be 16 bytes."""
@@ -1139,7 +1139,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         max_length_field_bytes = 4  # Maximum L parameter per CCM spec
         while (loop < max_length_field_bytes) and (ol >> (8 * loop)) > 0:
             loop += 1
-            loop = max(loop, 15 - ivl)
+        loop = max(loop, 15 - ivl)
 
         return iv[: (15 - loop)]
 
