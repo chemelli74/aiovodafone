@@ -307,7 +307,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         payload: dict[str, Any],
         key: str,
         retries: int = 15,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Trigger a specific diagnostic request to the router."""
         await self._get_csrf_token(force_update=True)
 
@@ -564,7 +564,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         ping_size: int = 56,
         ping_interval: int = 1000,
         retries: int = 15,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Trigger a ping diagnostic request to the router.
 
         Args:
@@ -701,7 +701,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         _LOGGER.debug("POST raw reply (%s): %s", page, await reply.text())
         reply_json = await reply.json(content_type="text/html")
         _LOGGER.debug("POST json reply (%s): %s", page, reply_json)
-        return cast("dict", reply_json)
+        return cast("dict[str, Any]", reply_json)
 
     async def _check_logged_in(self) -> bool:
         """Check if logged in or not."""
