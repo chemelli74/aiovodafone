@@ -1022,7 +1022,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
 
         reply = await self._auto_hub_request_page_result(
             HTTPMethod.GET,
-            "api/config/details.jst",
+            DEVICES_SETTINGS["UltraHub"]["login_url"],
             params={"X_INTERNAL_FIELDS": "X_RDK_ONT_Veip_1_OperationalState"},
         )
 
@@ -1065,9 +1065,11 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
             reply_json = await reply.json()
 
             if reply_json.get("X_INTERNAL_Password_Status") == "Invalid_PWD":
+                await self._cleanup_session()
                 raise CannotAuthenticate
 
-            if reply_json.get("X_INTERNAL_Is_Duplicate") == "true" and not force_logout:
+            if reply_json.get("X_INTERNAL_Is_Duplicate") == "true":
+                await self._cleanup_session()
                 raise AlreadyLogged
 
             return True
@@ -1184,6 +1186,11 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
 
             return response
 
+    async def _cleanup_session(self) -> None:
+        """Cleanup session."""
+        self.csrf_token = ""
+        self.session.cookie_jar.clear()  # may be clear by domain
+
     def convert_uptime(self, uptime: str) -> datetime:
         """Convert uptime to datetime."""
         return datetime.now(tz=UTC) - timedelta(
@@ -1277,8 +1284,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
                 HTTPMethod.POST, "api/device/update.jst", payload=payload
             )
 
-        self.csrf_token = ""
-        self.session.cookie_jar.clear()
+        await self._cleanup_session()
 
     async def logout(self) -> None:
         """Router logout."""
@@ -1291,8 +1297,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
                     HTTPMethod.POST, "api/users/logout.jst", payload=payload
                 )
 
-            self.csrf_token = ""
-            self.session.cookie_jar.clear()
+            await self._cleanup_session()
 
 
 def init_api_class(
