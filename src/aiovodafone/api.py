@@ -1199,7 +1199,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         """Get router device data."""
         _LOGGER.debug("Get hosts")
 
-        devices_dict = {}
+        devices_dict: dict[str, VodafoneStationDevice] = {}
 
         reply = await self._auto_hub_request_page_result(
             HTTPMethod.GET, "api/device/bulk/details.jst"
@@ -1241,7 +1241,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
 
         reply_json = await reply.json()
 
-        data = {}
+        data: dict[str, Any] = {}
 
         data["sys_firmware_version"] = reply_json["SoftwareVersion"]
         data["sys_hardware_version"] = reply_json["HardwareVersion"]
