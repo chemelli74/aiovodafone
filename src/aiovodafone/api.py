@@ -1207,29 +1207,27 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
 
         reply_json = await reply.json()
 
-        if "hosts" in reply_json:
-            hosts = reply_json["hosts"]
-            for device in hosts:
-                connected = device["Active"] == "true"
-                connection_type = (
-                    "WiFi" if "WiFi" in device["Layer1Interface"] else "Ethernet"
-                )
-                ip_address = device["IPv4Address_1_IPAddress"]
-                name = device["HostName"]
-                mac = device["PhysAddress"]
-                dev_type = device["X_VODAFONE_Fingerprint_Class"]
-                wifi = device["X_CISCO_COM_RSSI"]
+        for device in reply_json.get("hosts"):
+            connected = device["Active"] == "true"
+            connection_type = (
+                "WiFi" if "WiFi" in device["Layer1Interface"] else "Ethernet"
+            )
+            ip_address = device["IPv4Address_1_IPAddress"]
+            name = device["HostName"]
+            mac = device["PhysAddress"]
+            dev_type = device["X_VODAFONE_Fingerprint_Class"]
+            wifi = device["X_CISCO_COM_RSSI"]
 
-                vdf_device = VodafoneStationDevice(
-                    connected=connected,
-                    connection_type=connection_type,
-                    ip_address=ip_address,
-                    name=name,
-                    mac=mac,
-                    type=dev_type,
-                    wifi=wifi,
-                )
-                devices_dict[mac] = vdf_device
+            vdf_device = VodafoneStationDevice(
+                connected=connected,
+                connection_type=connection_type,
+                ip_address=ip_address,
+                name=name,
+                mac=mac,
+                type=dev_type,
+                wifi=wifi,
+            )
+            devices_dict[mac] = vdf_device
 
         return devices_dict
 
