@@ -1,5 +1,31 @@
 # Changelog
 
+## v2.1.0 (2025-10-11)
+
+### Build system
+
+- Remove leftover ([`82a5ac8`](https://github.com/chemelli74/aiovodafone/commit/82a5ac858e87402ba0b25fe8a7d164dfaebff0bf))
+- Fix semantic-release verbosity ([`35ecc3e`](https://github.com/chemelli74/aiovodafone/commit/35ecc3e4928e09e5a550a34d647cb0d840a762c8))
+- Update syntax for semantic-release v10 ([`f468986`](https://github.com/chemelli74/aiovodafone/commit/f468986274932a3a43189a56773fca22123c6b96))
+- Fix ci for forks ([`9026ced`](https://github.com/chemelli74/aiovodafone/commit/9026cedd96b290dc1bba7d012d1f2518178792a8))
+
+
+### Documentation
+
+- Contrib-readme-action has updated readme ([`11d7844`](https://github.com/chemelli74/aiovodafone/commit/11d7844f6a51a7f25fd9190d665b53f0ef95d123))
+
+
+### Features
+
+- Added check for ultra hub 7 ([`69374d7`](https://github.com/chemelli74/aiovodafone/commit/69374d7eb54b9469c03bf2962407e6b621f15833))
+
+
+### Refactoring
+
+- File format ([`c3517ac`](https://github.com/chemelli74/aiovodafone/commit/c3517ac531ca532c494860e5df8f6e114899c36d))
+- Device settings ([`7223173`](https://github.com/chemelli74/aiovodafone/commit/72231734c3d4530061c23cee1199aa3cab18f251))
+
+
 ## v2.0.1 (2025-10-10)
 
 ### Bug fixes
