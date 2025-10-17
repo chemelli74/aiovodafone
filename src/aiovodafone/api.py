@@ -86,7 +86,7 @@ class VodafoneStationCommonApi(ABC):
         -------
         [
             device_type:
-                returns `Sercomm`, `Technicolor` or raises `ModelNotSupported`
+                returns supported model (after validation) or raises `ModelNotSupported`
             url:
                full router url with scheme and host, e.g. `http://192.168.1.1`
         ]
