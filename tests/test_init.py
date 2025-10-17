@@ -1,15 +1,15 @@
 """Base tests for aiovodafone."""
 
 from aiovodafone.api import (
+    VodafoneStationCommonApi,
     VodafoneStationDevice,
-    VodafoneStationSercommApi,
-    VodafoneStationTechnicolorApi,
-    VodafoneStationUltraHubApi,
 )
 from aiovodafone.exceptions import (
     AlreadyLogged,
     CannotAuthenticate,
     CannotConnect,
+    GenericLoginError,
+    GenericResponseError,
     ModelNotSupported,
     VodafoneError,
 )
@@ -17,12 +17,12 @@ from aiovodafone.exceptions import (
 
 def test_objects_can_be_imported() -> None:
     """Verify objects exist."""
-    assert type(VodafoneStationDevice)
-    assert type(VodafoneStationSercommApi)
-    assert type(VodafoneStationTechnicolorApi)
-    assert type(VodafoneStationUltraHubApi)
-    assert type(VodafoneError)
     assert type(AlreadyLogged)
-    assert type(CannotConnect)
     assert type(CannotAuthenticate)
+    assert type(CannotConnect)
+    assert type(GenericLoginError)
+    assert type(GenericResponseError)
     assert type(ModelNotSupported)
+    assert type(VodafoneError)
+    assert type(VodafoneStationCommonApi)
+    assert type(VodafoneStationDevice)
