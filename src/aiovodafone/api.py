@@ -86,7 +86,7 @@ class VodafoneStationCommonApi(ABC):
         -------
         [
             device_type:
-                returns `Sercomm`, `Technicolor` or raises `ModelNotSupported`
+                returns supported model (after validation) or raises `ModelNotSupported`
             url:
                full router url with scheme and host, e.g. `http://192.168.1.1`
         ]
@@ -124,17 +124,20 @@ class VodafoneStationCommonApi(ABC):
                             "data" in response_json
                             and "ModelName" in response_json["data"]
                         ):
-                            _LOGGER.debug("Detected device type: Technicolor")
-                            return "Technicolor", return_url
+                            return await validate_returned_device_type(
+                                "Technicolor", return_url
+                            )
 
                         if "X_VODAFONE_ServiceStatus_1" in response_json:
                             session.cookie_jar.clear()  # Needed to cleanup session
-                            _LOGGER.debug("Detected device type: UltraHub")
-                            return "UltraHub", return_url
+                            return await validate_returned_device_type(
+                                "UltraHub", return_url
+                            )
 
                         if "var csrf_token = " in response_text:
-                            _LOGGER.debug("Detected device type: Sercomm")
-                            return "Sercomm", return_url
+                            return await validate_returned_device_type(
+                                "Sercomm", return_url
+                            )
 
                 except (
                     ClientConnectorSSLError,
@@ -1321,3 +1324,14 @@ class_registry: dict[str, type[VodafoneStationCommonApi]] = {
     "Technicolor": VodafoneStationTechnicolorApi,
     "UltraHub": VodafoneStationUltraHubApi,
 }
+
+
+async def validate_returned_device_type(
+    device_type: str, device_url: URL
+) -> tuple[str, URL]:
+    """Validate returned device type with API class registry."""
+    if device_type in class_registry:
+        _LOGGER.debug("Detected device type: %s", device_type)
+        return device_type, device_url
+
+    raise ModelNotSupported
