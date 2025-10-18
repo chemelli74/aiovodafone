@@ -1,6 +1,7 @@
 """Vodafone Station models package."""
 
 from collections.abc import Mapping
+from enum import Enum
 from http import HTTPStatus
 from typing import Any
 
@@ -20,15 +21,24 @@ from .sercomm import VodafoneStationSercommApi
 from .technicolor import VodafoneStationTechnicolorApi
 from .ultrahub import VodafoneStationUltraHubApi
 
-class_registry: dict[str, type[VodafoneStationCommonApi]] = {
-    "Sercomm": VodafoneStationSercommApi,
-    "Technicolor": VodafoneStationTechnicolorApi,
-    "UltraHub": VodafoneStationUltraHubApi,
+
+class DeviceType(str, Enum):
+    """Supported device types."""
+
+    SERCOMM = "Sercomm"
+    TECHNICOLOR = "Technicolor"
+    ULTRAHUB = "UltraHub"
+
+
+class_registry: dict[DeviceType, type[VodafoneStationCommonApi]] = {
+    DeviceType.SERCOMM: VodafoneStationSercommApi,
+    DeviceType.TECHNICOLOR: VodafoneStationTechnicolorApi,
+    DeviceType.ULTRAHUB: VodafoneStationUltraHubApi,
 }
 
 
 def init_device_class(
-    url: URL, device_type: str, data: Mapping[str, Any], session: ClientSession
+    url: URL, device_type: DeviceType, data: Mapping[str, Any], session: ClientSession
 ) -> VodafoneStationCommonApi:
     """Return the inited API class."""
     if device_type not in class_registry:
@@ -46,7 +56,7 @@ def init_device_class(
 async def get_device_type(
     host: str,
     session: ClientSession,
-) -> tuple[str, URL]:
+) -> tuple[DeviceType, URL]:
     """Find out the device type of a Vodafone Stations and returns it as enum.
 
     The Technicolor devices always answer with a valid HTTP response, the
@@ -96,20 +106,19 @@ async def get_device_type(
                             _LOGGER.debug("Failed to decode JSON response from %s", url)
 
                     if "data" in response_json and "ModelName" in response_json["data"]:
-                        return await validate_returned_device_type(
-                            "Technicolor", return_url
+                        _LOGGER.debug(
+                            "Detected device type: %s", DeviceType.TECHNICOLOR
                         )
+                        return (DeviceType.TECHNICOLOR, return_url)
 
                     if "X_VODAFONE_ServiceStatus_1" in response_json:
                         session.cookie_jar.clear()  # Needed to cleanup session
-                        return await validate_returned_device_type(
-                            "UltraHub", return_url
-                        )
+                        _LOGGER.debug("Detected device type: %s", DeviceType.ULTRAHUB)
+                        return (DeviceType.ULTRAHUB, return_url)
 
                     if "var csrf_token = " in response_text:
-                        return await validate_returned_device_type(
-                            "Sercomm", return_url
-                        )
+                        _LOGGER.debug("Detected device type: %s", DeviceType.SERCOMM)
+                        return (DeviceType.SERCOMM, return_url)
 
             except (
                 ClientConnectorSSLError,
@@ -117,16 +126,5 @@ async def get_device_type(
             ):
                 _LOGGER.debug("Unable to login using protocol %s", protocol)
                 continue
-
-    raise ModelNotSupported
-
-
-async def validate_returned_device_type(
-    device_type: str, device_url: URL
-) -> tuple[str, URL]:
-    """Validate returned device type with API class registry."""
-    if device_type in class_registry:
-        _LOGGER.debug("Detected device type: %s", device_type)
-        return device_type, device_url
 
     raise ModelNotSupported

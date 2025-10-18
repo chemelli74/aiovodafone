@@ -89,7 +89,7 @@ async def main() -> None:
         session,
     )
 
-    print(f"Device type: {device_type} ({url})")
+    print(f"Device type: {device_type.name} ({url})")
 
     print("-" * 20)
 
