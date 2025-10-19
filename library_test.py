@@ -84,10 +84,15 @@ async def main() -> None:
     session = ClientSession(cookie_jar=jar)
 
     print("Determining device type")
-    device_type, url = await get_device_type(
-        args.router,
-        session,
-    )
+    try:
+        device_type, url = await get_device_type(
+            args.router,
+            session,
+        )
+    except ModelNotSupported:
+        print(f"Model is not supported yet for router {args.router}")
+        await session.close()
+        sys.exit(1)
 
     print(f"Device type: {device_type.name} ({url})")
 
