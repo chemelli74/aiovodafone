@@ -114,9 +114,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
             except ClientResponseError:
                 _LOGGER.exception("Failed to retrieve '%s' results", key)
 
-        raise ResultTimeoutError(
-            f"'{key}' results not available after {retries} retries"
-        )
+        msg = f"'{key}' results not available after {retries} retries"
+        _LOGGER.error(msg)
+        raise ResultTimeoutError(msg)
 
     async def login(self, force_logout: bool = False) -> bool:
         """Router login."""
@@ -238,7 +238,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         data: dict[str, Any] = {"downstream": {}, "upstream": {}}
 
-        # OFDM Downtream
+        # OFDM Downstream
         for channel in response_json["data"]["ofdm_downstream"]:
             data["downstream"][channel["channelid_ofdm"]] = {
                 "channel_type": channel["ChannelType"],
@@ -248,7 +248,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
                 "channel_locked": channel["locked_ofdm"],
             }
 
-        # Downtream
+        # Downstream
         for channel in response_json["data"]["downstream"]:
             data["downstream"][channel["channelid"]] = {
                 "channel_type": channel["ChannelType"],
@@ -301,10 +301,10 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
                         "status": response_json["data"][f"status{line}"],
                     }
 
-                if "DocsisStatus" in response_json["data"]:
-                    data["general"] = {
-                        "status": response_json["data"]["DocsisStatus"],
-                    }
+        if "DocsisStatus" in response_json["data"]:
+            data["general"] = {
+                "status": response_json["data"]["DocsisStatus"],
+            }
 
         return data
 
