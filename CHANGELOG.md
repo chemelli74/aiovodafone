@@ -1,5 +1,23 @@
 # Changelog
 
+## v3.0.0 (2025-10-23)
+
+### Refactoring
+
+- New library structure ([`8088bbb`](https://github.com/chemelli74/aiovodafone/commit/8088bbb2c5dc02e44121e9e9f08fc6b9fc2143df))
+- Validate typed models ([`68b76c0`](https://github.com/chemelli74/aiovodafone/commit/68b76c01d6f06158c14e37edb395813d3058cd72))
+
+
+### Testing
+
+- Exception modelnotsupported ([`ac7c24d`](https://github.com/chemelli74/aiovodafone/commit/ac7c24dcac6d69a8e870a4e69d3da21502f3e0a9))
+
+
+### Build system
+
+- Bump browniebroke/hacktoberfest-labeler-action from 2.4.2 to 2.6.0 ([`959b324`](https://github.com/chemelli74/aiovodafone/commit/959b3247301309fb14959ad22ac01959fcaf33b8))
+
+
 ## v2.1.0 (2025-10-11)
 
 ### Build system
