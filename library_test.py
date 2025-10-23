@@ -12,7 +12,6 @@ from colorlog import ColoredFormatter
 
 from aiovodafone.api import (
     VodafoneStationCommonApi,
-    init_api_class,
 )
 from aiovodafone.exceptions import (
     AlreadyLogged,
@@ -22,6 +21,7 @@ from aiovodafone.exceptions import (
     ModelNotSupported,
     VodafoneError,
 )
+from aiovodafone.models import get_device_type, init_device_class
 
 
 def get_arguments() -> tuple[ArgumentParser, Namespace]:
@@ -85,7 +85,7 @@ async def main() -> None:
 
     print("Determining device type")
     try:
-        device_type, url = await VodafoneStationCommonApi.get_device_type(
+        device_type, url = await get_device_type(
             args.router,
             session,
         )
@@ -94,11 +94,11 @@ async def main() -> None:
         await session.close()
         sys.exit(1)
 
-    print(f"Device type: {device_type} ({url})")
+    print(f"Device type: {device_type.name} ({url})")
 
     print("-" * 20)
 
-    api = init_api_class(
+    api = init_device_class(
         url,
         device_type,
         {"username": args.username, "password": args.password},
