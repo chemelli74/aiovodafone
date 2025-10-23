@@ -115,9 +115,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
                 _LOGGER.exception("Failed to retrieve '%s' results", key)
 
         raise ResultTimeoutError(
-            "'%s' results not available after %d retries",
-            key,
-            retries,
+            f"'{key}' results not available after {retries} retries"
         )
 
     async def login(self, force_logout: bool = False) -> bool:
@@ -416,7 +414,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         record_type: str = "A",
         retries: int = 15,
     ) -> dict[str, Any]:
-        """Trigger a traceroute diagnostic request to the router.
+        """Trigger a DNS resolve diagnostic request to the router.
 
         Args:
         ----

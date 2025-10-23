@@ -91,13 +91,13 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         if not token:
             return
         self.csrf_token = token
-        _LOGGER.debug("csrf_token: <%s>", self.csrf_token)
+        _LOGGER.debug("csrf_token obtained")
 
     async def _get_user_lang(self) -> None:
         """Load user_lang page to get."""
         return_dict = await self._get_sercomm_page("data/user_lang.json")
         self.encryption_key = return_dict["encryption_key"]
-        _LOGGER.debug("encryption_key: <%s>", self.encryption_key)
+        _LOGGER.debug("encryption_key obtained")
 
     async def _encrypt_string(self, credential: str) -> str:
         """Encrypt username or password for login."""
@@ -123,7 +123,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         """Return challenge or login."""
         return_dict = await self._get_sercomm_page("data/login.json")
         challenge: str = return_dict["challenge"]
-        _LOGGER.debug("challenge: <%s>", challenge)
+        _LOGGER.debug("challenge obtained")
         return challenge
 
     async def _reset(self) -> bool:
@@ -258,7 +258,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         arr_wifi_guest_filter: filter[str] = filter(
             lambda x: x.strip() != "", arr_wifi_guest_list
         )
-        arr_wifi_guest = ["[Wifi (Guest)|" + dev for dev in arr_wifi_guest_filter]
+        arr_wifi_guest = ["Wifi (Guest)|" + dev for dev in arr_wifi_guest_filter]
         _arr_devices.append(arr_wifi_guest)
         # Ethernet
         arr_ethernet_list: list[str] = return_dict["ethernet"].split(";")
