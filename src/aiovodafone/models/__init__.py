@@ -31,7 +31,9 @@ class DeviceType(str, Enum):
 
 
 class_registry: dict[DeviceType, type[VodafoneStationCommonApi]] = {
-    DeviceType.SERCOMM: VodafoneStationSercommApi,
+    DeviceType.SERCOMM: cast(
+        "type[VodafoneStationCommonApi]", VodafoneStationSercommApi
+    ),
     DeviceType.TECHNICOLOR: cast(
         "type[VodafoneStationCommonApi]", VodafoneStationTechnicolorApi
     ),
