@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from enum import Enum
 from http import HTTPStatus
-from typing import Any
+from typing import Any, cast
 
 import orjson
 from aiohttp import (
@@ -31,9 +31,15 @@ class DeviceType(str, Enum):
 
 
 class_registry: dict[DeviceType, type[VodafoneStationCommonApi]] = {
-    DeviceType.SERCOMM: VodafoneStationSercommApi,
-    DeviceType.TECHNICOLOR: VodafoneStationTechnicolorApi,
-    DeviceType.ULTRAHUB: VodafoneStationUltraHubApi,
+    DeviceType.SERCOMM: cast(
+        "type[VodafoneStationCommonApi]", VodafoneStationSercommApi
+    ),
+    DeviceType.TECHNICOLOR: cast(
+        "type[VodafoneStationCommonApi]", VodafoneStationTechnicolorApi
+    ),
+    DeviceType.ULTRAHUB: cast(
+        "type[VodafoneStationCommonApi]", VodafoneStationUltraHubApi
+    ),
 }
 
 

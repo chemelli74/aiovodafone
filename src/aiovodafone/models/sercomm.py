@@ -36,7 +36,7 @@ from aiovodafone.exceptions import (
 class VodafoneStationSercommApi(VodafoneStationCommonApi):
     """Queries Vodafone Station running Sercomm firmware."""
 
-    async def _list_2_dict(self, data: dict[dict[str, Any], Any]) -> dict[str, Any]:
+    async def _list_2_dict(self, data: list[dict[str, Any]]) -> dict[str, Any]:
         """Transform list in a dict."""
         kv_tuples = [((next(iter(v.keys()))), (next(iter(v.values())))) for v in data]
         key_values = {}
@@ -51,6 +51,8 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         reply = await self._request_page_result(HTTPMethod.GET, page)
         reply_json = await reply.json(content_type="text/html")
         _LOGGER.debug("GET reply (%s): %s", page, reply_json)
+        if isinstance(reply_json, dict):
+            return reply_json
         return await self._list_2_dict(reply_json)
 
     async def _post_sercomm_page(
