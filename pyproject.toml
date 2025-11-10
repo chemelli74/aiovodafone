@@ -25,6 +25,7 @@ dependencies = [
 "cryptography (>=45.0.3)",
 "colorlog",
 "orjson (>=3.10,<4)",
+"sjcl",
 ]
 
 [project.urls]
