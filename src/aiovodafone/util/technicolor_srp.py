@@ -35,7 +35,7 @@ def _sha256_bytes(data: bytes) -> bytes:
 
 
 class TechnicolorSRP:
-    """Encapsulates the Technicolor SRP authentication flow."""
+    """Technicolor SRP authentication client."""
 
     def __init__(self, username: str, password: str) -> None:
         """Initialise the SRP client.
@@ -67,10 +67,7 @@ class TechnicolorSRP:
 
     @property
     def client_public_key_hex(self) -> str:
-        """Return the client public key (D) as a hex string.
-
-        Ensures even length, matching JS.
-        """
+        """Return the client public key (D) as a hex string."""
         d_hex = f"{self._d_public:x}"
         if len(d_hex) % 2 == 1:
             return "0" + d_hex

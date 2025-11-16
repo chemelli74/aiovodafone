@@ -18,8 +18,21 @@ if TYPE_CHECKING:
     from yarl import URL
 
 
-class VodafoneStationTechnicolorUkApi(VodafoneStationCommonApi):
-    """Vodafone UK Technicolor device API implementation."""
+class VodafoneStationHomewareApi(VodafoneStationCommonApi):
+    """API for Vodafone routers running Vantiva Homeware-based firmware.
+
+    This module implements support for the UK Vodafone Ultra Hub and WiFi Hub routers.
+    It may well support other countries and models too. Source code suggests it will
+    also work for Vodafone routers in Australia, New Zealand and Spain.
+
+    The common denominator is likely that they all run skinned Vantiva (formerly
+    Technicolor) Homeware, a firmware based on OpenWRT and skinned by the ISP.
+    They authenticate using a custom version of SRP 6 common among Technicolor routers.
+
+    Tested on:
+     - UK Vodafone Ultra Hub (DGM4980) - firmware v22
+     - UK VOX 3.0 (THG3000) - firmware v19
+    """
 
     async def _get_csrf_token(self) -> str:
         _LOGGER.debug("Fetching CSRF token")
