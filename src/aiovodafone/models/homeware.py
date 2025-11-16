@@ -50,7 +50,6 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
             _LOGGER.warning("Cannot forcibly log others out with this kind of router.")
 
         csrf_token: str = await self._get_csrf_token()
-        _LOGGER.debug(csrf_token)
 
         auth_url = self.base_url.joinpath("authenticate")
         srp = TechnicolorSRP(self.username, self.password)
@@ -94,7 +93,7 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
             msg = "Server authentication failed - proof mismatch"
             raise GenericLoginError(msg)
 
-        _LOGGER.info(auth2_reply.cookies)
+        _LOGGER.debug("Auth cookies set: %s", list(auth2_reply.cookies.keys()))
 
         return True
 
