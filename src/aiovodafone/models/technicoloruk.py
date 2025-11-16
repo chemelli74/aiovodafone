@@ -1,5 +1,6 @@
 """Vodafone UK Technicolor device API implementation."""
 
+import asyncio
 from collections.abc import Iterator
 from datetime import datetime
 from http import HTTPMethod
@@ -105,31 +106,65 @@ class VodafoneStationTechnicolorUkApi(VodafoneStationCommonApi):
                     "ethernet": "Ethernet",
                 }.get(data.get("InterfaceType", ""), "")
             ),
-            ip_address=data.get("IPv4", ""),
-            name=data.get("HostName", ""),
-            type=(data.get("X_VODAFONE_Fingerprint.Class") or data.get("Class", "")),
-            wifi=data.get("Radio", ""),
+            ip_address=data.get("IPv4") or data.get("DhcpLeaseIP") or "",
+            name=data.get("HostName") or data.get("FriendlyName") or "",
+            type=(
+                data.get("X_VODAFONE_Fingerprint.Class")
+                or data.get("X_VF_ADTI.Class")
+                or data.get("Class")
+                or ""
+            ),
+            wifi=data.get("Radio") or data.get("radio") or "",
         )
 
     @staticmethod
     def _iterate_devices(data: dict[str, Any]) -> Iterator[dict[str, Any]]:
+        # Ethernet-connected devices
         yield from data.get("ethList", [])
+
+        # Devices returning a separate list for each WiFi band
+        yield from data.get("wifiList24", [])
+        yield from data.get("wifiList5", [])
+        yield from data.get("guestWifi24", [])
+        yield from data.get("guestWifi5", [])
+
+        # Devices returning a more complex nested dictionary
+        # I presume this was changed with the addition of 6GHz
         for bridge in data.get("wifiList", {}).values():
             if not isinstance(bridge, dict):
+                # skip over wifiActiveCount=N field
                 continue
             for band in bridge.values():
                 if not isinstance(band, dict):
+                    # skip over wifiActiveCount=N field
                     continue
                 yield from band.get("devices", [])
 
     async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
         """Retrieve information about all devices on the network."""
-        url: URL = self.base_url.joinpath("modals/overview.lp").with_query(
-            {"status": "WifiInfo", "auto_update": "true"}
+        endpoint: URL = self.base_url.joinpath("modals/overview.lp")
+
+        # Newer models (tested on v22 firmware) return both WiFi and ethernet
+        # device information from status=WifiInfo despite the name
+        reply = await self._request_url_result(
+            HTTPMethod.GET, endpoint.with_query({"status": "WifiInfo"})
         )
-        reply = await self._request_url_result(HTTPMethod.GET, url)
+        if reply.content_type == "application/json":
+            data = await reply.json()
+        else:
+            # Older models (tested on v19 firmware) use lowercase wifiInfo and require
+            # a separate call to retrieve ethernet-connected devices.
+            wifi_reply, eth_reply = await asyncio.gather(
+                self._request_url_result(
+                    HTTPMethod.GET, endpoint.with_query({"status": "wifiInfo"})
+                ),
+                self._request_url_result(
+                    HTTPMethod.GET, endpoint.with_query({"status": "networkInfo"})
+                ),
+            )
+            data = {**(await wifi_reply.json()), **(await eth_reply.json())}
         devices: Iterator[VodafoneStationDevice | None] = map(
-            self._parse_device, self._iterate_devices(await reply.json())
+            self._parse_device, self._iterate_devices(data)
         )
         return {device.mac: device for device in devices if device is not None}
 
@@ -180,7 +215,6 @@ class VodafoneStationTechnicolorUkApi(VodafoneStationCommonApi):
                 "CSRFtoken": await self._get_csrf_token(),
             },
         )
-        raise NotImplementedError
 
     async def restart_router(self) -> None:
         """Perform router restart."""
@@ -210,4 +244,5 @@ class VodafoneStationTechnicolorUkApi(VodafoneStationCommonApi):
         if parsed_datetime is None:
             msg = "Failed to parse uptime string"
             raise ValueError(msg)
-        return parsed_datetime
+        # strip sub-second accuracy, the uptime string is accurate to the second only
+        return parsed_datetime.replace(microsecond=0)
