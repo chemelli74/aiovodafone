@@ -23,6 +23,7 @@ lint.ignore = [
 "library_test.py" = [
     "PLR0915",   # Too many statements
     "T201",      # `print` found
+    "T203",      # `pprint` found
 ]
 "docs/script_grab.py" = [
     "INP001",    # Checks for packages that are missing an __init__.py file
