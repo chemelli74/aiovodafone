@@ -19,6 +19,7 @@ from aiovodafone.exceptions import ModelNotSupported
 
 from .sercomm import VodafoneStationSercommApi
 from .technicolor import VodafoneStationTechnicolorApi
+from .technicoloruk import VodafoneStationTechnicolorUkApi
 from .ultrahub import VodafoneStationUltraHubApi
 
 
@@ -27,6 +28,7 @@ class DeviceType(str, Enum):
 
     SERCOMM = "Sercomm"
     TECHNICOLOR = "Technicolor"
+    TECHNICOLOR_UK = "TechnicolorUK"
     ULTRAHUB = "UltraHub"
 
 
@@ -36,6 +38,9 @@ class_registry: dict[DeviceType, type[VodafoneStationCommonApi]] = {
     ),
     DeviceType.TECHNICOLOR: cast(
         "type[VodafoneStationCommonApi]", VodafoneStationTechnicolorApi
+    ),
+    DeviceType.TECHNICOLOR_UK: cast(
+        "type[VodafoneStationTechnicolorUkApi]", VodafoneStationTechnicolorUkApi
     ),
     DeviceType.ULTRAHUB: cast(
         "type[VodafoneStationCommonApi]", VodafoneStationUltraHubApi
@@ -125,6 +130,12 @@ async def get_device_type(
                     if "var csrf_token = " in response_text:
                         _LOGGER.debug("Detected device type: %s", DeviceType.SERCOMM)
                         return (DeviceType.SERCOMM, return_url)
+
+                    if 'var vdfVariant = "VF-UK";' in response_text:
+                        _LOGGER.debug(
+                            "Detected device type: %s", DeviceType.TECHNICOLOR_UK
+                        )
+                        return (DeviceType.TECHNICOLOR_UK, return_url)
 
             except (
                 ClientConnectorSSLError,
