@@ -177,19 +177,21 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
 
     async def get_sensor_data(self) -> dict[str, str]:
         """Fetch router system information."""
-        sysinfo_reply = await self._request_url_result(
-            HTTPMethod.GET,
-            self.base_url.joinpath("modals/status-support/status.lp").with_query(
-                {"status": "systemInfo"}
+        sysinfo_reply, interfaces_reply = await asyncio.gather(
+            self._request_url_result(
+                HTTPMethod.GET,
+                self.base_url.joinpath("modals/status-support/status.lp").with_query(
+                    {"status": "systemInfo"}
+                ),
+            ),
+            self._request_url_result(
+                HTTPMethod.GET,
+                self.base_url.joinpath("modals/status-support/restart.lp").with_query(
+                    {"getInterfaceValues": "true"}
+                ),
             ),
         )
         sysinfo: dict[str, Any] = (await sysinfo_reply.json()).get("systemParams", {})
-        interfaces_reply = await self._request_url_result(
-            HTTPMethod.GET,
-            self.base_url.joinpath("modals/status-support/restart.lp").with_query(
-                {"getInterfaceValues": "true"}
-            ),
-        )
         interfaces_info: dict[str, str] = await interfaces_reply.json()
         return {
             "sys_serial_number": sysinfo.get("sys_gw_serial", ""),
