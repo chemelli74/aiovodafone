@@ -19,6 +19,10 @@ DEFAULT_TIMEOUT = ClientTimeout(10)
 POST_RESTART_TIMEOUT = ClientTimeout(2)
 
 DEVICES_SETTINGS: dict[str, Any] = {
+    "Homeware": {
+        "login_url": "login.lp",
+        "params": {"getSessionStatus": "true"},
+    },
     "Sercomm": {
         "login_url": "login.html",
         "total_fields_num": 8,
@@ -31,10 +35,6 @@ DEVICES_SETTINGS: dict[str, Any] = {
         "login_url": "api/config/details.jst",
         "params": {"X_INTERNAL_FIELDS": "X_VODAFONE_ServiceStatus_1"},
         "default_id": 3,
-    },
-    "TechnicolorUK": {
-        "login_url": "login.lp",
-        "params": {"getSessionStatus": "true"},
     },
 }
 

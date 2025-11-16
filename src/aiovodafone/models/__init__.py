@@ -17,30 +17,30 @@ from aiovodafone.api import VodafoneStationCommonApi
 from aiovodafone.const import _LOGGER, DEVICES_SETTINGS, HEADERS
 from aiovodafone.exceptions import ModelNotSupported
 
+from .homeware import VodafoneStationHomewareApi
 from .sercomm import VodafoneStationSercommApi
 from .technicolor import VodafoneStationTechnicolorApi
-from .technicoloruk import VodafoneStationTechnicolorUkApi
 from .ultrahub import VodafoneStationUltraHubApi
 
 
 class DeviceType(str, Enum):
     """Supported device types."""
 
+    HOMEWARE = "Homeware"
     SERCOMM = "Sercomm"
     TECHNICOLOR = "Technicolor"
-    TECHNICOLOR_UK = "TechnicolorUK"
     ULTRAHUB = "UltraHub"
 
 
 class_registry: dict[DeviceType, type[VodafoneStationCommonApi]] = {
+    DeviceType.HOMEWARE: cast(
+        "type[VodafoneStationHomewareApi]", VodafoneStationHomewareApi
+    ),
     DeviceType.SERCOMM: cast(
         "type[VodafoneStationCommonApi]", VodafoneStationSercommApi
     ),
     DeviceType.TECHNICOLOR: cast(
         "type[VodafoneStationCommonApi]", VodafoneStationTechnicolorApi
-    ),
-    DeviceType.TECHNICOLOR_UK: cast(
-        "type[VodafoneStationTechnicolorUkApi]", VodafoneStationTechnicolorUkApi
     ),
     DeviceType.ULTRAHUB: cast(
         "type[VodafoneStationCommonApi]", VodafoneStationUltraHubApi
@@ -84,7 +84,7 @@ async def get_device_type(
     -------
     [
         device_type:
-            returns `Sercomm`, `Technicolor` or raises `ModelNotSupported`
+            returns an enum entry in DeviceType or raises `ModelNotSupported`
         url:
             full router url with scheme and host, e.g. `http://192.168.1.1`
     ]
@@ -132,10 +132,8 @@ async def get_device_type(
                         return (DeviceType.SERCOMM, return_url)
 
                     if response_json.get("status") == "alive":
-                        _LOGGER.debug(
-                            "Detected device type: %s", DeviceType.TECHNICOLOR_UK
-                        )
-                        return (DeviceType.TECHNICOLOR_UK, return_url)
+                        _LOGGER.debug("Detected device type: %s", DeviceType.HOMEWARE)
+                        return (DeviceType.HOMEWARE, return_url)
 
             except (
                 ClientConnectorSSLError,
