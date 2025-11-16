@@ -169,7 +169,9 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
                     HTTPMethod.GET, endpoint.with_query({"status": "networkInfo"})
                 ),
             )
-            data = {**(await wifi_reply.json()), **(await eth_reply.json())}
+            wifi_data = await wifi_reply.json()
+            eth_data = await eth_reply.json()
+            data = {**wifi_data, **eth_data}
         devices: Iterator[VodafoneStationDevice | None] = map(
             self._parse_device, self._iterate_devices(data)
         )
