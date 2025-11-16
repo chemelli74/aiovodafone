@@ -104,7 +104,7 @@ async def get_device_type(
                     params=device_info.get("params"),
                     ssl=False,
                 ) as response:
-                    _LOGGER.debug("Response for url %s: %s", url, response.status)
+                    _LOGGER.debug("Response for url %s - %s", url, response.status)
                     if response.status != HTTPStatus.OK:
                         continue
 
@@ -131,7 +131,7 @@ async def get_device_type(
                         _LOGGER.debug("Detected device type: %s", DeviceType.SERCOMM)
                         return (DeviceType.SERCOMM, return_url)
 
-                    if 'var vdfVariant = "VF-UK";' in response_text:
+                    if response_json.get("status") == "alive":
                         _LOGGER.debug(
                             "Detected device type: %s", DeviceType.TECHNICOLOR_UK
                         )

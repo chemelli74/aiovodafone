@@ -32,7 +32,10 @@ DEVICES_SETTINGS: dict[str, Any] = {
         "params": {"X_INTERNAL_FIELDS": "X_VODAFONE_ServiceStatus_1"},
         "default_id": 3,
     },
-    "TechnicolorUK": {"login_url": "login.lp"},
+    "TechnicolorUK": {
+        "login_url": "login.lp",
+        "params": {"getSessionStatus": "true"},
+    },
 }
 
 DEVICE_SERCOMM_LOGIN_STATUS = [
