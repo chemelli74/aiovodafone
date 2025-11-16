@@ -11,7 +11,7 @@ import dateparser
 from aiovodafone.api import VodafoneStationCommonApi, VodafoneStationDevice
 from aiovodafone.const import _LOGGER
 from aiovodafone.exceptions import GenericLoginError
-from aiovodafone.models.srp import calculate_session_key, generate_client_public
+from aiovodafone.util.technicolor_srp import TechnicolorSRP
 
 if TYPE_CHECKING:
     from aiohttp import ClientResponse
@@ -40,15 +40,16 @@ class VodafoneStationTechnicolorUkApi(VodafoneStationCommonApi):
         _LOGGER.debug(csrf_token)
 
         auth_url = self.base_url.joinpath("authenticate")
-
-        # Generate client public key
-        f_private, d_public = generate_client_public()
-        d_hex = f"{d_public:x}"
+        srp = TechnicolorSRP(self.username, self.password)
 
         auth1_reply: ClientResponse = await self._request_url_result(
             HTTPMethod.POST,
             auth_url,
-            payload={"CSRFtoken": csrf_token, "I": "vodafone", "A": d_hex},
+            payload={
+                "CSRFtoken": csrf_token,
+                "I": self.username,
+                "A": srp.client_public_key_hex,
+            },
         )
         _LOGGER.debug(msg=await auth1_reply.text())
         auth1_response = await auth1_reply.json()
@@ -59,19 +60,13 @@ class VodafoneStationTechnicolorUkApi(VodafoneStationCommonApi):
             msg = "Invalid response from first authentication request"
             raise GenericLoginError(msg)
 
-        client_proof, verification, _ = calculate_session_key(
-            f_private,
-            d_public,
-            salt,
-            server_public,
-            # self.username,
-            self.password,
-        )
-
         auth2_reply: ClientResponse = await self._request_url_result(
             HTTPMethod.POST,
             auth_url,
-            payload={"CSRFtoken": csrf_token, "M": client_proof},
+            payload={
+                "CSRFtoken": csrf_token,
+                "M": srp.calculate_proofs(salt, server_public),
+            },
         )
         _LOGGER.debug(msg=await auth2_reply.text())
 
@@ -82,7 +77,7 @@ class VodafoneStationTechnicolorUkApi(VodafoneStationCommonApi):
             msg = "Invalid response from second authentication request"
             raise GenericLoginError(msg)
 
-        if verification.upper() != server_proof.upper():
+        if not srp.verify_server(server_proof):
             msg = "Server authentication failed - proof mismatch"
             raise GenericLoginError(msg)
 
