@@ -24,8 +24,6 @@ from aiovodafone.exceptions import (
 )
 from aiovodafone.models import get_device_type, init_device_class
 
-# ruff: noqa: T203
-
 
 def get_arguments() -> tuple[ArgumentParser, Namespace]:
     """Get parsed passed in arguments."""
