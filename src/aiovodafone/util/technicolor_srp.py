@@ -38,7 +38,7 @@ class TechnicolorSRP:
     """Technicolor SRP authentication client."""
 
     def __init__(self, username: str, password: str) -> None:
-        """Initialise the SRP client.
+        """Initialize the SRP client.
 
         Args:
             username: The username for authentication.
