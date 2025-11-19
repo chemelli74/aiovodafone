@@ -144,6 +144,7 @@ async def main() -> None:
     print(f"{'WAN status:':>20} {data.get('wan_status')}")
     print(f"{'Cable modem status:':>20} {data.get('cm_status')}")
     print(f"{'LAN mode:':>20} {data.get('lan_mode')}")
+    print(f"{'WiFi data:':>20} {data.get('wifi_data')}")
 
     data = await api.get_docis_data()
     if data:
