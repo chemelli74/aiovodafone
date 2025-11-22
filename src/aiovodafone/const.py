@@ -19,6 +19,10 @@ DEFAULT_TIMEOUT = ClientTimeout(10)
 POST_RESTART_TIMEOUT = ClientTimeout(2)
 
 DEVICES_SETTINGS: dict[str, Any] = {
+    "Homeware": {
+        "login_url": "login.lp",
+        "params": {"getSessionStatus": "true"},
+    },
     "Sercomm": {
         "login_url": "login.html",
         "total_fields_num": 8,
