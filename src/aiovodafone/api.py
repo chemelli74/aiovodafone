@@ -73,12 +73,22 @@ class VodafoneStationCommonApi(ABC):
         payload: dict[str, Any] | None = None,
         timeout: ClientTimeout = DEFAULT_TIMEOUT,
     ) -> ClientResponse:
-        """Request data from a web page."""
-        _LOGGER.debug("%s page %s from host %s", method, page, self.base_url.host)
         timestamp = int(datetime.now(tz=UTC).timestamp())
         url = self.base_url.joinpath(page).with_query(
             _=timestamp, csrf_token=self.csrf_token
         )
+        return await self._request_url_result(method, url, payload, timeout)
+
+    async def _request_url_result(
+        self,
+        method: str,
+        url: URL,
+        payload: dict[str, Any] | None = None,
+        timeout: ClientTimeout = DEFAULT_TIMEOUT,
+    ) -> ClientResponse:
+        """Request data from a web page."""
+        page = url.path_qs
+        _LOGGER.debug("%s page %s from host %s", method, page, self.base_url.host)
         try:
             response = await self.session.request(
                 method,
