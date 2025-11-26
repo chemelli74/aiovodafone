@@ -1,6 +1,7 @@
 """Sercomm Vodafone Station model API implementation."""
 
 import asyncio
+import binascii
 import hashlib
 import hmac
 import re
@@ -8,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from http import HTTPMethod, HTTPStatus
 from typing import Any, cast
 
+import orjson
 from aiohttp import (
     ClientConnectorError,
     ClientResponse,
@@ -15,6 +17,7 @@ from aiohttp import (
     ClientTimeout,
 )
 from bs4 import BeautifulSoup
+from sjcl import SJCL
 
 from aiovodafone.api import VodafoneStationCommonApi, VodafoneStationDevice
 from aiovodafone.const import (
@@ -165,6 +168,52 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
         raise GenericLoginError
 
+    def _sjcl_decrypt(self, encrypted_data: dict[str, Any]) -> str:
+        """Derive PBKDF2-HMAC-SHA256 key and return the hex key."""
+        iterations = encrypted_data.get("iter", 1000)
+        dklen = encrypted_data.get("dklen", 16)
+        salt = bytes.fromhex(self.encryption_key)
+        key = hashlib.pbkdf2_hmac(
+            "sha256", self.password.encode("utf-8"), salt, iterations, dklen
+        )
+        derived_key = binascii.hexlify(key).decode("utf-8")
+
+        return SJCL().decrypt(encrypted_data, derived_key).decode("utf-8")
+
+    def _format_wifi_data(self, encrypted_data: dict[str, Any]) -> dict[str, Any]:
+        """Format WI-FI data as dict."""
+        wifi_plain_data = {
+            k: v
+            for d in orjson.loads(self._sjcl_decrypt(encrypted_data))
+            for k, v in d.items()
+        }
+
+        node = "wifi_data"
+        wifi_data: dict[str, Any] = {node: {}}
+
+        # Main Wi-Fi
+        wifi_data[node]["main"] = {
+            "on": wifi_plain_data["wifi_network_onoff"],
+            "ssid": wifi_plain_data["wifi_ssid"],
+        }
+        if wifi_plain_data["split_ssid_enable"] == "1":
+            wifi_data[node]["main-5ghz"] = {
+                "on": wifi_plain_data["wifi_network_onoff_5g"],
+                "ssid": wifi_plain_data["wifi_ssid_5g"],
+            }
+        # Guest Wi-Fi
+        wifi_data[node]["guest"] = {
+            "on": wifi_plain_data["wifi_network_onoff_guest"],
+            "ssid": wifi_plain_data["wifi_ssid_guest"],
+        }
+        if wifi_plain_data.get("split_ssid_enable_guest") == "1":
+            wifi_data[node]["guest-5ghz"] = {
+                "on": wifi_plain_data["wifi_network_onoff_guest_5g"],
+                "ssid": wifi_plain_data["wifi_ssid_guest_5g"],
+            }
+
+        return wifi_data
+
     def convert_uptime(self, uptime: str) -> datetime:
         """Convert router uptime to last boot datetime."""
         d = int(uptime.split(":")[0])
@@ -303,7 +352,12 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         reply_dict_2 = await self._get_sercomm_page("data/statussupportstatus.json")
         reply_dict_3 = await self._get_sercomm_page("data/statussupportrestart.json")
 
-        return reply_dict_1 | reply_dict_2 | reply_dict_3 | self._overview
+        encrypted_data = await self._get_sercomm_page("data/wifi_general.json")
+        reply_dict_4 = self._format_wifi_data(encrypted_data)
+
+        return (
+            reply_dict_1 | reply_dict_2 | reply_dict_3 | reply_dict_4 | self._overview
+        )
 
     async def get_docis_data(self) -> dict[str, Any]:
         """Get docis data."""
