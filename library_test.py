@@ -175,6 +175,10 @@ async def main() -> None:
         print(f"{'Line2 number:':>15} {data['line2'].get('call_number', 'N/A')}")
         print(f"{'Line2 status:':>15} {data['line2'].get('line_status', 'N/A')}")
 
+    print("Test switching Gest Wi-Fi ON/OFF")
+    await api.set_wifi_status(enable=False, wifi_type="guest", band="2.4ghz")
+
+    print("Closing session")
     await logout_close_session(api, session)
 
 

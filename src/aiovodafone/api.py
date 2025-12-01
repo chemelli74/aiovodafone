@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from http import HTTPStatus
 from http.cookies import SimpleCookie
-from typing import Any
+from typing import Any, Literal
 
 from aiohttp import (
     ClientResponse,
@@ -141,3 +141,12 @@ class VodafoneStationCommonApi(ABC):
     @abstractmethod
     async def logout(self) -> None:
         """Router logout."""
+
+    @abstractmethod
+    async def set_wifi_status(
+        self,
+        enable: bool,
+        wifi_type: Literal["main", "guest"],
+        band: Literal["5ghz", "2.4ghz"],
+    ) -> None:
+        """Enable/Disable Wi-Fi."""
