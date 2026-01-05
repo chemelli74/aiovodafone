@@ -104,7 +104,7 @@ async def get_device_type(
                     params=device_info.get("params"),
                     ssl=False,
                 ) as response:
-                    _LOGGER.debug("Response for url %s - %s", url, response.status)
+                    _LOGGER.debug("Response for url %s: %s", url, response.status)
                     if response.status != HTTPStatus.OK:
                         continue
 

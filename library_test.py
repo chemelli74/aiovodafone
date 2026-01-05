@@ -6,7 +6,6 @@ import logging
 import sys
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from pprint import pprint
 
 from aiohttp import ClientSession, CookieJar
 from colorlog import ColoredFormatter
@@ -132,13 +131,11 @@ async def main() -> None:
 
     print("-" * 20)
     devices = await api.get_devices_data()
-    print("Devices:", end=" ")
-    pprint(list(devices.values()))
+    print(f"Devices: {devices}")
 
     print("-" * 20)
     data = await api.get_sensor_data()
-    print("Sensor data:", end=" ")
-    pprint(data)
+    print(f"Sensor data: {data}")
     print("-" * 20)
     print(f"{'Serial #:':>20} {data['sys_serial_number']}")
     print(f"{'Firmware:':>20} {data['sys_firmware_version']}")
