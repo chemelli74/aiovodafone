@@ -35,7 +35,6 @@ dependencies = [
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0"
 pytest-cov = ">=5,<8"
-types-dateparser = "^1.2.2.20250809"
 
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
