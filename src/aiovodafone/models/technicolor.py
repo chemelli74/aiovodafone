@@ -4,12 +4,13 @@ import asyncio
 import hashlib
 from datetime import UTC, datetime, timedelta
 from http import HTTPMethod
+from io import BytesIO, StringIO
 from typing import Any
 
 from aiohttp import ClientResponseError
 
 from aiovodafone.api import VodafoneStationCommonApi, VodafoneStationDevice
-from aiovodafone.const import _LOGGER, DEVICES_SETTINGS
+from aiovodafone.const import _LOGGER, DEVICES_SETTINGS, WifiBand, WifiType
 from aiovodafone.exceptions import AlreadyLogged, CannotAuthenticate, ResultTimeoutError
 
 
@@ -308,11 +309,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         return data
 
-    async def restart_connection(self, connection_type: str) -> None:  # noqa: ARG002
+    async def restart_connection(self, connection_type: str) -> None:
         """Internet Connection restart."""
-        msg = f"Method not implemented for Technicolor device {self.base_url.host}"
-        _LOGGER.error(msg)
-        raise NotImplementedError(msg)
+        raise NotImplementedError("Method not implemented for Technicolor devices")
 
     async def restart_router(self) -> None:
         """Router restart."""
@@ -443,3 +442,20 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         return await self._trigger_diagnostic_call(
             check_url, data_url, payload, key, retries
         )
+
+    async def set_wifi_status(
+        self,
+        enable: bool,
+        wifi_type: WifiType,
+        band: WifiBand,
+    ) -> None:
+        """Enable/Disable Wi-Fi."""
+        raise NotImplementedError("Method not implemented for Technicolor devices")
+
+    async def get_guest_qr_code(
+        self,
+        band: WifiBand = WifiBand.BAND_2_4_GHZ,
+        kind: str = "png",
+    ) -> StringIO | BytesIO:
+        """Get Wi-Fi Guest QR code."""
+        raise NotImplementedError("Method not implemented for Technicolor devices")

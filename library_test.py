@@ -13,6 +13,7 @@ from colorlog import ColoredFormatter
 from aiovodafone.api import (
     VodafoneStationCommonApi,
 )
+from aiovodafone.const import WIFI_DATA, WifiBand, WifiType
 from aiovodafone.exceptions import (
     AlreadyLogged,
     CannotAuthenticate,
@@ -144,6 +145,27 @@ async def main() -> None:
     print(f"{'WAN status:':>20} {data.get('wan_status')}")
     print(f"{'Cable modem status:':>20} {data.get('cm_status')}")
     print(f"{'LAN mode:':>20} {data.get('lan_mode')}")
+
+    if wifi_data := data.get(WIFI_DATA):
+        print("-" * 20)
+        print(f"Wi-Fi data: {wifi_data}")
+        print("-" * 20)
+
+        wifi_type = WifiType.GUEST
+        wifi_band = WifiBand.BAND_2_4_GHZ
+        wifi_status = int(wifi_data[wifi_type.value]["on"])
+
+        print(f"Test switching Guest Wi-Fi for {wifi_band} band from {wifi_status}")
+        await api.set_wifi_status(
+            enable=not wifi_status,
+            wifi_type=wifi_type,
+            band=wifi_band,
+        )
+
+        print("-" * 20)
+        print(f"Getting Guest Wi-Fi QR code for {wifi_band} band")
+        text_qr_code = await api.get_guest_qr_code(wifi_band, "text")
+        print(text_qr_code.getvalue())
 
     data = await api.get_docis_data()
     if data:
