@@ -6,10 +6,11 @@ import hmac
 import re
 from collections.abc import Iterator
 from http import HTTPMethod
+from io import BytesIO, StringIO
 from typing import TYPE_CHECKING, Any
 
 from aiovodafone.api import VodafoneStationCommonApi, VodafoneStationDevice
-from aiovodafone.const import _LOGGER
+from aiovodafone.const import _LOGGER, WifiBand, WifiType
 from aiovodafone.exceptions import GenericLoginError
 
 if TYPE_CHECKING:
@@ -462,3 +463,17 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
 
         # strip sub-second accuracy, the uptime string is accurate to the second only
         return boot_time.replace(microsecond=0)
+
+    async def set_wifi_status(
+        self, enable: bool, wifi_type: WifiType, band: WifiBand
+    ) -> None:
+        """Enable/Disable Wi-Fi."""
+        raise NotImplementedError
+
+    async def get_guest_qr_code(
+        self,
+        band: WifiBand = WifiBand.BAND_2_4_GHZ,
+        kind: str = "png",
+    ) -> StringIO | BytesIO:
+        """Get Wi-Fi Guest QR code."""
+        raise NotImplementedError

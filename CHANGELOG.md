@@ -1,5 +1,33 @@
 # Changelog
 
+## v3.1.0 (2026-01-05)
+
+### Features
+
+- Advanced wifi settings for serecomm devices ([`d7183c6`](https://github.com/chemelli74/aiovodafone/commit/d7183c678cc865a7b05b77eb826255575a5ab311))
+
+
+### Build system
+
+- Bump aiohttp from 3.13.2 to 3.13.3 ([`bf86a74`](https://github.com/chemelli74/aiovodafone/commit/bf86a742051983cc0a34320d83067daa7f05ab56))
+- Bump python-semantic-release/python-semantic-release from 10.5.2 to 10.5.3 ([`e4cbc1e`](https://github.com/chemelli74/aiovodafone/commit/e4cbc1e5e6d3ec23dc7f86233a67830f574ac4ee))
+- Bump pytest from 9.0.1 to 9.0.2 ([`899c9c2`](https://github.com/chemelli74/aiovodafone/commit/899c9c258de108ef869f7ba242eb8212f0af7606))
+- Bump orjson from 3.11.4 to 3.11.5 ([`2fd1cc7`](https://github.com/chemelli74/aiovodafone/commit/2fd1cc7b19eb30aa768e2b4bd306abfe6e613580))
+- Bump pytest from 9.0.0 to 9.0.1 ([`8c9038e`](https://github.com/chemelli74/aiovodafone/commit/8c9038e99ea7ecfb371b244cd13969cdbd021907))
+- Bump actions/checkout from 5 to 6 ([`0d0aaaf`](https://github.com/chemelli74/aiovodafone/commit/0d0aaafd7855816bbdb03e9327a14b6d18b068d2))
+- Bump python-semantic-release/python-semantic-release from 10.5.0 to 10.5.2 ([`7d63117`](https://github.com/chemelli74/aiovodafone/commit/7d6311782a9df0a8ce1c211bc357bdf79d231507))
+- Bump python-semantic-release/python-semantic-release from 10.4.1 to 10.5.0 ([`8a41c31`](https://github.com/chemelli74/aiovodafone/commit/8a41c31569609464087e3dd531345455263eb025))
+- Bump pytest from 8.4.2 to 9.0.0 ([`50ee6d8`](https://github.com/chemelli74/aiovodafone/commit/50ee6d898d564250b2f1123d028a481eb6f85a71))
+- Bump aiohttp from 3.13.0 to 3.13.2 ([`409e171`](https://github.com/chemelli74/aiovodafone/commit/409e1710257762f11b6b76498516f881c10284c6))
+- Bump orjson from 3.11.3 to 3.11.4 ([`8946705`](https://github.com/chemelli74/aiovodafone/commit/89467059f752a30fb299c87bc90fb15ece910e5e))
+- Bump cryptography from 46.0.2 to 46.0.3 ([`e5c33b4`](https://github.com/chemelli74/aiovodafone/commit/e5c33b4c5697a15b8903898e0b9d4e8be91ebd21))
+
+
+### Refactoring
+
+- Fix typing ([`a045668`](https://github.com/chemelli74/aiovodafone/commit/a0456687df06e6097f0128189b646965d006b8d5))
+
+
 ## v3.0.0 (2025-10-23)
 
 ### Refactoring

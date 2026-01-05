@@ -37,3 +37,7 @@ class ResultTimeoutError(VodafoneError):
 
 class CsrfError(VodafoneError):
     """Exception raised when a CSRF Error occurs."""
+
+
+class SJCLError(VodafoneError):
+    """Exception raised when an SJCL decryption/encryption error occurs."""

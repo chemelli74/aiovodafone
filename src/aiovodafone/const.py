@@ -1,6 +1,7 @@
 """Constants for Vodafone Station."""
 
 import logging
+from enum import StrEnum
 from typing import Any
 
 from aiohttp import ClientTimeout
@@ -17,6 +18,22 @@ HEADERS = {
 }
 DEFAULT_TIMEOUT = ClientTimeout(10)
 POST_RESTART_TIMEOUT = ClientTimeout(2)
+WIFI_DATA = "wifi_data"
+
+
+class WifiType(StrEnum):
+    """Wi-Fi types."""
+
+    MAIN = "main"
+    GUEST = "guest"
+
+
+class WifiBand(StrEnum):
+    """Wi-Fi bands."""
+
+    BAND_2_4_GHZ = "2.4ghz"
+    BAND_5_GHZ = "5ghz"
+
 
 DEVICES_SETTINGS: dict[str, Any] = {
     "Homeware": {

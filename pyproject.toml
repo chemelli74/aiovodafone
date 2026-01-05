@@ -1,6 +1,6 @@
 [project]
 name = "aiovodafone"
-version = "3.0.0"
+version = "3.1.0"
 requires-python = ">=3.12"
 description = "Python library to control Vodafone Station"
 authors = [
@@ -25,6 +25,8 @@ dependencies = [
 "cryptography (>=45.0.3)",
 "colorlog",
 "orjson (>=3.10,<4)",
+"pycryptodome (>=3.17,<4)",
+"segno (>=1.6.6)",
 ]
 
 [project.urls]

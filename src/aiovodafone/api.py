@@ -5,8 +5,10 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from http import HTTPStatus
 from http.cookies import SimpleCookie
+from io import BytesIO, StringIO
 from typing import Any
 
+import segno.helpers
 from aiohttp import (
     ClientResponse,
     ClientResponseError,
@@ -19,6 +21,8 @@ from .const import (
     _LOGGER,
     DEFAULT_TIMEOUT,
     HEADERS,
+    WifiBand,
+    WifiType,
 )
 from .exceptions import (
     GenericResponseError,
@@ -70,7 +74,7 @@ class VodafoneStationCommonApi(ABC):
         self,
         method: str,
         page: str,
-        payload: dict[str, Any] | None = None,
+        payload: dict[str, Any] | str | None = None,
         timeout: ClientTimeout = DEFAULT_TIMEOUT,
     ) -> ClientResponse:
         timestamp = int(datetime.now(tz=UTC).timestamp())
@@ -83,7 +87,7 @@ class VodafoneStationCommonApi(ABC):
         self,
         method: str,
         url: URL,
-        payload: dict[str, Any] | None = None,
+        payload: dict[str, Any] | str | None = None,
         timeout: ClientTimeout = DEFAULT_TIMEOUT,
     ) -> ClientResponse:
         """Request data from a web page."""
@@ -115,6 +119,43 @@ class VodafoneStationCommonApi(ABC):
             raise GenericResponseError from err
         else:
             return response
+
+    async def _generate_guest_qr_code(
+        self,
+        ssid: str,
+        password: str,
+        security: str,
+        image_format: dict[str, Any] | None = None,
+    ) -> StringIO | BytesIO:
+        """Get Wi-Fi Guest QR code."""
+        settings = {
+            "kind": "png",
+            "scale": 4,
+            "border": 0,
+        }
+        settings.update(image_format or {})
+
+        stream: StringIO | BytesIO
+        qr_code = segno.helpers.make_wifi(
+            ssid=ssid,
+            password=password,
+            security=security,
+            hidden=False,
+        )
+        if settings["kind"] in ["text", "text-compact"]:
+            stream = StringIO()
+            compact = settings["kind"] != "text"
+            qr_code.terminal(out=stream, border=settings["border"], compact=compact)
+        else:
+            stream = BytesIO()
+            qr_code.save(
+                out=stream,
+                kind=settings["kind"],
+                scale=settings["scale"],
+                border=settings["border"],
+            )
+        stream.seek(0)
+        return stream
 
     @abstractmethod
     def convert_uptime(self, uptime: str) -> datetime:
@@ -151,3 +192,17 @@ class VodafoneStationCommonApi(ABC):
     @abstractmethod
     async def logout(self) -> None:
         """Router logout."""
+
+    @abstractmethod
+    async def set_wifi_status(
+        self, enable: bool, wifi_type: WifiType, band: WifiBand
+    ) -> None:
+        """Enable/Disable Wi-Fi."""
+
+    @abstractmethod
+    async def get_guest_qr_code(
+        self,
+        band: WifiBand = WifiBand.BAND_2_4_GHZ,
+        kind: str = "png",
+    ) -> StringIO | BytesIO:
+        """Get Wi-Fi Guest QR code."""
