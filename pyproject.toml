@@ -25,6 +25,8 @@ dependencies = [
 "cryptography (>=45.0.3)",
 "colorlog",
 "orjson (>=3.10,<4)",
+"pycryptodome (>=3.17,<4)",
+"segno (>=1.6.6)",
 ]
 
 [project.urls]

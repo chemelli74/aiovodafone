@@ -5,6 +5,7 @@ import contextlib
 import os
 from datetime import UTC, datetime, timedelta
 from http import HTTPMethod, HTTPStatus
+from io import BytesIO, StringIO
 from typing import Any, cast
 
 import orjson
@@ -20,7 +21,13 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from yarl import URL
 
 from aiovodafone.api import VodafoneStationCommonApi, VodafoneStationDevice
-from aiovodafone.const import _LOGGER, DEFAULT_TIMEOUT, DEVICES_SETTINGS
+from aiovodafone.const import (
+    _LOGGER,
+    DEFAULT_TIMEOUT,
+    DEVICES_SETTINGS,
+    WifiBand,
+    WifiType,
+)
 from aiovodafone.exceptions import (
     AlreadyLogged,
     CannotAuthenticate,
@@ -293,11 +300,9 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         """Get router voice data."""
         return {}
 
-    async def restart_connection(self, connection_type: str) -> None:  # noqa: ARG002
+    async def restart_connection(self, connection_type: str) -> None:
         """Internet Connection restart."""
-        msg = f"Method not implemented for UltraHub device {self.base_url.host}"
-        _LOGGER.error(msg)
-        raise NotImplementedError(msg)
+        raise NotImplementedError("Method not implemented for UltraHub devices")
 
     async def restart_router(self) -> None:
         """Router restart."""
@@ -324,3 +329,20 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
                 )
 
             await self._cleanup_session()
+
+    async def set_wifi_status(
+        self,
+        enable: bool,
+        wifi_type: WifiType,
+        band: WifiBand,
+    ) -> None:
+        """Enable/Disable Wi-Fi."""
+        raise NotImplementedError("Method not implemented for UltraHub devices")
+
+    async def get_guest_qr_code(
+        self,
+        band: WifiBand = WifiBand.BAND_2_4_GHZ,
+        kind: str = "png",
+    ) -> StringIO | BytesIO:
+        """Get Wi-Fi Guest QR code."""
+        raise NotImplementedError("Method not implemented for UltraHub devices")
