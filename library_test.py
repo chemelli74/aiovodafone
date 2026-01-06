@@ -154,9 +154,13 @@ async def main() -> None:
 
         wifi_type = WifiType.GUEST
         wifi_band = WifiBand.BAND_2_4_GHZ
-        wifi_status = int(data[WIFI_DATA][wifi_type.value]["on"])
+        wifi_status = data[WIFI_DATA][wifi_type.value]["on"]
+        wifi_status_string = "Enabled" if wifi_status else "Disabled"
 
-        print(f"Test switching Guest Wi-Fi for {wifi_band} band from {wifi_status}")
+        print(
+            f"Test switching Guest Wi-Fi for {wifi_band} band,"
+            f" current status: {wifi_status_string}"
+        )
         await api.set_wifi_status(
             enable=not wifi_status,
             wifi_type=wifi_type,

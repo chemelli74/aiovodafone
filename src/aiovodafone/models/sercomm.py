@@ -261,35 +261,34 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         _LOGGER.debug("Decrypted Wi-Fi data: %s", wifi_plain_data)
 
         wifi_data: dict[str, Any] = {WIFI_DATA: {}}
-        for wifi in [WifiType.MAIN, WifiType.GUEST]:
-            for band in [WifiBand.BAND_2_4_GHZ, WifiBand.BAND_5_GHZ]:
+        for wifi in (WifiType.MAIN, WifiType.GUEST):
+            for band in (WifiBand.BAND_2_4_GHZ, WifiBand.BAND_5_GHZ):
                 if (
                     wifi_plain_data["split_ssid_enable"] == "0"
-                    and band == WifiBand.BAND_5_GHZ
+                    and band is WifiBand.BAND_5_GHZ
                 ):
-                    # Keys are present, but not used in this scenario
+                    # Skip unused 5 GHz entries when SSID split is disabled
                     continue
                 frmt = await self._get_wifi_format(wifi, band)
-                key = f"wifi_network_onoff{frmt}"
                 name = f"{wifi.name.lower()}{
                     '-5ghz' if band == WifiBand.BAND_5_GHZ else ''
                 }"
                 ssid = wifi_plain_data[f"wifi_ssid{frmt}"]
-                if key in wifi_plain_data:
-                    wifi_data[WIFI_DATA][name] = {
-                        "on": wifi_plain_data[key],
-                        "ssid": ssid,
-                    }
-                if wifi == WifiType.GUEST:
+
+                entry = {
+                    "on": int(wifi_plain_data[f"wifi_network_onoff{frmt}"]),
+                    "ssid": ssid,
+                }
+
+                # Add QR code for guest Wi-Fi
+                if wifi is WifiType.GUEST:
                     security = self._wifi_plain_data[f"wifi_protection{frmt}"]
                     pwd = self._wifi_plain_data[f"wifi_password{frmt}"]
-                    wifi_data[WIFI_DATA][name].update(
-                        {
-                            "qr_code": await self._generate_guest_qr_code(
-                                ssid, pwd, security
-                            )
-                        }
+                    entry["qr_code"] = await self._generate_guest_qr_code(
+                        ssid, pwd, security
                     )
+
+                wifi_data[WIFI_DATA][name] = entry
 
         return wifi_data
 
