@@ -440,7 +440,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         return reply_dict_1 | reply_dict_2 | reply_dict_3 | self._overview
 
     async def get_wifi_data(self) -> dict[str, Any]:
-        """Get wifi data."""
+        """Get Wi-Fi data."""
         encrypted_data = await self._get_sercomm_page("data/wifi_general.json")
         return await self._format_sensor_wifi_data(encrypted_data)
 

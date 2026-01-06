@@ -178,7 +178,7 @@ class VodafoneStationCommonApi(ABC):
     async def get_wifi_data(
         self,
     ) -> dict[str, Any]:
-        """Get Wi-Fi Guest QR code."""
+        """Get Wi-Fi data."""
 
     @abstractmethod
     async def set_wifi_status(
