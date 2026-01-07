@@ -24,6 +24,7 @@ from aiovodafone.const import (
     _LOGGER,
     DEFAULT_TIMEOUT,
     DEVICES_SETTINGS,
+    WIFI_DATA,
     WifiBand,
     WifiType,
 )
@@ -296,7 +297,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
     ) -> dict[str, Any]:
         """Get Wi-Fi data."""
         _LOGGER.debug("Get Wi-Fi data not implemented for UltraHub devices")
-        return {}
+        return {WIFI_DATA: {}}
 
     async def get_docis_data(self) -> dict[str, Any]:
         """Get router docis data."""

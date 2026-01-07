@@ -9,7 +9,7 @@ from typing import Any
 from aiohttp import ClientResponseError
 
 from aiovodafone.api import VodafoneStationCommonApi, VodafoneStationDevice
-from aiovodafone.const import _LOGGER, DEVICES_SETTINGS, WifiBand, WifiType
+from aiovodafone.const import _LOGGER, DEVICES_SETTINGS, WIFI_DATA, WifiBand, WifiType
 from aiovodafone.exceptions import AlreadyLogged, CannotAuthenticate, ResultTimeoutError
 
 
@@ -232,7 +232,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     ) -> dict[str, Any]:
         """Get Wi-Fi data."""
         _LOGGER.debug("Get Wi-Fi data not implemented for Technicolor devices")
-        return {}
+        return {WIFI_DATA: {}}
 
     async def get_docis_data(self) -> dict[str, Any]:
         """Get docis data."""
