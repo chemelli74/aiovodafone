@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from http import HTTPStatus
 from http.cookies import SimpleCookie
-from io import BytesIO, StringIO
+from io import BytesIO
 from typing import Any
 
 import segno.helpers
@@ -115,35 +115,26 @@ class VodafoneStationCommonApi(ABC):
         ssid: str,
         password: str,
         security: str,
-        image_format: dict[str, Any] | None = None,
-    ) -> StringIO | BytesIO:
+    ) -> BytesIO:
         """Get Wi-Fi Guest QR code."""
         settings = {
             "kind": "png",
             "scale": 4,
             "border": 0,
         }
-        settings.update(image_format or {})
-
-        stream: StringIO | BytesIO
         qr_code = segno.helpers.make_wifi(
             ssid=ssid,
             password=password,
             security=security,
             hidden=False,
         )
-        if settings["kind"] in ["text", "text-compact"]:
-            stream = StringIO()
-            compact = settings["kind"] != "text"
-            qr_code.terminal(out=stream, border=settings["border"], compact=compact)
-        else:
-            stream = BytesIO()
-            qr_code.save(
-                out=stream,
-                kind=settings["kind"],
-                scale=settings["scale"],
-                border=settings["border"],
-            )
+        stream = BytesIO()
+        qr_code.save(
+            out=stream,
+            kind=settings["kind"],
+            scale=settings["scale"],
+            border=settings["border"],
+        )
         stream.seek(0)
         return stream
 
@@ -184,15 +175,13 @@ class VodafoneStationCommonApi(ABC):
         """Router logout."""
 
     @abstractmethod
+    async def get_wifi_data(
+        self,
+    ) -> dict[str, Any]:
+        """Get Wi-Fi data."""
+
+    @abstractmethod
     async def set_wifi_status(
         self, enable: bool, wifi_type: WifiType, band: WifiBand
     ) -> None:
         """Enable/Disable Wi-Fi."""
-
-    @abstractmethod
-    async def get_guest_qr_code(
-        self,
-        band: WifiBand = WifiBand.BAND_2_4_GHZ,
-        kind: str = "png",
-    ) -> StringIO | BytesIO:
-        """Get Wi-Fi Guest QR code."""
