@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.1.1 (2026-01-07)
+
+### Bug fixes
+
+- Improve advanced wifi settings for serecomm devices ([`be82cca`](https://github.com/chemelli74/aiovodafone/commit/be82cca5226b08cab23c68dbe92a7a16f4299f07))
+
+
 ## v3.1.0 (2026-01-05)
 
 ### Features
