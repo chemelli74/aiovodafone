@@ -36,6 +36,10 @@ class WifiBand(StrEnum):
 
 
 DEVICES_SETTINGS: dict[str, Any] = {
+    "Homeware": {
+        "login_url": "login.lp",
+        "params": {"getSessionStatus": "true"},
+    },
     "Sercomm": {
         "login_url": "login.html",
         "total_fields_num": 8,
