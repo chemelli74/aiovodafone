@@ -141,10 +141,11 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
 
         aes_mode = get_aes_mode("ccm")
         tlen = DEFAULT_TLEN[aes_mode]
-        nonce = truncate_iv(iv, len(self.password) * 8, tlen)
+        password = self.password.encode("utf-8")
+        nonce = truncate_iv(iv, len(password) * 8, tlen)
         cipher = AES.new(key=key, mode=aes_mode, nonce=nonce, mac_len=tlen // 8)
 
-        ct2 = cipher.encrypt_and_digest(self.password.encode("utf-8"))
+        ct2 = cipher.encrypt_and_digest(password)
 
         ct = ct2[0] + ct2[1]
 
