@@ -2,7 +2,7 @@
 
 import base64
 import contextlib
-import os
+import hashlib
 from datetime import UTC, datetime, timedelta
 from http import HTTPMethod, HTTPStatus
 from typing import Any, cast
@@ -14,9 +14,7 @@ from aiohttp import (
     ClientSession,
     ClientTimeout,
 )
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.ciphers.aead import AESCCM
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from Crypto.Cipher import AES
 from yarl import URL
 
 from aiovodafone.api import VodafoneStationCommonApi, VodafoneStationDevice
@@ -34,6 +32,7 @@ from aiovodafone.exceptions import (
     GenericLoginError,
     GenericResponseError,
 )
+from aiovodafone.sjcl import DEFAULT_TLEN, get_aes_mode, get_random_bytes, truncate_iv
 
 
 class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
@@ -45,6 +44,8 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         """Initialize id as it may change in the future."""
         super().__init__(url, username, password, session)
         self.id = DEVICES_SETTINGS["UltraHub"]["default_id"]
+        self._sjcl_iterations = 1000
+        self._sjcl_dklen = 16
 
     async def login(self, force_logout: bool = False) -> bool:
         """Router login."""
@@ -128,53 +129,41 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         """
         _LOGGER.debug("Calculate credential hash")
 
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=16,
-            salt=bytes(salt, "utf-8"),
-            iterations=1000,
+        iv = get_random_bytes(16)
+
+        key = hashlib.pbkdf2_hmac(
+            "sha256",
+            salt_web_ui.encode("utf-8"),
+            bytes(salt, "utf-8"),
+            self._sjcl_iterations,
+            self._sjcl_dklen,
         )
 
-        key = kdf.derive(bytes(salt_web_ui, "utf-8"))
+        aes_mode = get_aes_mode("ccm")
+        tlen = DEFAULT_TLEN[aes_mode]
+        password = self.password.encode("utf-8")
+        nonce = truncate_iv(iv, len(password) * 8, tlen)
+        cipher = AES.new(key=key, mode=aes_mode, nonce=nonce, mac_len=tlen // 8)
 
-        iv = os.urandom(16)
-        nonce = self._truncate_iv(iv, len(self.password) * 8, 8)
-        aesccm = AESCCM(key, 8)
-        ct = aesccm.encrypt(nonce, bytes(self.password, "utf-8"), None)
+        ct2 = cipher.encrypt_and_digest(password)
+
+        ct = ct2[0] + ct2[1]
+
         b64_ct = base64.b64encode(ct).decode("ascii").strip()
         b64_iv = base64.b64encode(iv).decode("ascii").strip()
 
         value_dict = {
             "iv": b64_iv,
             "v": 1,
-            "iter": 1000,
+            "iter": self._sjcl_iterations,
             "ks": 128,
-            "ts": 64,
+            "ts": tlen,
             "mode": "ccm",
             "adata": "",
             "cipher": "aes",
             "ct": b64_ct,
         }
         return cast("str", orjson.dumps(value_dict).decode("utf-8"))
-
-    def _truncate_iv(
-        self,
-        iv: bytes,
-        ol: int,  # in bits (output length including tag)
-        tlen: int,  # in bytes
-    ) -> bytes:
-        """Calculate the nonce as it can not be 16 bytes."""
-        ivl = len(iv)  # iv length in bytes
-        ol = (ol - tlen) // 8
-
-        # "compute the length of the length" (see ccm.js)
-        loop = 2
-        max_length_field_bytes = 4  # Maximum L parameter per CCM spec
-        while (loop < max_length_field_bytes) and (ol >> (8 * loop)) > 0:
-            loop += 1
-        loop = max(loop, 15 - ivl)
-
-        return iv[: (15 - loop)]
 
     async def _auto_hub_request_page_result(
         self,
