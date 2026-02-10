@@ -301,7 +301,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
     def convert_uptime(self, uptime: str) -> datetime:
         """Convert router uptime to last boot datetime."""
-        d = int(uptime.split(":")[0])
+        d = int(uptime.split(":", maxsplit=1)[0])
         h = int(uptime.split(":")[1])
         m = int(uptime.split(":")[2])
 
