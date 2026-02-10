@@ -1,7 +1,7 @@
 """Vodafone Station models package."""
 
 from collections.abc import Mapping
-from enum import Enum
+from enum import StrEnum
 from http import HTTPStatus
 from typing import Any, cast
 
@@ -22,7 +22,7 @@ from .technicolor import VodafoneStationTechnicolorApi
 from .ultrahub import VodafoneStationUltraHubApi
 
 
-class DeviceType(str, Enum):
+class DeviceType(StrEnum):
     """Supported device types."""
 
     SERCOMM = "Sercomm"
