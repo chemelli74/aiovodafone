@@ -17,6 +17,7 @@ from aiovodafone.api import VodafoneStationCommonApi
 from aiovodafone.const import _LOGGER, DEVICES_SETTINGS, HEADERS
 from aiovodafone.exceptions import ModelNotSupported
 
+from .homeware import VodafoneStationHomewareApi
 from .sercomm import VodafoneStationSercommApi
 from .technicolor import VodafoneStationTechnicolorApi
 from .ultrahub import VodafoneStationUltraHubApi
@@ -25,12 +26,16 @@ from .ultrahub import VodafoneStationUltraHubApi
 class DeviceType(StrEnum):
     """Supported device types."""
 
+    HOMEWARE = "Homeware"
     SERCOMM = "Sercomm"
     TECHNICOLOR = "Technicolor"
     ULTRAHUB = "UltraHub"
 
 
 class_registry: dict[DeviceType, type[VodafoneStationCommonApi]] = {
+    DeviceType.HOMEWARE: cast(
+        "type[VodafoneStationHomewareApi]", VodafoneStationHomewareApi
+    ),
     DeviceType.SERCOMM: cast(
         "type[VodafoneStationCommonApi]", VodafoneStationSercommApi
     ),
@@ -79,7 +84,7 @@ async def get_device_type(
     -------
     [
         device_type:
-            returns `Sercomm`, `Technicolor` or raises `ModelNotSupported`
+            returns an enum entry in DeviceType or raises `ModelNotSupported`
         url:
             full router url with scheme and host, e.g. `http://192.168.1.1`
     ]
@@ -125,6 +130,10 @@ async def get_device_type(
                     if "var csrf_token = " in response_text:
                         _LOGGER.debug("Detected device type: %s", DeviceType.SERCOMM)
                         return (DeviceType.SERCOMM, return_url)
+
+                    if response_json.get("status") == "alive":
+                        _LOGGER.debug("Detected device type: %s", DeviceType.HOMEWARE)
+                        return (DeviceType.HOMEWARE, return_url)
 
             except (
                 ClientConnectorSSLError,
