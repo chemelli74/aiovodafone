@@ -145,7 +145,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         return_dict = await self._get_sercomm_page("data/user_lang.json")
         self.encryption_key = return_dict["encryption_key"]
         self.salt = return_dict["salt"]
-        _LOGGER.debug("encryption_key obtained")
+        _LOGGER.debug("encryption_key and salt obtained")
 
     async def _encrypt_string(self, credential: str) -> str:
         """Encrypt username or password for login."""
