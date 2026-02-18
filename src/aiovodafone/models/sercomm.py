@@ -262,12 +262,13 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         _LOGGER.debug("Decrypted Wi-Fi data: %s", wifi_plain_data)
 
         wifi_data: dict[str, Any] = {WIFI_DATA: {}}
+
+        wifi_ssid_split = wifi_plain_data.get(
+            "split_ssid_enable"
+        ) or wifi_plain_data.get("split_ssid")
         for wifi in (WifiType.MAIN, WifiType.GUEST):
             for band in (WifiBand.BAND_2_4_GHZ, WifiBand.BAND_5_GHZ):
-                if (
-                    wifi_plain_data["split_ssid_enable"] == "0"
-                    and band is WifiBand.BAND_5_GHZ
-                ):
+                if wifi_ssid_split == "0" and band is WifiBand.BAND_5_GHZ:
                     # Skip unused 5 GHz entries when SSID split is disabled
                     continue
                 frmt = await self._get_wifi_format(wifi, band)
