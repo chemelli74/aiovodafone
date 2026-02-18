@@ -41,29 +41,6 @@ from aiovodafone.exceptions import (
 )
 from aiovodafone.sjcl import SJCL
 
-wifi_schema = [
-    "wifiOnOff_all",
-    # "wifi_wifi_button_onoff",
-    "wifi_wps_button_onoff",
-    "wifi_network_onoff",
-    "wifi_network_onoff_5g",
-    "select_frenquency",
-    "wifi_network_onoff_guest",
-    "wifi_ssid",
-    "wifi_broadcast_ssid",
-    "wifi_password",
-    "wifi_protection",
-    "wifi_ssid_5g",
-    "wifi_broadcast_ssid_5g",
-    "wifi_password_5g",
-    "wifi_protection_5g",
-    "wifi_ssid_guest",
-    "wifi_broadcast_ssid_guest",
-    "wifi_Frenquency_guest",
-    "wifi_protection_guest",
-    "wifi_password_guest",
-]
-
 
 class VodafoneStationSercommApi(VodafoneStationCommonApi):
     """Queries Vodafone Station running Sercomm firmware."""
@@ -538,7 +515,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
                 if 'password' in key
                 else wifi_plain_data[key]
             }"
-            for key in wifi_schema
+            for key in wifi_plain_data
         )
 
         # Encrypt via sjcl.py
