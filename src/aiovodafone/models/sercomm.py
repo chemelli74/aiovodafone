@@ -249,6 +249,13 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         # Dump to raw JSON string (no URL encoding)
         return orjson.dumps(encrypted_json).decode("utf-8")
 
+    async def _wifi_ssid_split_disabled(self, wifi_plain_data: dict[str, Any]) -> bool:
+        """Check if Wi-Fi SSID split is disabled."""
+        return (
+            wifi_plain_data.get("split_ssid_enable")
+            or wifi_plain_data.get("split_ssid")
+        ) == "0"
+
     async def _format_sensor_wifi_data(
         self, encrypted_data: dict[str, Any]
     ) -> dict[str, Any]:
@@ -263,12 +270,12 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
         wifi_data: dict[str, Any] = {WIFI_DATA: {}}
 
-        wifi_ssid_split = wifi_plain_data.get(
-            "split_ssid_enable"
-        ) or wifi_plain_data.get("split_ssid")
         for wifi in (WifiType.MAIN, WifiType.GUEST):
             for band in (WifiBand.BAND_2_4_GHZ, WifiBand.BAND_5_GHZ):
-                if wifi_ssid_split == "0" and band is WifiBand.BAND_5_GHZ:
+                if (
+                    await self._wifi_ssid_split_disabled(self._wifi_plain_data)
+                    and band is WifiBand.BAND_5_GHZ
+                ):
                     # Skip unused 5 GHz entries when SSID split is disabled
                     continue
                 frmt = await self._get_wifi_format(wifi, band)
@@ -521,7 +528,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         # Firmware bug:
         # when SSID split is disabled, API defaults to 'wifi_ssid_5g'
         # while Web UI implicitly mirrors 'wifi_ssid' to both bands.
-        if wifi_plain_data["split_ssid_enable"] == "0":
+        if await self._wifi_ssid_split_disabled(wifi_plain_data):
             wifi_plain_data["wifi_ssid_5g"] = wifi_plain_data["wifi_ssid"]
 
         # Build the data to encrypt as a string
