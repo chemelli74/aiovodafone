@@ -43,7 +43,7 @@ from aiovodafone.sjcl import SJCL
 
 wifi_schema = [
     "wifiOnOff_all",
-    "wifi_wifi_button_onoff",
+    # "wifi_wifi_button_onoff",
     "wifi_wps_button_onoff",
     "wifi_network_onoff",
     "wifi_network_onoff_5g",
