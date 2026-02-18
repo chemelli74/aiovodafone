@@ -60,6 +60,7 @@ class VodafoneStationCommonApi(ABC):
         self.session = session
         self.csrf_token: str = ""
         self.encryption_key: str = ""
+        self.salt: str = ""
         self._unique_id: str | None = None
         self._overview: dict[str, Any] = {}
         self._devices: dict[str, VodafoneStationDevice] = {}

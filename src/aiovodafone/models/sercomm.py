@@ -144,6 +144,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         """Load user_lang page to get."""
         return_dict = await self._get_sercomm_page("data/user_lang.json")
         self.encryption_key = return_dict["encryption_key"]
+        self.salt = return_dict["salt"]
         _LOGGER.debug("encryption_key obtained")
 
     async def _encrypt_string(self, credential: str) -> str:
@@ -212,7 +213,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
     def _sjcl_derived_key(self) -> str:
         """Derive PBKDF2-HMAC-SHA256 key."""
-        salt = bytes.fromhex(self.encryption_key)
+        salt = bytes.fromhex(self.salt)
         key = hashlib.pbkdf2_hmac(
             "sha256",
             self.password.encode("utf-8"),
