@@ -41,29 +41,6 @@ from aiovodafone.exceptions import (
 )
 from aiovodafone.sjcl import SJCL
 
-wifi_schema = [
-    "wifiOnOff_all",
-    "wifi_wifi_button_onoff",
-    "wifi_wps_button_onoff",
-    "wifi_network_onoff",
-    "wifi_network_onoff_5g",
-    "select_frenquency",
-    "wifi_network_onoff_guest",
-    "wifi_ssid",
-    "wifi_broadcast_ssid",
-    "wifi_password",
-    "wifi_protection",
-    "wifi_ssid_5g",
-    "wifi_broadcast_ssid_5g",
-    "wifi_password_5g",
-    "wifi_protection_5g",
-    "wifi_ssid_guest",
-    "wifi_broadcast_ssid_guest",
-    "wifi_Frenquency_guest",
-    "wifi_protection_guest",
-    "wifi_password_guest",
-]
-
 
 class VodafoneStationSercommApi(VodafoneStationCommonApi):
     """Queries Vodafone Station running Sercomm firmware."""
@@ -144,7 +121,8 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         """Load user_lang page to get."""
         return_dict = await self._get_sercomm_page("data/user_lang.json")
         self.encryption_key = return_dict["encryption_key"]
-        _LOGGER.debug("encryption_key obtained")
+        self.salt = return_dict["salt"]
+        _LOGGER.debug("encryption_key and salt obtained")
 
     async def _encrypt_string(self, credential: str) -> str:
         """Encrypt username or password for login."""
@@ -212,7 +190,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
     def _sjcl_derived_key(self) -> str:
         """Derive PBKDF2-HMAC-SHA256 key."""
-        salt = bytes.fromhex(self.encryption_key)
+        salt = bytes.fromhex(self.salt)
         key = hashlib.pbkdf2_hmac(
             "sha256",
             self.password.encode("utf-8"),
@@ -248,6 +226,13 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         # Dump to raw JSON string (no URL encoding)
         return orjson.dumps(encrypted_json).decode("utf-8")
 
+    async def _wifi_ssid_split_disabled(self, wifi_plain_data: dict[str, Any]) -> bool:
+        """Check if Wi-Fi SSID split is disabled."""
+        return (
+            wifi_plain_data.get("split_ssid_enable")
+            or wifi_plain_data.get("split_ssid")
+        ) == "0"
+
     async def _format_sensor_wifi_data(
         self, encrypted_data: dict[str, Any]
     ) -> dict[str, Any]:
@@ -261,10 +246,11 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         _LOGGER.debug("Decrypted Wi-Fi data: %s", wifi_plain_data)
 
         wifi_data: dict[str, Any] = {WIFI_DATA: {}}
+
         for wifi in (WifiType.MAIN, WifiType.GUEST):
             for band in (WifiBand.BAND_2_4_GHZ, WifiBand.BAND_5_GHZ):
                 if (
-                    wifi_plain_data["split_ssid_enable"] == "0"
+                    await self._wifi_ssid_split_disabled(self._wifi_plain_data)
                     and band is WifiBand.BAND_5_GHZ
                 ):
                     # Skip unused 5 GHz entries when SSID split is disabled
@@ -519,7 +505,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         # Firmware bug:
         # when SSID split is disabled, API defaults to 'wifi_ssid_5g'
         # while Web UI implicitly mirrors 'wifi_ssid' to both bands.
-        if wifi_plain_data["split_ssid_enable"] == "0":
+        if await self._wifi_ssid_split_disabled(wifi_plain_data):
             wifi_plain_data["wifi_ssid_5g"] = wifi_plain_data["wifi_ssid"]
 
         # Build the data to encrypt as a string
@@ -529,7 +515,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
                 if 'password' in key
                 else wifi_plain_data[key]
             }"
-            for key in wifi_schema
+            for key in wifi_plain_data
         )
 
         # Encrypt via sjcl.py
