@@ -299,6 +299,8 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
     async def login(self, force_logout: bool = False) -> bool:  # noqa: ARG002
         """Router login."""
+        await self._debug_aiohttp()
+
         _LOGGER.debug("Logging into %s", self.base_url.host)
         try:
             reply = await self._request_page_result(

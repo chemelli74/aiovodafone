@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from http import HTTPStatus
 from http.cookies import SimpleCookie
 from io import BytesIO
+from types import SimpleNamespace
 from typing import Any
 
 import segno.helpers
@@ -14,6 +15,11 @@ from aiohttp import (
     ClientResponseError,
     ClientSession,
     ClientTimeout,
+    TraceConfig,
+)
+from aiohttp.tracing import (
+    TraceRequestEndParams,
+    TraceRequestStartParams,
 )
 from yarl import URL
 
@@ -64,6 +70,52 @@ class VodafoneStationCommonApi(ABC):
         self._unique_id: str | None = None
         self._overview: dict[str, Any] = {}
         self._devices: dict[str, VodafoneStationDevice] = {}
+
+    async def _debug_aiohttp(self) -> None:
+        """Debug aiohttp session."""
+        trace_config = TraceConfig()
+
+        async def on_request_start(
+            session: ClientSession,
+            _trace_config_ctx: SimpleNamespace,
+            params: TraceRequestStartParams,
+        ) -> None:
+            """Debug request start."""
+            _LOGGER.debug("=== REQUEST START ===")
+            _LOGGER.debug("%s %s", params.method, params.url)
+
+            _LOGGER.debug("Request headers:")
+            for k, v in params.headers.items():
+                _LOGGER.debug("%s: %s", k, v)
+
+            _LOGGER.debug("Session cookies (before):")
+            for cookie in session.cookie_jar:
+                _LOGGER.debug("%s=%s", cookie.key, cookie.value)
+
+        async def on_request_end(
+            session: ClientSession,
+            _trace_config_ctx: SimpleNamespace,
+            params: TraceRequestEndParams,
+        ) -> None:
+            """Debug request end."""
+            response = params.response
+
+            _LOGGER.debug("=== RESPONSE ===")
+            _LOGGER.debug("Status: %s", response.status)
+
+            _LOGGER.debug("Response headers:")
+            for k, v in response.headers.items():
+                _LOGGER.debug("%s: %s", k, v)
+
+            _LOGGER.debug("Session cookies (after):")
+            for cookie in session.cookie_jar:
+                _LOGGER.debug("%s=%s", cookie.key, cookie.value)
+
+        trace_config.on_request_start.append(on_request_start)
+        trace_config.on_request_end.append(on_request_end)
+
+        # IMPORTANT: attach only once
+        self.session.trace_configs.append(trace_config)
 
     async def _set_cookie(self) -> None:
         """Enable required session cookie."""
