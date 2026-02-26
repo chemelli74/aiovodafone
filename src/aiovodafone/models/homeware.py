@@ -2,24 +2,22 @@
 
 import asyncio
 import datetime as dt
+import hashlib
 import hmac
+import os
 import re
 from collections.abc import Iterator
 from http import HTTPMethod
 from io import BytesIO, StringIO
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 
 from aiovodafone.api import VodafoneStationCommonApi, VodafoneStationDevice
-from aiovodafone.const import _LOGGER, WifiBand, WifiType
+from aiovodafone.const import _LOGGER, DEVICES_SETTINGS, WifiBand, WifiType
 from aiovodafone.exceptions import GenericLoginError
 
 if TYPE_CHECKING:
     from aiohttp import ClientResponse
     from yarl import URL
-
-import hashlib
-import os
-from typing import Final
 
 # SRP-6 constants
 _GEN: Final = 2
@@ -47,16 +45,6 @@ _UPTIME_PATTERNS = {
     "minutes": re.compile(r"(\d+)\s*minutes?"),
     "seconds": re.compile(r"(\d+)\s*seconds?"),
 }
-
-
-def _sha256_hex(data: bytes) -> str:
-    """Calculate SHA256 hash and return as hex string."""
-    return hashlib.sha256(data).hexdigest()
-
-
-def _sha256_bytes(data: bytes) -> bytes:
-    """Calculate SHA256 hash and return as bytes."""
-    return hashlib.sha256(data).digest()
 
 
 class TechnicolorSRP:
@@ -94,9 +82,7 @@ class TechnicolorSRP:
     def client_public_key_hex(self) -> str:
         """Return the client public key (D) as a hex string."""
         d_hex = f"{self._d_public:x}"
-        if len(d_hex) % 2 == 1:
-            return "0" + d_hex
-        return d_hex
+        return "0" + d_hex if len(d_hex) % 2 == 1 else d_hex
 
     def calculate_proofs(self, salt: str, server_public: str) -> str:
         """Calculate session key and authentication proofs.
@@ -109,14 +95,12 @@ class TechnicolorSRP:
             The client_proof (M) to be sent to the server.
 
         Raises:
-            RuntimeError: If called more than once.
             ValueError: If server provides an invalid public key (B % K == 0)
                         or h == 0.
 
         """
         if self._client_proof is not None:
-            msg = "Proofs have already been calculated."
-            raise RuntimeError(msg)
+            return self._client_proof
 
         # Parse server public key B and perform safety check
         b_int = int(server_public, 16)
@@ -128,7 +112,7 @@ class TechnicolorSRP:
         d_bytes = self._d_public.to_bytes(_K_LEN_BYTES, byteorder="big")
         b_bytes = b_int.to_bytes(_K_LEN_BYTES, byteorder="big")
 
-        h_bytes = _sha256_bytes(d_bytes + b_bytes)
+        h_bytes = hashlib.sha256(d_bytes + b_bytes).digest()
         h_int = int.from_bytes(h_bytes, byteorder="big")
 
         # Perform second safety check
@@ -137,9 +121,10 @@ class TechnicolorSRP:
             raise ValueError(msg)
 
         # Calculate n = SHA256(salt + SHA256(username + ":" + password))
-        password_hash = _sha256_bytes(f"{self.username}:{self.password}".encode())
+        credentials = f"{self.username}:{self.password}".encode()
+        password_hash = hashlib.sha256(credentials).digest()
         n_input = bytes.fromhex(salt + password_hash.hex())
-        n_bytes = _sha256_bytes(n_input)
+        n_bytes = hashlib.sha256(n_input).digest()
         n_int = int.from_bytes(n_bytes, byteorder="big")
 
         # Calculate a = (C * GEN^n) mod K
@@ -158,20 +143,20 @@ class TechnicolorSRP:
 
         # Calculate session key hash B_hash = SHA256(g)
         g_bytes = bytes.fromhex(g_hex)
-        self._session_key_hash = _sha256_hex(g_bytes)
+        self._session_key_hash = hashlib.sha256(g_bytes).hexdigest()
 
         # --- Calculate client proof (M) ---
         d_hex = self.client_public_key_hex
-        username_hash = _sha256_hex(self.username.encode())
+        username_hash = hashlib.sha256(self.username.encode()).hexdigest()
 
         y_input = bytes.fromhex(
             _U + username_hash + salt + d_hex + server_public + self._session_key_hash
         )
-        self._client_proof = _sha256_hex(y_input)
+        self._client_proof = hashlib.sha256(y_input).hexdigest()
 
         # --- Calculate server verification (v) ---
         v_input = bytes.fromhex(d_hex + self._client_proof + self._session_key_hash)
-        self._server_verification = _sha256_hex(v_input)
+        self._server_verification = hashlib.sha256(v_input).hexdigest()
 
         return self._client_proof
 
@@ -232,7 +217,9 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
         _LOGGER.debug("Fetching CSRF token")
         reply: ClientResponse = await self._request_url_result(
             HTTPMethod.GET,
-            self.base_url.joinpath("login.lp").with_query(action="getcsrf"),
+            self.base_url.joinpath(
+                DEVICES_SETTINGS["Homeware"]["login_url"]
+            ).with_query(action="getcsrf"),
         )
         return await reply.text()
 
