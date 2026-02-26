@@ -1,5 +1,27 @@
 # Changelog
 
+## v3.1.2 (2026-02-22)
+
+### Bug fixes
+
+- Use salt key for sjcl derived key calculation ([`02267e8`](https://github.com/chemelli74/aiovodafone/commit/02267e83c87f032b4421821a327846c9970981d3))
+
+
+### Build system
+
+- Bump cryptography from 46.0.4 to 46.0.5 ([`6c5a4b2`](https://github.com/chemelli74/aiovodafone/commit/6c5a4b2efa58892cb5d1705abca2d81918f187f6))
+- Bump cryptography from 46.0.3 to 46.0.4 ([`35e4fba`](https://github.com/chemelli74/aiovodafone/commit/35e4fba95809c21488ca0efcc9363154e1bb2ce6))
+- Bump orjson from 3.11.6 to 3.11.7 ([`d338f4f`](https://github.com/chemelli74/aiovodafone/commit/d338f4fb68b7afecc81f1850f5fac32668d3ec20))
+- Bump orjson from 3.11.5 to 3.11.6 ([`45fad79`](https://github.com/chemelli74/aiovodafone/commit/45fad792bf3e0ae117b056b6f3f8426e861d76bc))
+
+
+## v3.1.1 (2026-01-07)
+
+### Bug fixes
+
+- Improve advanced wifi settings for serecomm devices ([`be82cca`](https://github.com/chemelli74/aiovodafone/commit/be82cca5226b08cab23c68dbe92a7a16f4299f07))
+
+
 ## v3.1.0 (2026-01-05)
 
 ### Features

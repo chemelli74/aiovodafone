@@ -8,7 +8,6 @@ import re
 import urllib.parse
 from datetime import UTC, datetime, timedelta
 from http import HTTPMethod, HTTPStatus
-from io import BytesIO, StringIO
 from typing import Any, cast
 
 import orjson
@@ -41,29 +40,6 @@ from aiovodafone.exceptions import (
     GenericResponseError,
 )
 from aiovodafone.sjcl import SJCL
-
-wifi_schema = [
-    "wifiOnOff_all",
-    "wifi_wifi_button_onoff",
-    "wifi_wps_button_onoff",
-    "wifi_network_onoff",
-    "wifi_network_onoff_5g",
-    "select_frenquency",
-    "wifi_network_onoff_guest",
-    "wifi_ssid",
-    "wifi_broadcast_ssid",
-    "wifi_password",
-    "wifi_protection",
-    "wifi_ssid_5g",
-    "wifi_broadcast_ssid_5g",
-    "wifi_password_5g",
-    "wifi_protection_5g",
-    "wifi_ssid_guest",
-    "wifi_broadcast_ssid_guest",
-    "wifi_Frenquency_guest",
-    "wifi_protection_guest",
-    "wifi_password_guest",
-]
 
 
 class VodafoneStationSercommApi(VodafoneStationCommonApi):
@@ -145,7 +121,8 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         """Load user_lang page to get."""
         return_dict = await self._get_sercomm_page("data/user_lang.json")
         self.encryption_key = return_dict["encryption_key"]
-        _LOGGER.debug("encryption_key obtained")
+        self.salt = return_dict["salt"]
+        _LOGGER.debug("encryption_key and salt obtained")
 
     async def _encrypt_string(self, credential: str) -> str:
         """Encrypt username or password for login."""
@@ -213,7 +190,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
     def _sjcl_derived_key(self) -> str:
         """Derive PBKDF2-HMAC-SHA256 key."""
-        salt = bytes.fromhex(self.encryption_key)
+        salt = bytes.fromhex(self.salt)
         key = hashlib.pbkdf2_hmac(
             "sha256",
             self.password.encode("utf-8"),
@@ -249,6 +226,13 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         # Dump to raw JSON string (no URL encoding)
         return orjson.dumps(encrypted_json).decode("utf-8")
 
+    async def _wifi_ssid_split_disabled(self, wifi_plain_data: dict[str, Any]) -> bool:
+        """Check if Wi-Fi SSID split is disabled."""
+        return (
+            wifi_plain_data.get("split_ssid_enable")
+            or wifi_plain_data.get("split_ssid")
+        ) == "0"
+
     async def _format_sensor_wifi_data(
         self, encrypted_data: dict[str, Any]
     ) -> dict[str, Any]:
@@ -262,24 +246,35 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         _LOGGER.debug("Decrypted Wi-Fi data: %s", wifi_plain_data)
 
         wifi_data: dict[str, Any] = {WIFI_DATA: {}}
-        for wifi in [WifiType.MAIN, WifiType.GUEST]:
-            for band in [WifiBand.BAND_2_4_GHZ, WifiBand.BAND_5_GHZ]:
+
+        for wifi in (WifiType.MAIN, WifiType.GUEST):
+            for band in (WifiBand.BAND_2_4_GHZ, WifiBand.BAND_5_GHZ):
                 if (
-                    wifi_plain_data["split_ssid_enable"] == "0"
-                    and band == WifiBand.BAND_5_GHZ
+                    await self._wifi_ssid_split_disabled(self._wifi_plain_data)
+                    and band is WifiBand.BAND_5_GHZ
                 ):
-                    # Keys are present, but not used in this scenario
+                    # Skip unused 5 GHz entries when SSID split is disabled
                     continue
                 frmt = await self._get_wifi_format(wifi, band)
-                key = f"wifi_network_onoff{frmt}"
                 name = f"{wifi.name.lower()}{
                     '-5ghz' if band == WifiBand.BAND_5_GHZ else ''
                 }"
-                if key in wifi_plain_data:
-                    wifi_data[WIFI_DATA][name] = {
-                        "on": wifi_plain_data[key],
-                        "ssid": wifi_plain_data[f"wifi_ssid{frmt}"],
-                    }
+                ssid = wifi_plain_data[f"wifi_ssid{frmt}"]
+
+                entry = {
+                    "on": int(wifi_plain_data[f"wifi_network_onoff{frmt}"]),
+                    "ssid": ssid,
+                }
+
+                # Add QR code for guest Wi-Fi
+                if wifi is WifiType.GUEST:
+                    security = self._wifi_plain_data[f"wifi_protection{frmt}"]
+                    pwd = self._wifi_plain_data[f"wifi_password{frmt}"]
+                    entry["qr_code"] = await self._generate_guest_qr_code(
+                        ssid, pwd, security
+                    )
+
+                wifi_data[WIFI_DATA][name] = entry
 
         return wifi_data
 
@@ -292,7 +287,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
     def convert_uptime(self, uptime: str) -> datetime:
         """Convert router uptime to last boot datetime."""
-        d = int(uptime.split(":")[0])
+        d = int(uptime.split(":", maxsplit=1)[0])
         h = int(uptime.split(":")[1])
         m = int(uptime.split(":")[2])
 
@@ -428,12 +423,12 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         reply_dict_2 = await self._get_sercomm_page("data/statussupportstatus.json")
         reply_dict_3 = await self._get_sercomm_page("data/statussupportrestart.json")
 
-        encrypted_data = await self._get_sercomm_page("data/wifi_general.json")
-        reply_dict_4 = await self._format_sensor_wifi_data(encrypted_data)
+        return reply_dict_1 | reply_dict_2 | reply_dict_3 | self._overview
 
-        return (
-            reply_dict_1 | reply_dict_2 | reply_dict_3 | reply_dict_4 | self._overview
-        )
+    async def get_wifi_data(self) -> dict[str, Any]:
+        """Get Wi-Fi data."""
+        encrypted_data = await self._get_sercomm_page("data/wifi_general.json")
+        return await self._format_sensor_wifi_data(encrypted_data)
 
     async def get_docis_data(self) -> dict[str, Any]:
         """Get docis data."""
@@ -507,6 +502,12 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
             f"wifi_network_onoff{await self._get_wifi_format(wifi_type, band)}"
         ] = str(int(enable))
 
+        # Firmware bug:
+        # when SSID split is disabled, API defaults to 'wifi_ssid_5g'
+        # while Web UI implicitly mirrors 'wifi_ssid' to both bands.
+        if await self._wifi_ssid_split_disabled(wifi_plain_data):
+            wifi_plain_data["wifi_ssid_5g"] = wifi_plain_data["wifi_ssid"]
+
         # Build the data to encrypt as a string
         wifi_data = "&".join(
             f"{key}={
@@ -514,7 +515,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
                 if 'password' in key
                 else wifi_plain_data[key]
             }"
-            for key in wifi_schema
+            for key in wifi_plain_data
         )
 
         # Encrypt via sjcl.py
@@ -534,21 +535,3 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         reply = await self._post_sercomm_page("data/wifi_general.json", payload)
         if str(reply) != "1":
             raise GenericResponseError(f"Unexpected set_wifi_status response: {reply}")
-
-    async def get_guest_qr_code(
-        self,
-        band: WifiBand = WifiBand.BAND_2_4_GHZ,
-        kind: str = "png",
-    ) -> StringIO | BytesIO:
-        """Get Wi-Fi Guest QR code."""
-        frmt = f"{await self._get_wifi_format(WifiType.GUEST, band)}"
-        security = self._wifi_plain_data[f"wifi_protection{frmt}"]
-        ssid = self._wifi_plain_data[f"wifi_ssid{frmt}"]
-        pwd = self._wifi_plain_data[f"wifi_password{frmt}"]
-        _LOGGER.debug(
-            "Getting QR code of type %s for Guest Wi-Fi (%s band, %s security)",
-            kind,
-            band,
-            security,
-        )
-        return await self._generate_guest_qr_code(ssid, pwd, security, {"kind": kind})
