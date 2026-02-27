@@ -60,8 +60,9 @@ match = "(?!main$)"
 prerelease = true
 
 [tool.pytest.ini_options]
-addopts = "-v -Wdefault --cov=aiovodafone --cov-report=term-missing:skip-covered"
+addopts = "-v -Wdefault"
 pythonpath = ["src"]
+testpaths = ["tests"]
 
 [tool.coverage.run]
 branch = true

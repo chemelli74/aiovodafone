@@ -30,6 +30,7 @@ lint.ignore = [
 ]
 "tests/*" = [
     "S101",     # Use of `assert` detected
+    "S105",     # Possible hardcoded password strings in tests
 ]
 
 [lint.mccabe]
