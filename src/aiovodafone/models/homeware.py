@@ -491,39 +491,17 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
         current = await self._get_wifi_settings()
 
         state = "1" if enable else "0"
-        payload: dict[str, Any] = {
-            "action": "SAVE",
-            "CSRFtoken": await self._get_csrf_token(),
-            "ecomode_enabled": "false",
-            "multiAP_wifi_enable": current.get("multiAP_wifi_enable", "1"),
-            "wifi_on_off_state": current.get("wifi_on_off_state", "1"),
-            "compatibility_mode": current.get("compatibility_mode", "0"),
-            "split_merge": current.get("split_merge", "1"),
-            "wifi_state1": current.get("wifi_state1", "1"),
-            "wifi_state2": current.get("wifi_state2", "0"),
-            "wifi_state3": current.get("wifi_state3", "1"),
-            "wifi_state4": current.get("wifi_state4", "1"),
-            "wifi_ssid1": current.get("wifi_ssid1", ""),
-            "wifi_ssid2": current.get("wifi_ssid2", ""),
-            "wifi_ssid3": current.get("wifi_ssid3", ""),
-            "wifi_ssid4": current.get("wifi_ssid4", ""),
-            "wifi_securityMode1": current.get("wifi_securityMode1", ""),
-            "wifi_securityMode2": current.get("wifi_securityMode2", ""),
-            "wifi_securityMode3": current.get("wifi_securityMode3", ""),
-            "wifi_securityMode4": current.get("wifi_securityMode4", ""),
-            "wifi_password1": current.get("wifi_password1", ""),
-            "wifi_password2": current.get("wifi_password2", ""),
-            "wifi_password3": current.get("wifi_password3", ""),
-            "wifi_password4": current.get("wifi_password4", ""),
-        }
-
         if wifi_type == WifiType.MAIN:
-            payload["multiAP_wifi_enable"] = state
+            current["multiAP_wifi_enable"] = state
         elif wifi_type == WifiType.GUEST:
-            payload["wifi_state2"] = state
+            current["wifi_state2"] = state
+
+        current["action"] = "SAVE"
+        current["CSRFtoken"] = await self._get_csrf_token()
+        current["ecomode_enabled"] = "false"
 
         await self._request_url_result(
             HTTPMethod.POST,
             self.base_url.joinpath("modals/wifi/general.lp"),
-            payload=payload,
+            payload=current,
         )
