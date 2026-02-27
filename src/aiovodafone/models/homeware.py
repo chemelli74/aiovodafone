@@ -8,11 +8,12 @@ import os
 import re
 from collections.abc import Iterator
 from http import HTTPMethod
-from io import BytesIO, StringIO
 from typing import TYPE_CHECKING, Any, Final
 
+import orjson
+
 from aiovodafone.api import VodafoneStationCommonApi, VodafoneStationDevice
-from aiovodafone.const import _LOGGER, DEVICES_SETTINGS, WifiBand, WifiType
+from aiovodafone.const import _LOGGER, DEVICES_SETTINGS, WIFI_DATA, WifiBand, WifiType
 from aiovodafone.exceptions import GenericLoginError
 
 if TYPE_CHECKING:
@@ -386,6 +387,38 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
             "lan_mode": "",
         }
 
+    async def get_wifi_data(self) -> dict[str, Any]:
+        """Get Wi-Fi data for all bands and network types."""
+        reply = await self._request_url_result(
+            HTTPMethod.GET,
+            self.base_url.joinpath("modals/status-support/status.lp").with_query(
+                {"status": "arp"}
+            ),
+        )
+        data: dict[str, str] = (await reply.json()).get("status_content", {})
+
+        wifi_data: dict[str, Any] = {WIFI_DATA: {}}
+
+        bands = [
+            ("main", "wifi_status", "wifi_ssid"),
+            ("main-5ghz", "wifi5_status", "wifi5_ssid"),
+            ("main-6ghz", "wifi6_status", "wifi6_ssid"),
+            ("guest", "wifi2_24_status", "wifi2_ssid"),
+            ("guest-5ghz", "wifi2_5_status", "wifi2_5_ssid"),
+            ("guest-6ghz", "wifi2_6_status", "wifi2_6_ssid"),
+        ]
+
+        for name, status_field, ssid_field in bands:
+            ssid = data.get(ssid_field, "")
+            status = data.get(status_field, "")
+            if ssid or status:
+                wifi_data[WIFI_DATA][name] = {
+                    "on": int(status == "On"),
+                    "ssid": ssid,
+                }
+
+        return wifi_data
+
     async def get_docis_data(self) -> dict[str, Any]:
         """Stub method, no data returned."""
         return {}
@@ -451,16 +484,62 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
         # strip sub-second accuracy, the uptime string is accurate to the second only
         return boot_time.replace(microsecond=0)
 
+    async def _get_wifi_settings(self) -> dict[str, str]:
+        """Parse current WiFi settings from the general settings page HTML."""
+        endpoint = self.base_url.joinpath("modals/wifi/general.lp")
+        reply = await self._request_url_result(HTTPMethod.GET, endpoint)
+        html = await reply.text()
+
+        match = re.search(r"var content = ({.*?});", html)
+        if not match:
+            msg = "Could not find WiFi settings in page HTML"
+            raise GenericLoginError(msg)
+
+        return orjson.loads(match.group(1))
+
     async def set_wifi_status(
-        self, enable: bool, wifi_type: WifiType, band: WifiBand
+        self,
+        enable: bool,
+        wifi_type: WifiType,
+        band: WifiBand,  # noqa: ARG002
     ) -> None:
         """Enable/Disable Wi-Fi."""
-        raise NotImplementedError
+        current = await self._get_wifi_settings()
 
-    async def get_guest_qr_code(
-        self,
-        band: WifiBand = WifiBand.BAND_2_4_GHZ,
-        kind: str = "png",
-    ) -> StringIO | BytesIO:
-        """Get Wi-Fi Guest QR code."""
-        raise NotImplementedError
+        state = "1" if enable else "0"
+        payload: dict[str, Any] = {
+            "action": "SAVE",
+            "CSRFtoken": await self._get_csrf_token(),
+            "ecomode_enabled": "false",
+            "multiAP_wifi_enable": current.get("multiAP_wifi_enable", "1"),
+            "wifi_on_off_state": current.get("wifi_on_off_state", "1"),
+            "compatibility_mode": current.get("compatibility_mode", "0"),
+            "split_merge": current.get("split_merge", "1"),
+            "wifi_state1": current.get("wifi_state1", "1"),
+            "wifi_state2": current.get("wifi_state2", "0"),
+            "wifi_state3": current.get("wifi_state3", "1"),
+            "wifi_state4": current.get("wifi_state4", "1"),
+            "wifi_ssid1": current.get("wifi_ssid1", ""),
+            "wifi_ssid2": current.get("wifi_ssid2", ""),
+            "wifi_ssid3": current.get("wifi_ssid3", ""),
+            "wifi_ssid4": current.get("wifi_ssid4", ""),
+            "wifi_securityMode1": current.get("wifi_securityMode1", ""),
+            "wifi_securityMode2": current.get("wifi_securityMode2", ""),
+            "wifi_securityMode3": current.get("wifi_securityMode3", ""),
+            "wifi_securityMode4": current.get("wifi_securityMode4", ""),
+            "wifi_password1": current.get("wifi_password1", ""),
+            "wifi_password2": current.get("wifi_password2", ""),
+            "wifi_password3": current.get("wifi_password3", ""),
+            "wifi_password4": current.get("wifi_password4", ""),
+        }
+
+        if wifi_type == WifiType.MAIN:
+            payload["multiAP_wifi_enable"] = state
+        elif wifi_type == WifiType.GUEST:
+            payload["wifi_state2"] = state
+
+        await self._request_url_result(
+            HTTPMethod.POST,
+            self.base_url.joinpath("modals/wifi/general.lp"),
+            payload=payload,
+        )
