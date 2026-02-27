@@ -4,8 +4,8 @@ import asyncio
 import datetime as dt
 import hashlib
 import hmac
-import os
 import re
+import secrets
 from collections.abc import Iterator
 from http import HTTPMethod
 from typing import TYPE_CHECKING, Any, Final
@@ -63,7 +63,6 @@ class TechnicolorSRP:
         self.password = password
         self._f_private, self._d_public = self._generate_client_ephemeral()
 
-        # These will be calculated during the flow
         self._client_proof: str | None = None
         self._server_verification: str | None = None
         self._session_key_hash: str | None = None
@@ -71,7 +70,7 @@ class TechnicolorSRP:
     @staticmethod
     def _generate_client_ephemeral() -> tuple[int, int]:
         """Generate client's private (F) and public (D) values."""
-        rand_bytes = os.urandom(32)
+        rand_bytes = secrets.token_bytes(32)
         f_private = int.from_bytes(rand_bytes, byteorder="big")
 
         # Calculate D = GEN^F mod K
@@ -184,19 +183,6 @@ class TechnicolorSRP:
             self._server_verification.upper(), server_proof.upper()
         )
 
-    @property
-    def session_key_hash(self) -> str:
-        """Get the calculated session key hash (B_hash).
-
-        Raises:
-            RuntimeError: If calculate_proofs has not been called first.
-
-        """
-        if self._session_key_hash is None:
-            msg = "Session key hash not calculated. Call calculate_proofs first."
-            raise RuntimeError(msg)
-        return self._session_key_hash
-
 
 class VodafoneStationHomewareApi(VodafoneStationCommonApi):
     """API for Vodafone routers running Vantiva Homeware-based firmware.
@@ -215,6 +201,7 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
     """
 
     async def _get_csrf_token(self) -> str:
+        """Fetch CSRF token from the router."""
         _LOGGER.debug("Fetching CSRF token")
         reply: ClientResponse = await self._request_url_result(
             HTTPMethod.GET,
@@ -245,7 +232,6 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
                 "A": srp.client_public_key_hex,
             },
         )
-        _LOGGER.debug(await auth1_reply.text())
         auth1_response = await auth1_reply.json()
         salt = auth1_response.get("s")
         server_public = auth1_response.get("B")
@@ -262,8 +248,6 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
                 "M": srp.calculate_proofs(salt, server_public),
             },
         )
-        _LOGGER.debug(await auth2_reply.text())
-
         auth2_response = await auth2_reply.json()
         server_proof = auth2_response.get("M")
 
@@ -420,17 +404,17 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
         return wifi_data
 
     async def get_docis_data(self) -> dict[str, Any]:
-        """Stub method, no data returned."""
+        """Get docis data."""
         return {}
 
     async def get_voice_data(self) -> dict[str, Any]:
-        """Stub method, no data returned."""
+        """Get voice data."""
         return {}
 
     async def restart_connection(self, connection_type: str) -> None:
         """Reconnect your DSL or Fibre connection."""
         if connection_type not in {"dsl", "ethwan"}:
-            msg: str = f"Unknown connection type '{connection_type}'"
+            msg = f"Unknown connection type '{connection_type}'"
             raise ValueError(msg)
         await self._request_url_result(
             HTTPMethod.POST,
@@ -474,7 +458,7 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
         }
 
         # Ensure at least one component was parsed
-        if not any(components.values()) and "0" not in uptime:
+        if not any(components.values()) and not re.search(r"\b0\b", uptime):
             msg = f"Failed to parse uptime string: {uptime!r}"
             raise ValueError(msg)
 
