@@ -6,7 +6,6 @@ import hashlib
 import hmac
 import re
 import secrets
-from collections.abc import Iterator
 from http import HTTPMethod
 from typing import TYPE_CHECKING, Any, Final
 
@@ -17,6 +16,8 @@ from aiovodafone.const import _LOGGER, DEVICES_SETTINGS, WIFI_DATA, WifiBand, Wi
 from aiovodafone.exceptions import GenericLoginError
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from aiohttp import ClientResponse
     from yarl import URL
 
@@ -291,15 +292,16 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
         )
 
     @staticmethod
-    def _iterate_devices(data: dict[str, Any]) -> Iterator[dict[str, Any]]:
+    def _collect_devices(data: dict[str, Any]) -> list[dict[str, Any]]:
+        devices: list[dict[str, Any]] = []
         # Ethernet-connected devices
-        yield from data.get("ethList", [])
+        devices.extend(data.get("ethList", []))
 
         # Devices returning a separate list for each WiFi band
-        yield from data.get("wifiList24", [])
-        yield from data.get("wifiList5", [])
-        yield from data.get("guestWifi24", [])
-        yield from data.get("guestWifi5", [])
+        devices.extend(data.get("wifiList24", []))
+        devices.extend(data.get("wifiList5", []))
+        devices.extend(data.get("guestWifi24", []))
+        devices.extend(data.get("guestWifi5", []))
 
         # Devices returning a more complex nested dictionary
         # I presume this was changed with the addition of 6GHz
@@ -311,7 +313,9 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
                 if not isinstance(band, dict):
                     # skip over wifiActiveCount=N field
                     continue
-                yield from band.get("devices", [])
+                devices.extend(band.get("devices", []))
+
+        return devices
 
     async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
         """Retrieve information about all devices on the network."""
@@ -343,7 +347,7 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
             eth_data = await eth_reply.json()
             data = {**wifi_data, **eth_data}
         devices: Iterator[VodafoneStationDevice | None] = map(
-            self._parse_device, self._iterate_devices(data)
+            self._parse_device, self._collect_devices(data)
         )
         return {device.mac: device for device in devices if device is not None}
 
