@@ -489,7 +489,7 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
         """Enable/Disable Wi-Fi."""
         current = await self._get_wifi_settings()
 
-        state = "1" if enable else "0"
+        state = str(int(enable))
         if wifi_type == WifiType.MAIN:
             current["multiAP_wifi_enable"] = state
         elif wifi_type == WifiType.GUEST:
