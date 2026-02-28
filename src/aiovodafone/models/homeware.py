@@ -327,14 +327,18 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
         else:
             # Older models (tested on v19 firmware) use lowercase wifiInfo and require
             # a separate call to retrieve ethernet-connected devices.
-            wifi_reply, eth_reply = await asyncio.gather(
+            wifi_task = asyncio.create_task(
                 self._request_url_result(
                     HTTPMethod.GET, endpoint.with_query({"status": "wifiInfo"})
-                ),
+                )
+            )
+            eth_task = asyncio.create_task(
                 self._request_url_result(
                     HTTPMethod.GET, endpoint.with_query({"status": "networkInfo"})
-                ),
+                )
             )
+            wifi_reply = await wifi_task
+            eth_reply = await eth_task
             wifi_data = await wifi_reply.json()
             eth_data = await eth_reply.json()
             data = {**wifi_data, **eth_data}
@@ -345,20 +349,24 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
 
     async def get_sensor_data(self) -> dict[str, str]:
         """Fetch router system information."""
-        sysinfo_reply, interfaces_reply = await asyncio.gather(
+        sysinfo_task = asyncio.create_task(
             self._request_url_result(
                 HTTPMethod.GET,
                 self.base_url.joinpath("modals/status-support/status.lp").with_query(
                     {"status": "systemInfo"}
                 ),
-            ),
+            )
+        )
+        interfaces_task = asyncio.create_task(
             self._request_url_result(
                 HTTPMethod.GET,
                 self.base_url.joinpath("modals/status-support/restart.lp").with_query(
                     {"getInterfaceValues": "true"}
                 ),
-            ),
+            )
         )
+        sysinfo_reply = await sysinfo_task
+        interfaces_reply = await interfaces_task
         sysinfo: dict[str, Any] = (await sysinfo_reply.json()).get("systemParams", {})
         interfaces_info: dict[str, str] = await interfaces_reply.json()
         return {
