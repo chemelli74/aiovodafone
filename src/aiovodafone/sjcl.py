@@ -116,13 +116,18 @@ class SJCL:
         count: int = 10000,
         dk_len: int = 16,
         iv_length: int = 16,
+        salt: bytes | None = None,
+        use_bytes: bool | None = True,
     ) -> dict[str, Any]:
         """Encrypt plaintext with given passphrase and return SJCL formatted data."""
+        salt_was_generated = False
         aes_mode = get_aes_mode(mode)
         tlen = DEFAULT_TLEN[aes_mode]
-
-        salt = get_random_bytes(self.salt_size)
         iv = get_random_bytes(iv_length)
+
+        if salt is None:
+            salt = get_random_bytes(self.salt_size)
+            salt_was_generated = True
 
         key = PBKDF2(
             passphrase, salt, count=count, dkLen=dk_len, hmac_hash_module=SHA256
@@ -140,15 +145,42 @@ class SJCL:
 
         ciphertext = ciphertext + mac
 
+        salt_out = (
+            base64.b64encode(salt)
+            if use_bytes
+            else base64.b64encode(salt).decode("utf-8")
+        )
+        iv_out = (
+            base64.b64encode(iv) if use_bytes else base64.b64encode(iv).decode("utf-8")
+        )
+        ct_out = (
+            base64.b64encode(ciphertext)
+            if use_bytes
+            else base64.b64encode(ciphertext).decode("utf-8")
+        )
+
+        if salt_was_generated:
+            return {
+                "salt": salt_out,
+                "iter": count,
+                "ks": dk_len * 8,
+                "ct": ct_out,
+                "iv": iv_out,
+                "cipher": "aes",
+                "mode": mode,
+                "adata": "",
+                "v": 1,
+                "ts": tlen,
+            }
+
         return {
-            "salt": base64.b64encode(salt),
+            "iv": iv_out,
+            "v": 1,
             "iter": count,
             "ks": dk_len * 8,
-            "ct": base64.b64encode(ciphertext),
-            "iv": base64.b64encode(iv),
-            "cipher": "aes",
+            "ts": tlen,
             "mode": mode,
             "adata": "",
-            "v": 1,
-            "ts": tlen,
+            "cipher": "aes",
+            "ct": ct_out,
         }

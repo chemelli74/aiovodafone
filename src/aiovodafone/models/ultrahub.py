@@ -1,22 +1,17 @@
 """UltraHub Vodafone Station model API implementation."""
 
-import base64
 import contextlib
-import os
+import json
 from datetime import UTC, datetime, timedelta
 from http import HTTPMethod, HTTPStatus
-from typing import Any, cast
+from typing import Any
 
-import orjson
 from aiohttp import (
     ClientResponse,
     ClientResponseError,
     ClientSession,
     ClientTimeout,
 )
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.ciphers.aead import AESCCM
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from yarl import URL
 
 from aiovodafone.api import VodafoneStationCommonApi, VodafoneStationDevice
@@ -34,6 +29,7 @@ from aiovodafone.exceptions import (
     GenericLoginError,
     GenericResponseError,
 )
+from aiovodafone.sjcl import SJCL
 
 
 class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
@@ -80,10 +76,23 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
             web_secret = reply_json["X_VODAFONE_WebUISecret"]
             salt_web_ui = web_secret[:10]
             salt = web_secret[10:]
-            password = await self._encrypt_string(salt, salt_web_ui)
+
+            return_value = SJCL().encrypt(
+                self.password.encode("utf-8"),
+                salt_web_ui,
+                "ccm",
+                1000,
+                16,
+                16,
+                bytes(salt, "utf-8"),
+                False,
+            )
+
+            a_value = json.dumps(return_value)
+
             payload = {
                 "__id": self.id,
-                "X_VODAFONE_Password": password,
+                "X_VODAFONE_Password": a_value,
                 "Push": str(force_logout).lower(),
                 "csrf_token": self.csrf_token,
             }
@@ -108,73 +117,6 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
             return True
 
         raise GenericLoginError
-
-    async def _encrypt_string(
-        self,
-        salt: str,
-        salt_web_ui: str,
-    ) -> str:
-        """Calculate login hash (password), the salt and the salt (web UI).
-
-        Args:
-        ----
-            salt (str): salt given by the login response
-            salt_web_ui (str): salt given by the web UI
-
-        Returns:
-        -------
-            str: the hash for the session API
-
-        """
-        _LOGGER.debug("Calculate credential hash")
-
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=16,
-            salt=bytes(salt, "utf-8"),
-            iterations=1000,
-        )
-
-        key = kdf.derive(bytes(salt_web_ui, "utf-8"))
-
-        iv = os.urandom(16)
-        nonce = self._truncate_iv(iv, len(self.password) * 8, 8)
-        aesccm = AESCCM(key, 8)
-        ct = aesccm.encrypt(nonce, bytes(self.password, "utf-8"), None)
-        b64_ct = base64.b64encode(ct).decode("ascii").strip()
-        b64_iv = base64.b64encode(iv).decode("ascii").strip()
-
-        value_dict = {
-            "iv": b64_iv,
-            "v": 1,
-            "iter": 1000,
-            "ks": 128,
-            "ts": 64,
-            "mode": "ccm",
-            "adata": "",
-            "cipher": "aes",
-            "ct": b64_ct,
-        }
-        return cast("str", orjson.dumps(value_dict).decode("utf-8"))
-
-    def _truncate_iv(
-        self,
-        iv: bytes,
-        ol: int,  # in bits (output length including tag)
-        tlen: int,  # in bytes
-    ) -> bytes:
-        """Calculate the nonce as it can not be 16 bytes."""
-        ivl = len(iv)  # iv length in bytes
-        ol = (ol - tlen) // 8
-
-        # "compute the length of the length" (see ccm.js)
-        loop = 2
-        max_length_field_bytes = 4  # Maximum L parameter per CCM spec
-        while (loop < max_length_field_bytes) and (ol >> (8 * loop)) > 0:
-            loop += 1
-        loop = max(loop, 15 - ivl)
-
-        return iv[: (15 - loop)]
 
     async def _auto_hub_request_page_result(
         self,
