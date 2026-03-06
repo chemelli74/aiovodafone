@@ -437,7 +437,11 @@ def test_get_devices_data_no_devices_and_parse_devices(
     assert asyncio.run(api.get_devices_data()) == {}
     data = asyncio.run(api.get_devices_data())
     assert "AA" in data
+    assert data["AA"].connection_type == "Wifi (Main)"
     assert "BB" in data
+    assert data["BB"].connection_type == "Wifi (Guest)"
+    assert "CC" in data
+    assert data["CC"].connection_type == "Ethernet"
 
 
 def test_get_devices_data_handles_malformed_line(

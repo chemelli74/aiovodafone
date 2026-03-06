@@ -137,3 +137,9 @@ def test_generate_guest_qr_code_returns_png_stream(base_url: URL) -> None:
     )
     signature = stream.read(8)
     assert signature == b"\x89PNG\r\n\x1a\n"
+
+
+def test_get_voice_data_returns_empty_mapping(base_url: URL) -> None:
+    """Verify empty voice-data path returns an empty mapping."""
+    api = DummyCommonApi(base_url, "u", "p", cast("Any", FakeSession()))
+    assert asyncio.run(api.get_voice_data()) == {}

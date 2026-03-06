@@ -208,7 +208,9 @@ def test_login_success_and_missing_secret(
     api2 = _api(base_url)
     api2.csrf_token = "token"
     missing_secret = [
-        FakeResponse(json_data={"csrf_token": "t"}),
+        FakeResponse(
+            json_data={"csrf_token": "t", "X_INTERNAL_ID": 7}, cookies={"a": "b"}
+        ),
         FakeResponse(json_data={}),
     ]
 
