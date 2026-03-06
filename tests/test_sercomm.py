@@ -121,7 +121,7 @@ def test_get_csrf_token_sets_and_raises(base_url: URL) -> None:
     api = _api(base_url)
     html = "<script>var csrf_token = 'TOKEN';</script>"
     asyncio.run(_acall(api, "_get_csrf_token", html))
-    assert api.csrf_token
+    assert api.csrf_token == "TOKEN"
 
     with pytest.raises(GenericResponseError):
         asyncio.run(_acall(api, "_get_csrf_token", "<html></html>"))

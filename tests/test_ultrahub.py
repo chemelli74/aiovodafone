@@ -162,6 +162,9 @@ def test_login_invalid_password(base_url: URL, monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr(api, "_auto_hub_request_page_result", _auto)
     with pytest.raises(CannotAuthenticate):
         asyncio.run(api.login(force_logout=True))
+    assert api.csrf_token == ""
+    cookie_jar = cast("FakeCookieJar", api.session.cookie_jar)
+    assert cookie_jar.cleared is True
 
 
 def test_login_already_logged(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -182,6 +185,9 @@ def test_login_already_logged(base_url: URL, monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setattr(api, "_auto_hub_request_page_result", _auto)
     with pytest.raises(AlreadyLogged):
         asyncio.run(api.login(force_logout=True))
+    assert api.csrf_token == ""
+    cookie_jar = cast("FakeCookieJar", api.session.cookie_jar)
+    assert cookie_jar.cleared is True
 
 
 def test_login_success_and_missing_secret(
