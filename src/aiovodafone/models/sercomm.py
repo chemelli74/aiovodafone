@@ -226,12 +226,20 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         # Dump to raw JSON string (no URL encoding)
         return orjson.dumps(encrypted_json).decode("utf-8")
 
-    async def _wifi_ssid_split_disabled(self, wifi_plain_data: dict[str, Any]) -> bool:
+    async def _wifi_ssid_split_disabled(
+        self, wifi_plain_data: dict[str, Any], wifi_type: WifiType
+    ) -> bool:
         """Check if Wi-Fi SSID split is disabled."""
-        return (
+        if (
             wifi_plain_data.get("split_ssid_enable")
             or wifi_plain_data.get("split_ssid")
-        ) == "0"
+        ) == "0":
+            return True
+
+        if wifi_type is WifiType.GUEST:
+            return wifi_plain_data["wifi_Frenquency_guest"] == "both"
+
+        return False
 
     async def _format_sensor_wifi_data(
         self, encrypted_data: dict[str, Any]
@@ -250,7 +258,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         for wifi in (WifiType.MAIN, WifiType.GUEST):
             for band in (WifiBand.BAND_2_4_GHZ, WifiBand.BAND_5_GHZ):
                 if (
-                    await self._wifi_ssid_split_disabled(self._wifi_plain_data)
+                    await self._wifi_ssid_split_disabled(self._wifi_plain_data, wifi)
                     and band is WifiBand.BAND_5_GHZ
                 ):
                     # Skip unused 5 GHz entries when SSID split is disabled
@@ -502,10 +510,10 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
             f"wifi_network_onoff{await self._get_wifi_format(wifi_type, band)}"
         ] = str(int(enable))
 
-        # Firmware bug:
+        # Firmware (XF6_4.0.05.09) bug:
         # when SSID split is disabled, API defaults to 'wifi_ssid_5g'
         # while Web UI implicitly mirrors 'wifi_ssid' to both bands.
-        if await self._wifi_ssid_split_disabled(wifi_plain_data):
+        if await self._wifi_ssid_split_disabled(wifi_plain_data, WifiType.MAIN):
             wifi_plain_data["wifi_ssid_5g"] = wifi_plain_data["wifi_ssid"]
 
         # Build the data to encrypt as a string
