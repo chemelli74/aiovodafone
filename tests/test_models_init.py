@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 from aiohttp import ClientConnectorError
-from yarl import URL
 
 from aiovodafone.exceptions import ModelNotSupported
 from aiovodafone.models import DeviceType, get_device_type, init_device_class
@@ -17,7 +15,10 @@ from aiovodafone.models.technicolor import VodafoneStationTechnicolorApi
 from aiovodafone.models.ultrahub import VodafoneStationUltraHubApi
 from tests.conftest import FakeResponse, FakeSession
 
-TYPE_MARKERS = (Callable, URL)
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from yarl import URL
 
 MIN_ATTEMPTS = 2
 

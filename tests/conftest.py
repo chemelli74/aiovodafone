@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from types import TracebackType
+from typing import TYPE_CHECKING
 
 import pytest
 from yarl import URL
 
-TYPE_MARKERS = (Awaitable, Callable, TracebackType)
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+    from types import TracebackType
 
 
 async def _default_request_impl(*_args: object, **_kwargs: object) -> FakeResponse:

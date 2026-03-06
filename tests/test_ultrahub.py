@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable, Coroutine
 from http import HTTPMethod
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import orjson
 import pytest
 from aiohttp import ClientResponseError
-from yarl import URL
 
 from aiovodafone.const import WIFI_DATA
 from aiovodafone.exceptions import (
@@ -22,7 +20,10 @@ from aiovodafone.exceptions import (
 from aiovodafone.models.ultrahub import VodafoneStationUltraHubApi
 from tests.conftest import FakeCookieJar, FakeResponse, FakeSession
 
-TYPE_MARKERS = (Callable, Coroutine, URL)
+if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine
+
+    from yarl import URL
 
 HTTP_OK = 200
 EXPECTED_NONCE_MAX_LEN = 13
@@ -151,7 +152,7 @@ def test_login_invalid_password(base_url: URL, monkeypatch: pytest.MonkeyPatch) 
         FakeResponse(
             json_data={"csrf_token": "t", "X_INTERNAL_ID": 7}, cookies={"a": "b"}
         ),
-        FakeResponse(json_data={"X_VODAFONE_WebUISecret": "1234567890abcdefgh"}),
+        FakeResponse(json_data={"X_VODAFONE_WebUISecret": "test-secret"}),
         FakeResponse(json_data={"X_INTERNAL_Password_Status": "Invalid_PWD"}),
     ]
 
@@ -171,7 +172,7 @@ def test_login_already_logged(base_url: URL, monkeypatch: pytest.MonkeyPatch) ->
         FakeResponse(
             json_data={"csrf_token": "t", "X_INTERNAL_ID": 7}, cookies={"a": "b"}
         ),
-        FakeResponse(json_data={"X_VODAFONE_WebUISecret": "1234567890abcdefgh"}),
+        FakeResponse(json_data={"X_VODAFONE_WebUISecret": "test_secret"}),
         FakeResponse(json_data={"X_INTERNAL_Is_Duplicate": "true"}),
     ]
 
@@ -193,7 +194,7 @@ def test_login_success_and_missing_secret(
         FakeResponse(
             json_data={"csrf_token": "t", "X_INTERNAL_ID": 7}, cookies={"a": "b"}
         ),
-        FakeResponse(json_data={"X_VODAFONE_WebUISecret": "1234567890abcdefgh"}),
+        FakeResponse(json_data={"X_VODAFONE_WebUISecret": "test_secret"}),
         FakeResponse(json_data={}),
     ]
 

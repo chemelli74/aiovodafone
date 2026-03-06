@@ -4,15 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import Awaitable, Callable, Coroutine
 from datetime import UTC
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import orjson
 import pytest
 from aiohttp import ClientConnectorError, ClientResponseError
-from yarl import URL
 
 from aiovodafone.const import WIFI_DATA, WifiBand, WifiType
 from aiovodafone.exceptions import (
@@ -26,7 +24,10 @@ from aiovodafone.models import sercomm as sercomm_mod
 from aiovodafone.models.sercomm import VodafoneStationSercommApi
 from tests.conftest import FakeCookieJar, FakeResponse, FakeSession
 
-TYPE_MARKERS = (Awaitable, Callable, Coroutine, URL)
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable, Coroutine
+
+    from yarl import URL
 
 HASH_LEN = 64
 DERIVED_KEY_LEN = 32

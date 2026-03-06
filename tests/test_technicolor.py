@@ -3,20 +3,21 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable, Coroutine
 from http import HTTPMethod
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 from aiohttp import ClientResponseError
-from yarl import URL
 
 from aiovodafone.const import WIFI_DATA
 from aiovodafone.exceptions import AlreadyLogged, CannotAuthenticate, ResultTimeoutError
 from aiovodafone.models.technicolor import VodafoneStationTechnicolorApi
 from tests.conftest import FakeResponse, FakeSession
 
-TYPE_MARKERS = (Callable, Coroutine, URL)
+if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine
+
+    from yarl import URL
 
 HASH_LEN = 32
 
