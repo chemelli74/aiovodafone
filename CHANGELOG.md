@@ -1,5 +1,17 @@
 # Changelog
 
+## v3.1.3 (2026-03-06)
+
+### Bug fixes
+
+- Guest wifi split for rhg3006 v2 model ([`2ae0119`](https://github.com/chemelli74/aiovodafone/commit/2ae0119968a56b7ee1507c2f76b6488b32bbd4eb))
+
+
+### Testing
+
+- 100% coverage ([`1e5a9cd`](https://github.com/chemelli74/aiovodafone/commit/1e5a9cdd041f8cf4fa08c2c73655d3828af8f7e5))
+
+
 ## v3.1.2 (2026-02-22)
 
 ### Bug fixes

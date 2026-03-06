@@ -1,6 +1,6 @@
 [project]
 name = "aiovodafone"
-version = "3.1.2"
+version = "3.1.3"
 requires-python = ">=3.12"
 description = "Python library to control Vodafone Station"
 authors = [
