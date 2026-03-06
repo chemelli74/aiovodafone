@@ -59,14 +59,14 @@ def test_encrypt_string_and_truncate_iv(base_url: URL) -> None:
     )
     parsed = orjson.loads(value)
     assert parsed["cipher"] == "aes"
-    nonce = cast("str", _scall(api, "_truncate_iv", b"0123456789abcdef", 128, 8))
+    nonce = cast("bytes", _scall(api, "_truncate_iv", b"0123456789abcdef", 128, 8))
     assert len(nonce) <= EXPECTED_NONCE_MAX_LEN
 
 
 def test_truncate_iv_loop_increments(base_url: URL) -> None:
     """Ensure nonce truncation loop handles large output lengths."""
     api = _api(base_url)
-    nonce = cast("str", _scall(api, "_truncate_iv", b"0123456789abcdef", 1 << 24, 8))
+    nonce = cast("bytes", _scall(api, "_truncate_iv", b"0123456789abcdef", 1 << 24, 8))
     assert len(nonce) <= EXPECTED_NONCE_MAX_LEN
 
 
