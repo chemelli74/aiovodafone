@@ -45,6 +45,8 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         """Initialize id as it may change in the future."""
         super().__init__(url, username, password, session)
         self.id = DEVICES_SETTINGS["UltraHub"]["default_id"]
+        self.salt: str = ""
+        self.salt_web_ui: str = ""
 
     async def login(self, force_logout: bool = False) -> bool:
         """Router login."""
@@ -78,9 +80,9 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
 
         if "X_VODAFONE_WebUISecret" in reply_json:
             web_secret = reply_json["X_VODAFONE_WebUISecret"]
-            salt_web_ui = web_secret[:10]
-            salt = web_secret[10:]
-            password = await self._encrypt_string(salt, salt_web_ui)
+            self.salt_web_ui = web_secret[:10]
+            self.salt = web_secret[10:]
+            password = self._encrypt_string()
             payload = {
                 "__id": self.id,
                 "X_VODAFONE_Password": password,
@@ -109,11 +111,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
 
         raise GenericLoginError
 
-    async def _encrypt_string(
-        self,
-        salt: str,
-        salt_web_ui: str,
-    ) -> str:
+    def _encrypt_string(self) -> str:
         """Calculate login hash (password), the salt and the salt (web UI).
 
         Args:
@@ -131,11 +129,11 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=16,
-            salt=bytes(salt, "utf-8"),
+            salt=bytes(self.salt, "utf-8"),
             iterations=1000,
         )
 
-        key = kdf.derive(bytes(salt_web_ui, "utf-8"))
+        key = kdf.derive(bytes(self.salt_web_ui, "utf-8"))
 
         iv = os.urandom(16)
         nonce = self._truncate_iv(iv, len(self.password) * 8, 8)
