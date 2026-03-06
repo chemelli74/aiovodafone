@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Awaitable, Callable, Coroutine
 from datetime import UTC
+from pathlib import Path
 from typing import Any, cast
 
 import orjson
@@ -28,6 +30,24 @@ TYPE_MARKERS = (Awaitable, Callable, Coroutine, URL)
 
 HASH_LEN = 64
 DERIVED_KEY_LEN = 32
+
+WIFI_CASES_DIR = Path(__file__).parent.joinpath("fixtures", "sercomm")
+WIFI_RAW_CASES = cast(
+    "list[dict[str, object]]",
+    [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in sorted(WIFI_CASES_DIR.glob("*.json"))
+    ],
+)
+
+
+@pytest.fixture(
+    name="wifi_raw_case",
+    params=[pytest.param(case, id=cast("str", case["id"])) for case in WIFI_RAW_CASES],
+)
+def fixture_wifi_raw_case(request: pytest.FixtureRequest) -> dict[str, object]:
+    """Provide router Wi-Fi payload cases for format normalization tests."""
+    return cast("dict[str, object]", request.param)
 
 
 def _api(base_url: URL) -> VodafoneStationSercommApi:
@@ -267,19 +287,15 @@ def test_build_payload_and_wifi_helpers(base_url: URL) -> None:
 
 
 def test_format_sensor_wifi_data(
-    base_url: URL, monkeypatch: pytest.MonkeyPatch
+    base_url: URL,
+    monkeypatch: pytest.MonkeyPatch,
+    wifi_raw_case: dict[str, object],
 ) -> None:
     """Ensure encrypted Wi-Fi data is normalized and guest QR is included."""
     api = _api(base_url)
-    raw = [
-        {"split_ssid_enable": "0"},
-        {"wifi_ssid": "main"},
-        {"wifi_network_onoff": "1"},
-        {"wifi_ssid_guest": "guest"},
-        {"wifi_network_onoff_guest": "1"},
-        {"wifi_password_guest": "pwd"},
-        {"wifi_protection_guest": "WPA"},
-    ]
+    raw = cast("list[dict[str, str]]", wifi_raw_case["raw"])
+    expected_present = cast("list[str]", wifi_raw_case["expected_present"])
+    expected_absent = cast("list[str]", wifi_raw_case["expected_absent"])
 
     def _decrypt(*_args: object, **_kwargs: object) -> str:
         return orjson.dumps(raw).decode("utf-8")
@@ -295,9 +311,10 @@ def test_format_sensor_wifi_data(
         asyncio.run(_acall(api, "_format_sensor_wifi_data", {"ct": "x"})),
     )
     assert WIFI_DATA in data
-    assert "main" in data[WIFI_DATA]
-    assert "guest" in data[WIFI_DATA]
-    assert "main-5ghz" not in data[WIFI_DATA]
+    for key in expected_present:
+        assert key in data[WIFI_DATA]
+    for key in expected_absent:
+        assert key not in data[WIFI_DATA]
 
 
 def test_convert_uptime(base_url: URL) -> None:
