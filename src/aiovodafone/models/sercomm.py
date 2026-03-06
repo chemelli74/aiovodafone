@@ -217,6 +217,17 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
             iv_length=12,
         )
 
+    def _sjcl_build_string(self, wifi_plain_data: dict[str, Any]) -> str:
+        """Convert plain data dict to a string."""
+        return "&".join(
+            f"{key}={
+                urllib.parse.quote_plus(wifi_plain_data[key])
+                if 'password' in key
+                else wifi_plain_data[key]
+            }"
+            for key in wifi_plain_data
+        )
+
     def _build_payload_from_sjcl_json(self, encrypted_json: dict[str, Any]) -> str:
         """Build form payload to send to router."""
         # Convert bytes to strings if needed
@@ -517,14 +528,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
             wifi_plain_data["wifi_ssid_5g"] = wifi_plain_data["wifi_ssid"]
 
         # Build the data to encrypt as a string
-        wifi_data = "&".join(
-            f"{key}={
-                urllib.parse.quote_plus(wifi_plain_data[key])
-                if 'password' in key
-                else wifi_plain_data[key]
-            }"
-            for key in wifi_plain_data
-        )
+        wifi_data = self._sjcl_build_string(wifi_plain_data)
 
         # Encrypt via sjcl.py
         encrypted_sjcl_json = self._sjcl_encrypt(wifi_data)
