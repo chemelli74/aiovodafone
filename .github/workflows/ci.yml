@@ -58,7 +58,7 @@ jobs:
         run: poetry install
         shell: bash
       - name: Test with Pytest
-        run: poetry run pytest --cov-report=xml
+        run: poetry run pytest tests/ --cov=aiovodafone --cov-fail-under=100 --cov-report=term-missing:skip-covered --cov-report=xml
         shell: bash
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
