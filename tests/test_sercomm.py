@@ -265,13 +265,36 @@ def test_build_payload_and_wifi_helpers(base_url: URL) -> None:
     assert '"x":"y"' in payload
     assert (
         asyncio.run(
-            _acall(api, "_wifi_ssid_split_disabled", {"split_ssid_enable": "0"})
+            _acall(
+                api,
+                "_wifi_ssid_split_disabled",
+                {"split_ssid_enable": "0", "wifi_Frenquency_guest": "both"},
+                WifiType.MAIN,
+            )
         )
         is True
     )
     assert (
-        asyncio.run(_acall(api, "_wifi_ssid_split_disabled", {"split_ssid": "1"}))
+        asyncio.run(
+            _acall(
+                api,
+                "_wifi_ssid_split_disabled",
+                {"split_ssid": "1", "wifi_Frenquency_guest": "2Ghz"},
+                WifiType.MAIN,
+            )
+        )
         is False
+    )
+    assert (
+        asyncio.run(
+            _acall(
+                api,
+                "_wifi_ssid_split_disabled",
+                {"split_ssid": "1", "wifi_Frenquency_guest": "both"},
+                WifiType.GUEST,
+            )
+        )
+        is True
     )
     assert (
         asyncio.run(
