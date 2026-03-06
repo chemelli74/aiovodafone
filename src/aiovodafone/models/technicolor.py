@@ -315,7 +315,9 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         return data
 
-    async def restart_connection(self, connection_type: str) -> None:
+    async def restart_connection(
+        self, connection_type: str
+    ) -> None:  # pragma: no cover
         """Internet Connection restart."""
         raise NotImplementedError("Method not implemented for Technicolor devices")
 
@@ -454,6 +456,6 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         enable: bool,
         wifi_type: WifiType,
         band: WifiBand,
-    ) -> None:
+    ) -> None:  # pragma: no cover
         """Enable/Disable Wi-Fi."""
         raise NotImplementedError("Method not implemented for Technicolor devices")

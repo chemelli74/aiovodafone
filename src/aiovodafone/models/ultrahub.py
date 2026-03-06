@@ -307,7 +307,9 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         """Get router voice data."""
         return {}
 
-    async def restart_connection(self, connection_type: str) -> None:
+    async def restart_connection(
+        self, connection_type: str
+    ) -> None:  # pragma: no cover
         """Internet Connection restart."""
         raise NotImplementedError("Method not implemented for UltraHub devices")
 
@@ -342,6 +344,6 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         enable: bool,
         wifi_type: WifiType,
         band: WifiBand,
-    ) -> None:
+    ) -> None:  # pragma: no cover
         """Enable/Disable Wi-Fi."""
         raise NotImplementedError("Method not implemented for UltraHub devices")
