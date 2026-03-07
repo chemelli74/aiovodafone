@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, cast
 import pytest
 
 import aiovodafone.sjcl as sjcl_mod
+from aiovodafone.exceptions import SJCLError
 from aiovodafone.models.sercomm import VodafoneStationSercommApi
 from aiovodafone.models.ultrahub import VodafoneStationUltraHubApi
 from tests.conftest import FakeSession
@@ -24,6 +25,7 @@ SJCL_FIXTURES_DIR = Path(__file__).parent.joinpath("fixtures", "sjcl")
 SJCL_FIXTURE_NAMES = tuple(
     sorted(path.stem for path in SJCL_FIXTURES_DIR.glob("*.json"))
 )
+EXPECTED_NONCE_MAX_LEN = 13
 
 
 @pytest.fixture(name="sjcl_fixture_name", params=SJCL_FIXTURE_NAMES)
@@ -54,15 +56,25 @@ def _normalize_encrypted_payload(encrypted_data: dict[str, Any]) -> dict[str, An
     return normalized
 
 
-def _normalize_plain_payload(plaintext: str | bytes) -> dict[str, str]:
+def _normalize_plain_payload(
+    plaintext: str | bytes | bytearray | memoryview,
+) -> dict[str, str]:
     """Normalize decrypted JSON payload to a flat string dictionary."""
-    raw_text = plaintext.decode("utf-8") if isinstance(plaintext, bytes) else plaintext
+    raw_text = (
+        bytes(plaintext).decode("utf-8")
+        if isinstance(plaintext, (bytes, bytearray, memoryview))
+        else plaintext
+    )
 
     try:
         decoded = json.loads(raw_text)
     except json.JSONDecodeError:
         # UltraHub fixture payload is URL-encoded key/value data.
-        return dict(urllib.parse.parse_qsl(raw_text, keep_blank_values=True))
+        parsed_qsl = cast(
+            "list[tuple[str, str]]",
+            urllib.parse.parse_qsl(raw_text, keep_blank_values=True),
+        )
+        return {str(k): str(v) for k, v in parsed_qsl}
 
     if isinstance(decoded, dict):
         return {str(k): str(v) for k, v in decoded.items()}
@@ -171,3 +183,77 @@ def test_ultrahub_encrypt(
     assert list(json.loads(encrypted_json_data).items()) == list(
         sjcl_fixture["encrypted_data"].items()
     )
+
+
+def test_truncate_iv_loop_increments_for_large_output_length() -> None:
+    """Exercise truncate_iv branch that increments the IV length loop."""
+    truncated = sjcl_mod.truncate_iv(b"0123456789abcdef", 1 << 24, 8)
+    assert len(truncated) <= EXPECTED_NONCE_MAX_LEN
+
+
+def test_get_aes_mode_invalid_raises() -> None:
+    """Reject unsupported AES modes with SJCLError."""
+    with pytest.raises(SJCLError, match="MODE_NOT-A-MODE"):
+        sjcl_mod.get_aes_mode("not-a-mode")
+
+
+def test_sjcl_decrypt_rejects_invalid_payload_fields() -> None:
+    """Cover decrypt validation errors for cipher, adata and version."""
+    sjcl = sjcl_mod.SJCL()
+    encrypted = _normalize_encrypted_payload(sjcl.encrypt(b"payload", "passphrase"))
+
+    bad_cipher = encrypted.copy()
+    bad_cipher["cipher"] = "des"
+    with pytest.raises(SJCLError, match="only aes cipher supported"):
+        sjcl.decrypt(bad_cipher, "passphrase")
+
+    bad_adata = encrypted.copy()
+    bad_adata["adata"] = "not-empty"
+    with pytest.raises(SJCLError, match="additional authentication data"):
+        sjcl.decrypt(bad_adata, "passphrase")
+
+    bad_version = encrypted.copy()
+    bad_version["v"] = 2
+    with pytest.raises(SJCLError, match="only version 1"):
+        sjcl.decrypt(bad_version, "passphrase")
+
+
+def test_sjcl_decrypt_rejects_salt_length_and_key_size() -> None:
+    """Cover decrypt validation errors for salt size and derived key length."""
+    sjcl = sjcl_mod.SJCL()
+    encrypted = _normalize_encrypted_payload(sjcl.encrypt(b"payload", "passphrase"))
+
+    bad_salt = encrypted.copy()
+    bad_salt["salt"] = base64.b64encode(b"1234567").decode("utf-8")
+    with pytest.raises(SJCLError, match="salt should be 8 bytes long"):
+        sjcl.decrypt(bad_salt, "passphrase")
+
+    bad_ks = encrypted.copy()
+    bad_ks["ks"] = 192
+    with pytest.raises(SJCLError, match="key length should be 16 bytes or 32 bytes"):
+        sjcl.decrypt(bad_ks, "passphrase")
+
+
+def test_sjcl_decrypt_ccm_fixes_base64_padding() -> None:
+    """Cover CCM decrypt branch that restores missing base64 padding."""
+    sjcl = sjcl_mod.SJCL()
+    # Use lengths that produce '=' padding in both iv and ct base64 payloads.
+    plaintext = b"ab"
+    encrypted = _normalize_encrypted_payload(
+        sjcl.encrypt(plaintext, "passphrase", mode="ccm", iv_length=13)
+    )
+
+    unpadded = encrypted.copy()
+    unpadded["salt"] = unpadded["salt"].rstrip("=")
+    unpadded["iv"] = unpadded["iv"].rstrip("=")
+    unpadded["ct"] = unpadded["ct"].rstrip("=")
+
+    assert sjcl.decrypt(unpadded, "passphrase") == plaintext
+
+
+def test_sjcl_encrypt_decrypt_roundtrip_gcm() -> None:
+    """Cover GCM encrypt/decrypt nonce path branches."""
+    sjcl = sjcl_mod.SJCL()
+    plaintext = b"gcm-roundtrip"
+    encrypted = sjcl.encrypt(plaintext, "passphrase", mode="gcm", iv_length=12)
+    assert sjcl.decrypt(encrypted, "passphrase") == plaintext
