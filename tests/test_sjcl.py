@@ -22,16 +22,7 @@ if TYPE_CHECKING:
 
 
 SJCL_FIXTURES_DIR = Path(__file__).parent.joinpath("fixtures", "sjcl")
-SJCL_FIXTURE_NAMES = tuple(
-    sorted(path.stem for path in SJCL_FIXTURES_DIR.glob("*.json"))
-)
 EXPECTED_NONCE_MAX_LEN = 13
-
-
-@pytest.fixture(name="sjcl_fixture_name", params=SJCL_FIXTURE_NAMES)
-def fixture_sjcl_fixture_name(request: pytest.FixtureRequest) -> str:
-    """Return fixture name for a router SJCL payload."""
-    return cast("str", request.param)
 
 
 @pytest.fixture(name="sjcl_fixture_path")
