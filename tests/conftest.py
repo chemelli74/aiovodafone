@@ -97,7 +97,7 @@ class FakeSession:
         self.requests: list[dict[str, object]] = []
         self.get_calls: list[dict[str, object]] = []
 
-    async def request(self, *_args: object, **_kwargs: object) -> object:
+    async def request(self, *_args: object, **_kwargs: object) -> FakeResponse:
         """Record and dispatch a fake request invocation."""
         self.requests.append({"args": _args, "kwargs": _kwargs})
         return await self._request_impl(*_args, **_kwargs)

@@ -1,0 +1,18 @@
+{
+  "keys": {
+    "password": "router_password",
+    "salt": "5C63595D10B1A29B",
+    "salt_web_ui": "324567857635241"
+  },
+  "encrypted_data": {
+    "iv": "WowUbcLCF17ufxwIMjJ0Pg==",
+    "v": 1,
+    "iter": 1000,
+    "ks": 128,
+    "ts": 64,
+    "mode": "ccm",
+    "adata": "",
+    "cipher": "aes",
+    "ct": "SqPy3RrqdfQrBbwmtOnicxf/DH/Uuv8="
+  }
+}
