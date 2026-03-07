@@ -1,0 +1,52 @@
+{
+  "keys": {
+    "password": "router_password",
+    "salt": "5C63595D10B1A29B"
+  },
+  "encrypted_data": {
+    "salt": "/eqsVYK4Ieo=",
+    "iter": 1000,
+    "ks": 128,
+    "ct": "fgl/6+lPzBZ356DU4a9pYgXubhKusLgpQr6QwxxEcR2G7SOfV/VEbOwuqvPqAgpL7d6Fgw2i29wiczowaycAUae5vmWIGkagTldU0A9uVt25aErMVacG52wV3WElVw7zAjr8yQypvupvSfdMkhr/AHyWO79vpoDCPuJBvHWSyHA/GxVjs8aa8MdEWFGU6PGZir4uo/MowROe0czAMdUP35Xf0QQt9jkn2qKVmQhDPkhYVQxr4WNZDIW5nrScvJLPKdA9tQ+2wq2iQIYfjmK2q/mBfBt3O5Mu4lvc/1XRIYUHSUGgc+vuPEhI738iMI7RgW384aAGYz5XGqOBAcYgf5AiUg4ME07lrtr7398kfxsqDJAFiqCmt1jakvqxNc8Kbw0W76VJcyD6H1CJfpv7fLi/Y/aKMCcKYeOaC/zOIVHHcfXnmkzoyPvxOVgozopnm3ZpBT+rv27HElXTzpkRJhn3tWzPNOLH7npm4D80tSPWK4JHpSb5IAumVeWVPHpxocVxK4O/qIeQ6X8qWmw1ZuD3BWK+bFxMMhJOia8J6s4uAZJiPepMb78/1ngYmRfhNhf0vYTX+fTH5k7tdtbBlY3wALVUNOcXA5ripHhv2r+OePlwHPvuGmmhGDERjHBHuc20ff2EiqXuhHp+Z4wM6I1N9H8uzKJotexLmNAyTPYvNfDQ8v1gTssKDgVr/k1BZfn3lrS7M08QQIxI1h++QbOSsvgwyfjK/s0Xk7o2bvMU0+vis3Yrv6qYncAiG8f24KRSrk1fPSON8iq7bXDqP7FsqlRCR1FPrGCQ2jWZNX4nTe3cu+NEL3QNZKhDLohGKAZ3oHU2G6JOJEMeVZ5DtuZ7zfGBt3bD2fU/g56qxSYgHAQAJUX8icnT9jSZK8jnRj4QvCPDXf76aGx/Lfr+yof7FsMZq1Sk6FnZvir0G5r31AJsh8XD7GolS5gUCF/zTHlWPXGLcmUgFjKkeCQZbXZxf1i1Kjk/FbDM8hzSAckC5QVLaLWsTGHih0WOleZ4qxdgXV0Ui1mm913jpVSRoaNZlrPmVzl49OYgbExqrDjfsQPp",
+    "iv": "GVom2fGrz+eIdtuA",
+    "cipher": "aes",
+    "mode": "ccm",
+    "adata": "",
+    "v": 1,
+    "ts": 64
+  },
+  "decrypted_data": {
+    "wifi_network_onoff": "1",
+    "wifiOnOff_all": "1",
+    "wifi_schedule_onoff": "0",
+    "wifi_wifi_button_onoff": "1",
+    "wifi_wps_button_onoff": "1",
+    "split_ssid_enable": "0",
+    "select_frenquency": "both",
+    "wifi_ssid": "Vodafone-Main",
+    "wifi_broadcast_ssid": "1",
+    "wifi_genFrenquency": "2.4GHz",
+    "wifi_channel": "auto",
+    "wifi_now_channel": "8",
+    "wifi_now_bandwidth": "573",
+    "wifi_protection": "wpa2",
+    "wifi_password": "main_password",
+    "wifi_network_onoff_5g": "1",
+    "wifi_ssid_5g": "Vodafone5GHz-Main",
+    "wifi_channel_5g": "auto",
+    "wifi_now_channel_5g": "48",
+    "wifi_now_bandwidth_5g": "2401",
+    "wifi_broadcast_ssid_5g": "1",
+    "wifi_genFrenquency_5g": "5GHz",
+    "wifi_protection_5g": "wpa2",
+    "wifi_password_5g": "main_password",
+    "wifi_network_onoff_guest": "0",
+    "wifi_ssid_guest": "Vodafone-Guest",
+    "wifi_ssid_guest_5g": "Vodafone-Guest",
+    "wifi_bandwidth_guest": "0",
+    "wifi_broadcast_ssid_guest": "0",
+    "wifi_protection_guest": "wpa2",
+    "wifi_password_guest": "guest_password",
+    "wifi_Frenquency_guest": "both"
+  }
+}
