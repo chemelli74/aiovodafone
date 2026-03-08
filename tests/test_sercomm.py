@@ -248,8 +248,8 @@ def test_login_json_success_and_invalid_response(
 def test_build_payload_and_wifi_helpers(base_url: URL) -> None:
     """Ensure payload conversion and Wi-Fi helper format logic works."""
     api = _api(base_url)
-    payload = cast("str", build_json_from_sjcl({"x": b"y", "v": 1}))
-    assert '"x":"y"' in payload
+    payload = build_json_from_sjcl({"x": b"y", "v": 1})
+    assert json.loads(payload) == {"x": "y", "v": 1}
     assert (
         asyncio.run(
             _acall(
