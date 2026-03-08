@@ -140,7 +140,6 @@ class SJCL:
             )
 
         else:
-            _ = get_random_bytes(12)
             key = bytes.fromhex(passphrase)
 
         iv = get_random_bytes(iv_length)

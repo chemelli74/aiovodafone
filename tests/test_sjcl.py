@@ -76,25 +76,42 @@ def _normalize_plain_payload(
     raise AssertionError("Unexpected decrypted payload format")
 
 
-@pytest.fixture(name="fixed_encryption_random")
-def fixture_fixed_encryption_random(
+@pytest.fixture(name="fixed_encryption_iv")
+def fixture_fixed_encryption_iv(
+    monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
+    sjcl_fixture: dict[str, Any],
+) -> None:
+    """Patch SJCL randomness with deterministic IV value of requested size."""
+    iv_size = cast("int", request.param)
+
+    fixed_iv = base64.b64decode(sjcl_fixture["encrypted_data"]["iv"])
+    fixed_iv_value = (
+        fixed_iv[:iv_size]
+        if iv_size <= len(fixed_iv)
+        else fixed_iv + (b"\x00" * (iv_size - len(fixed_iv)))
+    )
+
+    def _fixed_random(_size: int) -> bytes:
+        return fixed_iv_value
+
+    monkeypatch.setattr(sjcl_mod, "get_random_bytes", _fixed_random)
+
+
+@pytest.fixture(name="fixed_encryption_salt")
+def fixture_fixed_encryption_salt(
     monkeypatch: pytest.MonkeyPatch,
     sjcl_fixture: dict[str, Any],
 ) -> None:
-    """Patch SJCL randomness with deterministic salt and IV values."""
-    salt = sjcl_fixture["encrypted_data"].get("salt") or sjcl_fixture["keys"]["salt"]
+    """Patch SJCL randomness with deterministic salt value."""
+    salt = sjcl_fixture["encrypted_data"].get("salt")
     fixed_salt = base64.b64decode(salt)
-    fixed_iv = base64.b64decode(sjcl_fixture["encrypted_data"]["iv"])
-
-    # SJCL encrypt path requests 12 random bytes for IV.
-    fixed_iv += b"\x00" * (12 - len(fixed_iv))
-
-    random_values = [fixed_salt, fixed_iv]
+    original_random = sjcl_mod.get_random_bytes
 
     def _fixed_random(size: int) -> bytes:
-        value = random_values.pop(0)
-        assert len(value) == size
-        return value
+        if size == len(fixed_salt):
+            return fixed_salt
+        return original_random(size)
 
     monkeypatch.setattr(sjcl_mod, "get_random_bytes", _fixed_random)
 
@@ -120,7 +137,10 @@ def test_sercomm_decrypt(
     assert _normalize_plain_payload(plaintext) == sjcl_fixture["decrypted_data"]
 
 
-@pytest.mark.usefixtures("sjcl_fixture_path", "fixed_encryption_random")
+@pytest.mark.usefixtures(
+    "sjcl_fixture_path", "fixed_encryption_iv", "fixed_encryption_salt"
+)
+@pytest.mark.parametrize("fixed_encryption_iv", [12], indirect=True)
 @pytest.mark.parametrize("sjcl_fixture_name", ["sercomm"])
 def test_sercomm_encrypt(
     base_url: URL,
@@ -144,7 +164,8 @@ def test_sercomm_encrypt(
     )
 
 
-@pytest.mark.usefixtures("sjcl_fixture_path", "fixed_encryption_random")
+@pytest.mark.usefixtures("sjcl_fixture_path", "fixed_encryption_iv")
+@pytest.mark.parametrize("fixed_encryption_iv", [16], indirect=True)
 @pytest.mark.parametrize("sjcl_fixture_name", ["ultrahub"])
 def test_ultrahub_encrypt(
     base_url: URL,
