@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import base64
 import json
-import os
 import urllib.parse
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -150,7 +149,6 @@ def test_sercomm_encrypt(
 def test_ultrahub_encrypt(
     base_url: URL,
     sjcl_fixture: dict[str, Any],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Encrypt ULTRAHUB fixture and compare with expected encrypted payload."""
     api = VodafoneStationUltraHubApi(
@@ -162,11 +160,6 @@ def test_ultrahub_encrypt(
 
     api.salt = sjcl_fixture["keys"]["salt"]
     api.salt_web_ui = sjcl_fixture["keys"]["salt_web_ui"]
-
-    fixed_iv = base64.b64decode(sjcl_fixture["encrypted_data"]["iv"])
-    # SJCL encrypt path requests 16 random bytes for IV.
-    fixed_iv += b"\x00" * (16 - len(fixed_iv))
-    monkeypatch.setattr(os, "urandom", lambda size: fixed_iv[:size])
 
     encrypted_json_data = api._encrypt_string()  # noqa: SLF001
 
