@@ -145,7 +145,7 @@ def test_sercomm_encrypt(
     )
 
 
-@pytest.mark.usefixtures("sjcl_fixture_path")
+@pytest.mark.usefixtures("sjcl_fixture_path", "fixed_encryption_random")
 @pytest.mark.parametrize("sjcl_fixture_name", ["ultrahub"])
 def test_ultrahub_encrypt(
     base_url: URL,
