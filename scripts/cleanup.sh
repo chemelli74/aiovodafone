@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "🚀 Starting Python dev cleanup..."
+echo "🚀 Starting Python + Node dev cleanup..."
 
 # ----- Python bytecode -----
 echo "Removing __pycache__ and *.py[co]..."
@@ -9,7 +9,7 @@ find . -type d -name "__pycache__" -exec rm -rf {} +
 find . -type f -name "*.py[co]" -delete
 
 # ----- Tool caches -----
-echo "Removing tool caches..."
+echo "Removing Python tool caches..."
 for cache in .mypy_cache .ruff_cache .pytest_cache .coverage .hypothesis .pytype .isort_cache; do
     [ -d "$cache" ] && rm -rf "$cache" && echo "Removed $cache"
 done
@@ -31,5 +31,18 @@ echo "Removing IDE folders..."
 for ide in .idea; do
     [ -d "$ide" ] && rm -rf "$ide" && echo "Removed $ide"
 done
+
+# ----- Coverage files -----
+echo "Removing coverage files..."
+for coverage in .coverage coverage.xml; do
+    [ -f "$coverage" ] && rm -f "$coverage" && echo "Removed $coverage"
+done
+
+# ----- Node.js caches -----
+echo "Removing Node.js caches..."
+if [ -d "node_modules/.cache" ]; then
+    rm -rf node_modules/.cache
+    echo "Removed node_modules/.cache"
+fi
 
 echo "✅ Cleanup complete!"
