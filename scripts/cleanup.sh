@@ -16,7 +16,7 @@ done
 
 # ----- Virtual environments -----
 echo "Removing virtual environments..."
-for venv in .venv venv env .env; do
+for venv in .venv venv env; do
     [ -d "$venv" ] && rm -rf "$venv" && echo "Removed $venv"
 done
 
