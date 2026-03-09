@@ -10,7 +10,7 @@ find . -type f -name "*.py[co]" -delete
 
 # ----- Tool caches -----
 echo "Removing Python tool caches..."
-for cache in .mypy_cache .ruff_cache .pytest_cache .coverage .hypothesis .pytype .isort_cache; do
+for cache in .mypy_cache .ruff_cache .pytest_cache .hypothesis .pytype .isort_cache; do
     [ -d "$cache" ] && rm -rf "$cache" && echo "Removed $cache"
 done
 
