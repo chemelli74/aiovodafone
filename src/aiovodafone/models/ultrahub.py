@@ -190,7 +190,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
             page,
             payload=payload,
             timeout=timeout,
-            query=params,
+            query=params if params is not None else {},
             allow_redirects=False,
         )
         reply_json = await response.json()
