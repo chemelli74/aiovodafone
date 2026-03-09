@@ -4,13 +4,12 @@ import base64
 import contextlib
 import os
 from datetime import UTC, datetime, timedelta
-from http import HTTPMethod, HTTPStatus
+from http import HTTPMethod
 from typing import Any, cast
 
 import orjson
 from aiohttp import (
     ClientResponse,
-    ClientResponseError,
     ClientSession,
     ClientTimeout,
 )
@@ -186,36 +185,19 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         url = self.base_url.joinpath(page)
         _LOGGER.debug("%s page %s", method, url)
 
-        try:
-            response = await self.session.request(
-                method,
-                url,
-                params=params,
-                data=payload,
-                headers=self.headers,
-                allow_redirects=False,
-                timeout=timeout,
-                ssl=False,
-            )
-            if response.status != HTTPStatus.OK:
-                _LOGGER.warning(
-                    "%s page %s failed: %s",
-                    method,
-                    url,
-                    response.status,
-                )
-                raise GenericResponseError
-        except ClientResponseError as err:
-            _LOGGER.exception(
-                "%s page %s from host %s failed", method, page, self.base_url.host
-            )
-            raise GenericResponseError from err
-        else:
-            reply_json = await response.json()
-            if "csrf_token" in reply_json:
-                self.csrf_token = reply_json["csrf_token"]
+        response = await self._request_page_result(
+            method,
+            page,
+            payload=payload,
+            timeout=timeout,
+            query=params,
+            allow_redirects=False,
+        )
+        reply_json = await response.json()
+        if "csrf_token" in reply_json:
+            self.csrf_token = reply_json["csrf_token"]
 
-            return response
+        return response
 
     async def _cleanup_session(self) -> None:
         """Cleanup session."""
