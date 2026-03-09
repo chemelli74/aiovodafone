@@ -1,6 +1,4 @@
 [run]
 source = aiovodafone
 omit =
-    src/aiovodafone/api.py
-    src/aiovodafone/exceptions.py
     library_test.py
