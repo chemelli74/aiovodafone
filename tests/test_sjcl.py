@@ -34,7 +34,9 @@ def fixture_sjcl_fixture_path(sjcl_fixture_name: str) -> Path:
 @pytest.fixture(name="sjcl_fixture")
 def fixture_sjcl_fixture(sjcl_fixture_path: Path) -> dict[str, Any]:
     """Load and return the selected router SJCL fixture content."""
-    return json.loads(sjcl_fixture_path.read_text(encoding="utf-8"))
+    return cast(
+        "dict[str, Any]", json.loads(sjcl_fixture_path.read_text(encoding="utf-8"))
+    )
 
 
 def _normalize_encrypted_payload(encrypted_data: dict[str, Any]) -> dict[str, Any]:

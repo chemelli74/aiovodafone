@@ -322,7 +322,7 @@ def test_format_sensor_wifi_data(
     expected_absent = cast("list[str]", wifi_raw_case["expected_absent"])
 
     def _decrypt(*_args: object, **_kwargs: object) -> str:
-        return orjson.dumps(raw).decode("utf-8")
+        return cast("str", orjson.dumps(raw).decode("utf-8"))
 
     async def _qr(*_args: object, **_kwargs: object) -> object:
         return b"qr"
