@@ -39,7 +39,7 @@ from aiovodafone.exceptions import (
     GenericLoginError,
     GenericResponseError,
 )
-from aiovodafone.sjcl import SJCL
+from aiovodafone.sjcl import SJCL, build_json_from_sjcl
 
 
 class VodafoneStationSercommApi(VodafoneStationCommonApi):
@@ -215,27 +215,19 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
             count=self._sjcl_iterations,
             dk_len=self._sjcl_dklen,
             iv_length=12,
+            salt=None,
         )
 
     def _sjcl_build_string(self, wifi_plain_data: dict[str, Any]) -> str:
         """Convert plain data dict to a string."""
         return "&".join(
             f"{key}={
-                urllib.parse.quote_plus(wifi_plain_data[key])
+                urllib.parse.quote_plus(str(wifi_plain_data[key]))
                 if 'password' in key
-                else wifi_plain_data[key]
+                else str(wifi_plain_data[key])
             }"
             for key in wifi_plain_data
         )
-
-    def _build_payload_from_sjcl_json(self, encrypted_json: dict[str, Any]) -> str:
-        """Build form payload to send to router."""
-        # Convert bytes to strings if needed
-        for k, v in encrypted_json.items():
-            if isinstance(v, bytes):
-                encrypted_json[k] = v.decode("utf-8")
-        # Dump to raw JSON string (no URL encoding)
-        return orjson.dumps(encrypted_json).decode("utf-8")
 
     async def _wifi_ssid_split_disabled(
         self, wifi_plain_data: dict[str, Any], wifi_type: WifiType
@@ -248,7 +240,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
             return True
 
         if wifi_type is WifiType.GUEST:
-            return wifi_plain_data["wifi_Frenquency_guest"] == "both"
+            return str(wifi_plain_data["wifi_Frenquency_guest"]) == "both"
 
         return False
 
@@ -534,7 +526,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         encrypted_sjcl_json = self._sjcl_encrypt(wifi_data)
 
         # Build payload to send to router
-        payload = self._build_payload_from_sjcl_json(encrypted_sjcl_json)
+        payload = build_json_from_sjcl(encrypted_sjcl_json)
         _LOGGER.debug("Payload for set_wifi_status: %s", payload)
 
         # Refresh CSRF token

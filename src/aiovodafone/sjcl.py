@@ -4,8 +4,9 @@ Credits to https://github.com/berlincode/sjcl
 """
 
 import base64
-from typing import Any
+from typing import Any, cast
 
+import orjson
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA256
 from Crypto.Protocol.KDF import PBKDF2
@@ -42,7 +43,17 @@ def get_aes_mode(mode: str) -> int:
             f"Pycrypto/pycryptodome does not seem to support {aes_mode_attr}. "
             "If you use pycrypto, you need a version >= 2.7a1 (or a special branch)."
         ) from exp
-    return aes_mode
+    return cast("int", aes_mode)
+
+
+def build_json_from_sjcl(encrypted_json: dict[str, Any]) -> str:
+    """Build valid json."""
+    # Convert bytes to strings if needed
+    for k, v in encrypted_json.items():
+        if isinstance(v, bytes):
+            encrypted_json[k] = v.decode("utf-8")
+    # Dump to raw JSON string (no URL encoding)
+    return cast("str", orjson.dumps(encrypted_json).decode("utf-8"))
 
 
 class SJCL:
@@ -106,7 +117,7 @@ class SJCL:
 
         cipher.verify(mac)
 
-        return plaintext
+        return cast("bytes", plaintext)
 
     def encrypt(  # noqa: PLR0913
         self,
@@ -116,17 +127,22 @@ class SJCL:
         count: int = 10000,
         dk_len: int = 16,
         iv_length: int = 16,
+        salt: bytes | None = None,
     ) -> dict[str, Any]:
         """Encrypt plaintext with given passphrase and return SJCL formatted data."""
         aes_mode = get_aes_mode(mode)
         tlen = DEFAULT_TLEN[aes_mode]
 
-        salt = get_random_bytes(self.salt_size)
-        iv = get_random_bytes(iv_length)
+        if salt is None:
+            salt = get_random_bytes(self.salt_size)
+            key = PBKDF2(
+                passphrase, salt, count=count, dkLen=dk_len, hmac_hash_module=SHA256
+            )
 
-        key = PBKDF2(
-            passphrase, salt, count=count, dkLen=dk_len, hmac_hash_module=SHA256
-        )
+        else:
+            key = bytes.fromhex(passphrase)
+
+        iv = get_random_bytes(iv_length)
 
         if aes_mode == AES.MODE_CCM:
             nonce = truncate_iv(iv, len(plaintext) * 8, tlen)
@@ -142,13 +158,13 @@ class SJCL:
 
         return {
             "salt": base64.b64encode(salt),
+            "iv": base64.b64encode(iv),
+            "v": 1,
             "iter": count,
             "ks": dk_len * 8,
-            "ct": base64.b64encode(ciphertext),
-            "iv": base64.b64encode(iv),
-            "cipher": "aes",
+            "ts": tlen,
             "mode": mode,
             "adata": "",
-            "v": 1,
-            "ts": tlen,
+            "cipher": "aes",
+            "ct": base64.b64encode(ciphertext),
         }

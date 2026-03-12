@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import base64
 import json
-import os
 import urllib.parse
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -34,7 +33,9 @@ def fixture_sjcl_fixture_path(sjcl_fixture_name: str) -> Path:
 @pytest.fixture(name="sjcl_fixture")
 def fixture_sjcl_fixture(sjcl_fixture_path: Path) -> dict[str, Any]:
     """Load and return the selected router SJCL fixture content."""
-    return json.loads(sjcl_fixture_path.read_text(encoding="utf-8"))
+    return cast(
+        "dict[str, Any]", json.loads(sjcl_fixture_path.read_text(encoding="utf-8"))
+    )
 
 
 def _normalize_encrypted_payload(encrypted_data: dict[str, Any]) -> dict[str, Any]:
@@ -77,25 +78,42 @@ def _normalize_plain_payload(
     raise AssertionError("Unexpected decrypted payload format")
 
 
-@pytest.fixture(name="fixed_encryption_random")
-def fixture_fixed_encryption_random(
+@pytest.fixture(name="fixed_encryption_iv")
+def fixture_fixed_encryption_iv(
+    monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
+    sjcl_fixture: dict[str, Any],
+) -> None:
+    """Patch SJCL randomness with deterministic IV value of requested size."""
+    iv_size = cast("int", request.param)
+
+    fixed_iv = base64.b64decode(sjcl_fixture["encrypted_data"]["iv"])
+    fixed_iv_value = (
+        fixed_iv[:iv_size]
+        if iv_size <= len(fixed_iv)
+        else fixed_iv + (b"\x00" * (iv_size - len(fixed_iv)))
+    )
+
+    def _fixed_random(_size: int) -> bytes:
+        return fixed_iv_value
+
+    monkeypatch.setattr(sjcl_mod, "get_random_bytes", _fixed_random)
+
+
+@pytest.fixture(name="fixed_encryption_salt")
+def fixture_fixed_encryption_salt(
     monkeypatch: pytest.MonkeyPatch,
     sjcl_fixture: dict[str, Any],
 ) -> None:
-    """Patch SJCL randomness with deterministic salt and IV values."""
-    salt = sjcl_fixture["encrypted_data"].get("salt") or sjcl_fixture["keys"]["salt"]
+    """Patch SJCL randomness with deterministic salt value."""
+    salt = sjcl_fixture["encrypted_data"].get("salt")
     fixed_salt = base64.b64decode(salt)
-    fixed_iv = base64.b64decode(sjcl_fixture["encrypted_data"]["iv"])
-
-    # SJCL encrypt path requests 12 random bytes for IV.
-    fixed_iv += b"\x00" * (12 - len(fixed_iv))
-
-    random_values = [fixed_salt, fixed_iv]
+    original_random = sjcl_mod.get_random_bytes
 
     def _fixed_random(size: int) -> bytes:
-        value = random_values.pop(0)
-        assert len(value) == size
-        return value
+        if size == len(fixed_salt):
+            return fixed_salt
+        return cast("bytes", original_random(size))
 
     monkeypatch.setattr(sjcl_mod, "get_random_bytes", _fixed_random)
 
@@ -121,7 +139,10 @@ def test_sercomm_decrypt(
     assert _normalize_plain_payload(plaintext) == sjcl_fixture["decrypted_data"]
 
 
-@pytest.mark.usefixtures("sjcl_fixture_path", "fixed_encryption_random")
+@pytest.mark.usefixtures(
+    "sjcl_fixture_path", "fixed_encryption_iv", "fixed_encryption_salt"
+)
+@pytest.mark.parametrize("fixed_encryption_iv", [12], indirect=True)
 @pytest.mark.parametrize("sjcl_fixture_name", ["sercomm"])
 def test_sercomm_encrypt(
     base_url: URL,
@@ -145,12 +166,12 @@ def test_sercomm_encrypt(
     )
 
 
-@pytest.mark.usefixtures("sjcl_fixture_path")
+@pytest.mark.usefixtures("sjcl_fixture_path", "fixed_encryption_iv")
+@pytest.mark.parametrize("fixed_encryption_iv", [16], indirect=True)
 @pytest.mark.parametrize("sjcl_fixture_name", ["ultrahub"])
 def test_ultrahub_encrypt(
     base_url: URL,
     sjcl_fixture: dict[str, Any],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Encrypt ULTRAHUB fixture and compare with expected encrypted payload."""
     api = VodafoneStationUltraHubApi(
@@ -162,11 +183,6 @@ def test_ultrahub_encrypt(
 
     api.salt = sjcl_fixture["keys"]["salt"]
     api.salt_web_ui = sjcl_fixture["keys"]["salt_web_ui"]
-
-    fixed_iv = base64.b64decode(sjcl_fixture["encrypted_data"]["iv"])
-    # SJCL encrypt path requests 16 random bytes for IV.
-    fixed_iv += b"\x00" * (16 - len(fixed_iv))
-    monkeypatch.setattr(os, "urandom", lambda size: fixed_iv[:size])
 
     encrypted_json_data = api._encrypt_string()  # noqa: SLF001
 
