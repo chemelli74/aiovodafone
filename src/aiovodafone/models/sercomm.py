@@ -229,15 +229,6 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
             for key in wifi_plain_data
         )
 
-    def _build_payload_from_sjcl_json(self, encrypted_json: dict[str, Any]) -> str:
-        """Build form payload to send to router."""
-        # Convert bytes to strings if needed
-        for k, v in encrypted_json.items():
-            if isinstance(v, bytes):
-                encrypted_json[k] = v.decode("utf-8")
-        # Dump to raw JSON string (no URL encoding)
-        return cast("str", orjson.dumps(encrypted_json).decode("utf-8"))
-
     async def _wifi_ssid_split_disabled(
         self, wifi_plain_data: dict[str, Any], wifi_type: WifiType
     ) -> bool:
