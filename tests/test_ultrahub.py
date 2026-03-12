@@ -6,7 +6,6 @@ import asyncio
 from http import HTTPMethod
 from typing import TYPE_CHECKING, Any, cast
 
-import orjson
 import pytest
 from aiohttp import ClientResponseError
 
@@ -26,7 +25,6 @@ if TYPE_CHECKING:
     from yarl import URL
 
 HTTP_OK = 200
-EXPECTED_NONCE_MAX_LEN = 13
 DEFAULT_DEVICE_ID = 7
 
 
@@ -44,30 +42,6 @@ def _acall(
         getattr(obj, method_name),
     )
     return method(*args, **kwargs)
-
-
-def _scall(obj: object, method_name: str, *args: object, **kwargs: object) -> object:
-    method = cast("Callable[..., object]", getattr(obj, method_name))
-    return method(*args, **kwargs)
-
-
-def test_encrypt_string_and_truncate_iv(base_url: URL) -> None:
-    """Ensure encryption payload is SJCL-like and IV truncation works."""
-    api = _api(base_url)
-    api.salt = "abcdefgh"
-    api.salt_web_ui = "1234567890"
-    value = cast("str", _scall(api, "_encrypt_string"))
-    parsed = orjson.loads(value)
-    assert parsed["cipher"] == "aes"
-    nonce = cast("bytes", _scall(api, "_truncate_iv", b"0123456789abcdef", 128, 8))
-    assert len(nonce) <= EXPECTED_NONCE_MAX_LEN
-
-
-def test_truncate_iv_loop_increments(base_url: URL) -> None:
-    """Ensure nonce truncation loop handles large output lengths."""
-    api = _api(base_url)
-    nonce = cast("bytes", _scall(api, "_truncate_iv", b"0123456789abcdef", 1 << 24, 8))
-    assert len(nonce) <= EXPECTED_NONCE_MAX_LEN
 
 
 def test_auto_hub_request_ok_and_csrf(base_url: URL) -> None:

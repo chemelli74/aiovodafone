@@ -22,6 +22,7 @@ from aiovodafone.exceptions import (
 )
 from aiovodafone.models import sercomm as sercomm_mod
 from aiovodafone.models.sercomm import VodafoneStationSercommApi
+from aiovodafone.sjcl import build_json_from_sjcl
 from tests.conftest import FakeCookieJar, FakeResponse, FakeSession
 
 if TYPE_CHECKING:
@@ -244,25 +245,11 @@ def test_login_json_success_and_invalid_response(
         asyncio.run(_acall(api, "_login_json", {}))
 
 
-def test_sjcl_helpers(base_url: URL) -> None:
-    """Ensure SJCL key derivation, encrypt, and decrypt helpers work."""
-    api = _api(base_url)
-    api.salt = "0011223344556677"
-    key = cast("bytes", _scall(api, "_sjcl_derived_key"))
-    assert len(key) == DERIVED_KEY_LEN
-    encrypted = cast("str", _scall(api, "_sjcl_encrypt", "a=b"))
-    assert "ct" in encrypted
-    decrypted = _scall(api, "_sjcl_decrypt", encrypted)
-    assert decrypted == "a=b"
-
-
 def test_build_payload_and_wifi_helpers(base_url: URL) -> None:
     """Ensure payload conversion and Wi-Fi helper format logic works."""
     api = _api(base_url)
-    payload = cast(
-        "str", _scall(api, "_build_payload_from_sjcl_json", {"x": b"y", "v": 1})
-    )
-    assert '"x":"y"' in payload
+    payload = build_json_from_sjcl({"x": b"y", "v": 1})
+    assert json.loads(payload) == {"x": "y", "v": 1}
     assert (
         asyncio.run(
             _acall(
