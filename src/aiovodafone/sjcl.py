@@ -4,7 +4,7 @@ Credits to https://github.com/berlincode/sjcl
 """
 
 import base64
-from typing import Any
+from typing import Any, cast
 
 import orjson
 from Crypto.Cipher import AES
@@ -43,7 +43,7 @@ def get_aes_mode(mode: str) -> int:
             f"Pycrypto/pycryptodome does not seem to support {aes_mode_attr}. "
             "If you use pycrypto, you need a version >= 2.7a1 (or a special branch)."
         ) from exp
-    return aes_mode
+    return cast("int", aes_mode)
 
 
 def build_json_from_sjcl(encrypted_json: dict[str, Any]) -> str:
@@ -117,7 +117,7 @@ class SJCL:
 
         cipher.verify(mac)
 
-        return plaintext
+        return cast("bytes", plaintext)
 
     def encrypt(  # noqa: PLR0913
         self,
