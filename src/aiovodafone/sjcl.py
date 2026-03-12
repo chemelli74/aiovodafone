@@ -53,7 +53,7 @@ def build_json_from_sjcl(encrypted_json: dict[str, Any]) -> str:
         if isinstance(v, bytes):
             encrypted_json[k] = v.decode("utf-8")
     # Dump to raw JSON string (no URL encoding)
-    return orjson.dumps(encrypted_json).decode("utf-8")
+    return cast("str", orjson.dumps(encrypted_json).decode("utf-8"))
 
 
 class SJCL:

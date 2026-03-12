@@ -297,6 +297,16 @@ def test_build_payload_and_wifi_helpers(base_url: URL) -> None:
     )
 
 
+def test_build_payload_from_sjcl_json_decodes_bytes(base_url: URL) -> None:
+    """Ensure SJCL payload builder decodes bytes before JSON serialization."""
+    api = _api(base_url)
+    payload = cast(
+        "str",
+        _scall(api, "_build_payload_from_sjcl_json", {"ct": b"abc", "iter": 1000}),
+    )
+    assert json.loads(payload) == {"ct": "abc", "iter": 1000}
+
+
 def test_format_sensor_wifi_data(
     base_url: URL,
     monkeypatch: pytest.MonkeyPatch,
