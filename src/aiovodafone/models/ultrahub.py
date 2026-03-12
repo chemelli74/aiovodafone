@@ -3,7 +3,7 @@
 import contextlib
 import hashlib
 from datetime import UTC, datetime, timedelta
-from http import HTTPMethod, HTTPStatus
+from http import HTTPMethod
 from typing import Any
 
 from aiohttp import (
