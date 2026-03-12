@@ -52,13 +52,11 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         if not force_logout:
             self.csrf_token = ""
 
-        reply = await self._auto_hub_request_page_result(
+        reply_json, reply = await self._auto_hub_request_page_result(
             HTTPMethod.GET,
             DEVICES_SETTINGS["UltraHub"]["login_url"],
             params={"X_INTERNAL_FIELDS": "X_RDK_ONT_Veip_1_OperationalState"},
         )
-
-        reply_json = await reply.json()
 
         if "X_INTERNAL_ID" in reply_json:
             self.id = reply_json["X_INTERNAL_ID"]
@@ -67,13 +65,11 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         if self.csrf_token == "":
             raise CannotAuthenticate
 
-        reply = await self._auto_hub_request_page_result(
+        reply_json, _ = await self._auto_hub_request_page_result(
             HTTPMethod.GET,
             "api/users/details.jst",
             params={"__id": self.id, "X_INTERNAL_FIELDS": "X_VODAFONE_WebUISecret"},
         )
-
-        reply_json = await reply.json()
 
         if "X_VODAFONE_WebUISecret" in reply_json:
             web_secret = reply_json["X_VODAFONE_WebUISecret"]
@@ -87,14 +83,13 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
                 "csrf_token": self.csrf_token,
             }
 
-            reply = await self._auto_hub_request_page_result(
+            reply_json, reply = await self._auto_hub_request_page_result(
                 HTTPMethod.POST,
                 "api/users/login.jst",
                 payload=payload,
             )
 
             self.session.cookie_jar.update_cookies(reply.cookies)
-            reply_json = await reply.json()
 
             if reply_json.get("X_INTERNAL_Password_Status") == "Invalid_PWD":
                 await self._cleanup_session()
@@ -154,7 +149,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         payload: dict[str, Any] | None = None,
         params: dict[str, Any] | None = None,
         timeout: ClientTimeout = DEFAULT_TIMEOUT,
-    ) -> ClientResponse:
+    ) -> tuple[dict[str, Any], ClientResponse]:
         """Request data from a web page."""
         url = self.base_url.joinpath(page)
         _LOGGER.debug("%s page %s", method, url)
@@ -171,7 +166,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         if "csrf_token" in reply_json:
             self.csrf_token = reply_json["csrf_token"]
 
-        return response
+        return reply_json, response
 
     async def _cleanup_session(self) -> None:
         """Cleanup session."""
@@ -190,11 +185,9 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
 
         devices_dict: dict[str, VodafoneStationDevice] = {}
 
-        reply = await self._auto_hub_request_page_result(
+        reply_json, _ = await self._auto_hub_request_page_result(
             HTTPMethod.GET, "api/device/bulk/details.jst"
         )
-
-        reply_json = await reply.json()
 
         for device in reply_json.get("hosts", []):
             connected = device["Active"] == "true"
@@ -222,11 +215,9 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
 
     async def get_sensor_data(self) -> dict[str, Any]:
         """Get router sensor data."""
-        reply = await self._auto_hub_request_page_result(
+        reply_json, _ = await self._auto_hub_request_page_result(
             HTTPMethod.GET, "api/device/details.jst"
         )
-
-        reply_json = await reply.json()
 
         data: dict[str, Any] = {}
 
