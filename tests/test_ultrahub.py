@@ -44,6 +44,12 @@ def _acall(
     return method(*args, **kwargs)
 
 
+def _make_login_reply(
+    json_data: dict[str, Any], cookies: dict[str, object] | None = None
+) -> tuple[dict[str, Any], FakeResponse]:
+    return (json_data, FakeResponse(json_data=json_data, cookies=cookies))
+
+
 def test_auto_hub_request_ok_and_csrf(base_url: URL) -> None:
     """Ensure successful request updates csrf token from response JSON."""
 
@@ -112,7 +118,7 @@ def test_login_raises_when_missing_csrf(
     api = _api(base_url)
 
     async def _auto(*_args: object, **_kwargs: object) -> object:
-        return ({}, FakeResponse(json_data={}))
+        return _make_login_reply({})
 
     monkeypatch.setattr(api, "_auto_hub_request_page_result", _auto)
     with pytest.raises(CannotAuthenticate):
@@ -124,21 +130,12 @@ def test_login_invalid_password(base_url: URL, monkeypatch: pytest.MonkeyPatch) 
     api = _api(base_url)
     api.csrf_token = "token"
     replies = [
-        (
+        _make_login_reply(
             {"csrf_token": "t", "X_INTERNAL_ID": 7},
-            FakeResponse(
-                json_data={"csrf_token": "t", "X_INTERNAL_ID": 7},
-                cookies={"a": "b"},
-            ),
+            cookies={"a": "b"},
         ),
-        (
-            {"X_VODAFONE_WebUISecret": "test-secret"},
-            FakeResponse(json_data={"X_VODAFONE_WebUISecret": "test-secret"}),
-        ),
-        (
-            {"X_INTERNAL_Password_Status": "Invalid_PWD"},
-            FakeResponse(json_data={"X_INTERNAL_Password_Status": "Invalid_PWD"}),
-        ),
+        _make_login_reply({"X_VODAFONE_WebUISecret": "test-secret"}),
+        _make_login_reply({"X_INTERNAL_Password_Status": "Invalid_PWD"}),
     ]
 
     async def _auto(*_args: object, **_kwargs: object) -> object:
@@ -157,21 +154,12 @@ def test_login_already_logged(base_url: URL, monkeypatch: pytest.MonkeyPatch) ->
     api = _api(base_url)
     api.csrf_token = "token"
     replies = [
-        (
+        _make_login_reply(
             {"csrf_token": "t", "X_INTERNAL_ID": 7},
-            FakeResponse(
-                json_data={"csrf_token": "t", "X_INTERNAL_ID": 7},
-                cookies={"a": "b"},
-            ),
+            cookies={"a": "b"},
         ),
-        (
-            {"X_VODAFONE_WebUISecret": "test_secret"},
-            FakeResponse(json_data={"X_VODAFONE_WebUISecret": "test_secret"}),
-        ),
-        (
-            {"X_INTERNAL_Is_Duplicate": "true"},
-            FakeResponse(json_data={"X_INTERNAL_Is_Duplicate": "true"}),
-        ),
+        _make_login_reply({"X_VODAFONE_WebUISecret": "test_secret"}),
+        _make_login_reply({"X_INTERNAL_Is_Duplicate": "true"}),
     ]
 
     async def _auto(*_args: object, **_kwargs: object) -> object:
@@ -192,18 +180,12 @@ def test_login_success_and_missing_secret(
     api = _api(base_url)
     api.csrf_token = "token"
     ok_replies = [
-        (
+        _make_login_reply(
             {"csrf_token": "t", "X_INTERNAL_ID": 7},
-            FakeResponse(
-                json_data={"csrf_token": "t", "X_INTERNAL_ID": 7},
-                cookies={"a": "b"},
-            ),
+            cookies={"a": "b"},
         ),
-        (
-            {"X_VODAFONE_WebUISecret": "test_secret"},
-            FakeResponse(json_data={"X_VODAFONE_WebUISecret": "test_secret"}),
-        ),
-        ({}, FakeResponse(json_data={})),
+        _make_login_reply({"X_VODAFONE_WebUISecret": "test_secret"}),
+        _make_login_reply({}),
     ]
 
     async def _auto_ok(*_args: object, **_kwargs: object) -> object:
@@ -216,14 +198,11 @@ def test_login_success_and_missing_secret(
     api2 = _api(base_url)
     api2.csrf_token = "token"
     missing_secret = [
-        (
+        _make_login_reply(
             {"csrf_token": "t", "X_INTERNAL_ID": 7},
-            FakeResponse(
-                json_data={"csrf_token": "t", "X_INTERNAL_ID": 7},
-                cookies={"a": "b"},
-            ),
+            cookies={"a": "b"},
         ),
-        ({}, FakeResponse(json_data={})),
+        _make_login_reply({}),
     ]
 
     async def _auto_bad(*_args: object, **_kwargs: object) -> object:
