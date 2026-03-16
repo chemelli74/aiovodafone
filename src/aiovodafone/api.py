@@ -71,19 +71,29 @@ class VodafoneStationCommonApi(ABC):
             SimpleCookie(f"domain={self.base_url.host}; name=login_uid; value=1;"),
         )
 
-    async def _request_page_result(
+    async def _request_page_result(  # noqa: PLR0913
         self,
         method: str,
         page: str,
         payload: dict[str, Any] | str | None = None,
         timeout: ClientTimeout = DEFAULT_TIMEOUT,
+        query: dict[str, Any] | None = None,
+        allow_redirects: bool = True,
     ) -> ClientResponse:
         """Request data from a web page."""
         _LOGGER.debug("%s page %s from host %s", method, page, self.base_url.host)
-        timestamp = int(datetime.now(tz=UTC).timestamp())
-        url = self.base_url.joinpath(page).with_query(
-            _=timestamp, csrf_token=self.csrf_token
+        query_params = (
+            query
+            if query is not None
+            else {
+                "_": int(datetime.now(tz=UTC).timestamp()),
+                "csrf_token": self.csrf_token,
+            }
         )
+
+        url = self.base_url.joinpath(page)
+        if query_params:
+            url = url.with_query(query_params)
         try:
             response = await self.session.request(
                 method,
@@ -92,7 +102,7 @@ class VodafoneStationCommonApi(ABC):
                 headers=self.headers,
                 timeout=timeout,
                 ssl=False,
-                allow_redirects=True,
+                allow_redirects=allow_redirects,
             )
             if response.status != HTTPStatus.OK:
                 _LOGGER.warning(
