@@ -231,7 +231,7 @@ def test_get_devices_data(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> Non
     }
 
     async def _auto(*_args: object, **_kwargs: object) -> object:
-        return (payload, FakeResponse(json_data=payload))
+        return _make_login_reply(payload)
 
     monkeypatch.setattr(api, "_auto_hub_request_page_result", _auto)
     data = asyncio.run(api.get_devices_data())
@@ -254,7 +254,7 @@ def test_get_sensor_data(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None
     }
 
     async def _auto(*_args: object, **_kwargs: object) -> object:
-        return (payload, FakeResponse(json_data=payload))
+        return _make_login_reply(payload)
 
     monkeypatch.setattr(api, "_auto_hub_request_page_result", _auto)
     data = asyncio.run(api.get_sensor_data())
