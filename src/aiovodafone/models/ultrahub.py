@@ -51,7 +51,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
             HTTPMethod.GET,
             DEVICES_SETTINGS["UltraHub"]["login_url"],
             params={"X_INTERNAL_FIELDS": "X_RDK_ONT_Veip_1_OperationalState"},
-            set_coockie=True,
+            set_cookie=True,
         )
 
         if "X_INTERNAL_ID" in reply_json:
@@ -60,15 +60,15 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         if self.csrf_token == "":
             raise CannotAuthenticate
 
-        retuned_keys = await self.obtain_hub_keys()
+        returned_keys = await self.obtain_hub_keys()
 
         value_dict = SJCL().encrypt(
             self.password.encode("utf-8"),
-            retuned_keys["passphrase"],
+            returned_keys["passphrase"],
             mode="ccm",
             count=1000,
             dk_len=16,
-            salt=retuned_keys["salt"],
+            salt=returned_keys["salt"],
         )
         # should not send back part of a key supplied by the hub
         value_dict.pop("salt")
@@ -85,7 +85,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
             HTTPMethod.POST,
             "api/users/login.jst",
             payload=payload,
-            set_coockie=True,
+            set_cookie=True,
         )
 
         if reply_json.get("X_INTERNAL_Password_Status") == "Invalid_PWD":
@@ -104,7 +104,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         page: str,
         payload: dict[str, Any] | None = None,
         params: dict[str, Any] | None = None,
-        set_coockie: bool | None = False,
+        set_cookie: bool = False,
     ) -> dict[str, Any]:
         """Request data from a web page."""
         url = self.base_url.joinpath(page)
@@ -124,7 +124,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         if "csrf_token" in reply_json:
             self.csrf_token = reply_json["csrf_token"]
 
-        if set_coockie:
+        if set_cookie:
             self.session.cookie_jar.update_cookies(response.cookies)
 
         return cast("dict[str, Any]", reply_json)
@@ -290,7 +290,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         band: WifiBand,
     ) -> None:  # pragma: no cover
         """Enable/Disable Wi-Fi."""
-        _LOGGER.debug("Log out of router %s", band)
+        _LOGGER.debug("Set wifi status for %s", band)
 
         if (
             hasattr(self, "session")
@@ -311,7 +311,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
     async def obtain_hub_keys(
         self,
     ) -> dict[str, Any]:
-        """Before doing a encyript or decryipt you need to get a key."""
+        """Before doing an encyript or decryipt you need to get a key."""
         reply_json = await self._auto_hub_request_page_result(
             HTTPMethod.GET,
             "api/users/details.jst",
@@ -322,7 +322,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
             web_secret = reply_json["X_VODAFONE_WebUISecret"]
 
             return {
-                "passphrase": web_secret[:10].encode("utf-8"),
+                "passphrase": web_secret[:10],
                 "salt": bytes(web_secret[10:], "utf-8"),
             }
 
