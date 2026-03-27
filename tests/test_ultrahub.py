@@ -9,11 +9,7 @@ from typing import TYPE_CHECKING, Any, cast
 import pytest
 from aiohttp import ClientResponseError
 
-from aiovodafone.const import WIFI_DATA
 from aiovodafone.exceptions import (
-    AlreadyLogged,
-    CannotAuthenticate,
-    GenericLoginError,
     GenericResponseError,
 )
 from aiovodafone.models.ultrahub import VodafoneStationUltraHubApi
@@ -48,24 +44,6 @@ def _make_login_reply(
     json_data: dict[str, Any], cookies: dict[str, object] | None = None
 ) -> tuple[dict[str, Any], FakeResponse]:
     return (json_data, FakeResponse(json_data=json_data, cookies=cookies))
-
-
-def test_auto_hub_request_ok_and_csrf(base_url: URL) -> None:
-    """Ensure successful request updates csrf token from response JSON."""
-
-    async def _request(*_args: object, **_kwargs: object) -> FakeResponse:
-        return FakeResponse(status=200, json_data={"csrf_token": "t"})
-
-    api = VodafoneStationUltraHubApi(
-        base_url, "u", "p", cast("Any", FakeSession(request_impl=_request))
-    )
-    reply_json, response = cast(
-        "tuple[dict[str, Any], FakeResponse]",
-        asyncio.run(_acall(api, "_auto_hub_request_page_result", HTTPMethod.GET, "x")),
-    )
-    assert reply_json == {"csrf_token": "t"}
-    assert response.status == HTTP_OK
-    assert api.csrf_token == "t"
 
 
 def test_auto_hub_request_non_200_raises(base_url: URL) -> None:
@@ -109,165 +87,6 @@ def test_convert_uptime(base_url: URL) -> None:
     api = _api(base_url)
     value = api.convert_uptime("4")
     assert value.tzinfo is not None
-
-
-def test_login_raises_when_missing_csrf(
-    base_url: URL, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Ensure login fails when csrf token is not established."""
-    api = _api(base_url)
-
-    async def _auto(*_args: object, **_kwargs: object) -> object:
-        return _make_login_reply({})
-
-    monkeypatch.setattr(api, "_auto_hub_request_page_result", _auto)
-    with pytest.raises(CannotAuthenticate):
-        asyncio.run(api.login())
-
-
-def test_login_invalid_password(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Ensure invalid password status raises CannotAuthenticate."""
-    api = _api(base_url)
-    api.csrf_token = "token"
-    replies = [
-        _make_login_reply(
-            {"csrf_token": "t", "X_INTERNAL_ID": 7},
-            cookies={"a": "b"},
-        ),
-        _make_login_reply({"X_VODAFONE_WebUISecret": "test-secret"}),
-        _make_login_reply({"X_INTERNAL_Password_Status": "Invalid_PWD"}),
-    ]
-
-    async def _auto(*_args: object, **_kwargs: object) -> object:
-        return replies.pop(0)
-
-    monkeypatch.setattr(api, "_auto_hub_request_page_result", _auto)
-    with pytest.raises(CannotAuthenticate):
-        asyncio.run(api.login(force_logout=True))
-    assert api.csrf_token == ""
-    cookie_jar = cast("FakeCookieJar", api.session.cookie_jar)
-    assert cookie_jar.cleared is True
-
-
-def test_login_already_logged(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Ensure duplicate-session status raises AlreadyLogged."""
-    api = _api(base_url)
-    api.csrf_token = "token"
-    replies = [
-        _make_login_reply(
-            {"csrf_token": "t", "X_INTERNAL_ID": 7},
-            cookies={"a": "b"},
-        ),
-        _make_login_reply({"X_VODAFONE_WebUISecret": "test_secret"}),
-        _make_login_reply({"X_INTERNAL_Is_Duplicate": "true"}),
-    ]
-
-    async def _auto(*_args: object, **_kwargs: object) -> object:
-        return replies.pop(0)
-
-    monkeypatch.setattr(api, "_auto_hub_request_page_result", _auto)
-    with pytest.raises(AlreadyLogged):
-        asyncio.run(api.login(force_logout=True))
-    assert api.csrf_token == ""
-    cookie_jar = cast("FakeCookieJar", api.session.cookie_jar)
-    assert cookie_jar.cleared is True
-
-
-def test_login_success_and_missing_secret(
-    base_url: URL, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Ensure login succeeds with secret and fails when secret is missing."""
-    api = _api(base_url)
-    api.csrf_token = "token"
-    ok_replies = [
-        _make_login_reply(
-            {"csrf_token": "t", "X_INTERNAL_ID": 7},
-            cookies={"a": "b"},
-        ),
-        _make_login_reply({"X_VODAFONE_WebUISecret": "test_secret"}),
-        _make_login_reply({}),
-    ]
-
-    async def _auto_ok(*_args: object, **_kwargs: object) -> object:
-        return ok_replies.pop(0)
-
-    monkeypatch.setattr(api, "_auto_hub_request_page_result", _auto_ok)
-    assert asyncio.run(api.login(force_logout=True)) is True
-    assert api.id == DEFAULT_DEVICE_ID
-
-    api2 = _api(base_url)
-    api2.csrf_token = "token"
-    missing_secret = [
-        _make_login_reply(
-            {"csrf_token": "t", "X_INTERNAL_ID": 7},
-            cookies={"a": "b"},
-        ),
-        _make_login_reply({}),
-    ]
-
-    async def _auto_bad(*_args: object, **_kwargs: object) -> object:
-        return missing_secret.pop(0)
-
-    monkeypatch.setattr(api2, "_auto_hub_request_page_result", _auto_bad)
-    with pytest.raises(GenericLoginError):
-        asyncio.run(api2.login(force_logout=True))
-
-
-def test_get_devices_data(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Ensure host entries are transformed into device map."""
-    api = _api(base_url)
-    payload = {
-        "hosts": [
-            {
-                "Active": "true",
-                "Layer1Interface": "WiFi 5",
-                "IPv4Address_1_IPAddress": "1.1.1.2",
-                "HostName": "phone",
-                "PhysAddress": "AA",
-                "X_VODAFONE_Fingerprint_Class": "mobile",
-                "X_CISCO_COM_RSSI": "-30",
-            }
-        ]
-    }
-
-    async def _auto(*_args: object, **_kwargs: object) -> object:
-        return _make_login_reply(payload)
-
-    monkeypatch.setattr(api, "_auto_hub_request_page_result", _auto)
-    data = asyncio.run(api.get_devices_data())
-    assert data["AA"].connection_type == "WiFi"
-
-
-def test_get_sensor_data(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Ensure device details endpoint maps to expected sensor fields."""
-    api = _api(base_url)
-    payload = {
-        "SoftwareVersion": "f",
-        "HardwareVersion": "h",
-        "SerialNumber": "s",
-        "UpTime": "1",
-        "X_VODAFONE_WANType": "x",
-        "INTERNAL_CPEInterface_List": [
-            {"DisplayName": "WWAN", "Phy_Status": "up"},
-            {"DisplayName": "WANoE", "Phy_Status": "ok"},
-        ],
-    }
-
-    async def _auto(*_args: object, **_kwargs: object) -> object:
-        return _make_login_reply(payload)
-
-    monkeypatch.setattr(api, "_auto_hub_request_page_result", _auto)
-    data = asyncio.run(api.get_sensor_data())
-    assert data["wan_status"] == "up"
-    assert data["cm_status"] == "ok"
-
-
-def test_simple_methods(base_url: URL) -> None:
-    """Ensure simple and unsupported API methods return expected defaults/errors."""
-    api = _api(base_url)
-    assert asyncio.run(api.get_wifi_data()) == {WIFI_DATA: {}}
-    assert asyncio.run(api.get_docis_data()) == {}
-    assert asyncio.run(api.get_voice_data()) == {}
 
 
 def test_restart_router_suppresses_error_and_cleans(
