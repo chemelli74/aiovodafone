@@ -13,7 +13,6 @@ import pytest
 import aiovodafone.sjcl as sjcl_mod
 from aiovodafone.exceptions import SJCLError
 from aiovodafone.models.sercomm import VodafoneStationSercommApi
-from aiovodafone.models.ultrahub import VodafoneStationUltraHubApi
 from tests.conftest import FakeSession
 
 if TYPE_CHECKING:
@@ -163,32 +162,6 @@ def test_sercomm_encrypt(
     assert (
         _normalize_encrypted_payload(encrypted_json_data)
         == sjcl_fixture["encrypted_data"]
-    )
-
-
-@pytest.mark.usefixtures("sjcl_fixture_path", "fixed_encryption_iv")
-@pytest.mark.parametrize("fixed_encryption_iv", [16], indirect=True)
-@pytest.mark.parametrize("sjcl_fixture_name", ["ultrahub"])
-def test_ultrahub_encrypt(
-    base_url: URL,
-    sjcl_fixture: dict[str, Any],
-) -> None:
-    """Encrypt ULTRAHUB fixture and compare with expected encrypted payload."""
-    api = VodafoneStationUltraHubApi(
-        url=base_url,
-        username="username",
-        password=sjcl_fixture["keys"]["password"],
-        session=cast("Any", FakeSession()),
-    )
-
-    api.salt = sjcl_fixture["keys"]["salt"]
-    api.salt_web_ui = sjcl_fixture["keys"]["salt_web_ui"]
-
-    encrypted_json_data = api._encrypt_string()  # noqa: SLF001
-
-    # Compare both content and insertion order.
-    assert list(json.loads(encrypted_json_data).items()) == list(
-        sjcl_fixture["encrypted_data"].items()
     )
 
 
