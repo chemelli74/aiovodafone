@@ -7,7 +7,7 @@ on:
   pull_request:
 
 env:
-  POETRY_VERSION: "2.3.2" # renovate: depName=poetry datasource=pypi
+  POETRY_VERSION: "2.3.3" # renovate: depName=poetry datasource=pypi
 
 permissions: write-all
 

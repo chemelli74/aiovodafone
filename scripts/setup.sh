@@ -4,7 +4,7 @@
 # Stop on errors
 set -e
 
-POETRY_VERSION="2.3.2" # renovate: depName=poetry datasource=pypi
+POETRY_VERSION="2.3.3" # renovate: depName=poetry datasource=pypi
 
 poetry self update "$POETRY_VERSION"
 poetry env use python3
