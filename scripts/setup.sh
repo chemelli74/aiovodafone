@@ -6,7 +6,8 @@ set -e
 
 POETRY_VERSION="2.3.3" # renovate: depName=poetry datasource=pypi
 
-poetry self update "$POETRY_VERSION"
+pipx install poetry=="$POETRY_VERSION"
+pipx install pre-commit
 poetry env use python3
 poetry sync --with dev
 poetry run pre-commit install
