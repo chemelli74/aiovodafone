@@ -1,5 +1,9 @@
 {
   "extends": ["github>browniebroke/renovate-configs:python"],
+  "dependencyDashboardApproval": false,
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 0,
+  "branchConcurrentLimit": 0,
   "customManagers": [
     {
       "customType": "regex",

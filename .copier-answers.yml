@@ -7,6 +7,7 @@ documentation: false
 email: simone.chemelli@gmail.com
 full_name: Simone Chemelli
 github_username: chemelli74
+has_cli: false
 initial_commit: true
 open_source_license: Apache Software License 2.0
 package_name: aiovodafone
