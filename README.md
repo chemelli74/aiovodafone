@@ -23,9 +23,17 @@
   <a href="https://pypi.org/project/aiovodafone/">
     <img src="https://img.shields.io/pypi/v/aiovodafone.svg?logo=python&logoColor=fff&style=flat-square" alt="PyPI Version">
   </a>
-  <img src="https://img.shields.io/pypi/pyversions/aiovodafone.svg?style=flat-square&logo=python&amp;logoColor=fff" alt="Supported Python versions">
+  <a href="https://pypi.org/project/aiovodafone/">
+    <img src="https://img.shields.io/pypi/pyversions/aiovodafone.svg?style=flat-square&amp;logo=python&amp;logoColor=fff" alt="Supported Python versions">
+  </a>
   <img src="https://img.shields.io/pypi/l/aiovodafone.svg?style=flat-square" alt="License">
 </p>
+
+---
+
+**Source Code**: <a href="https://github.com/chemelli74/aiovodafone" target="_blank">https://github.com/chemelli74/aiovodafone </a>
+
+---
 
 Python library to control Vodafone Station
 
