@@ -29,7 +29,7 @@ class FakeCookieJar:
         self.updated: list[object] = []
         self.cleared = False
 
-    def update_cookies(self, cookies: object) -> None:
+    def update_cookies(self, cookies: object, _url: URL | None = None) -> None:
         """Record cookie updates performed by API code under test."""
         self.updated.append(cookies)
 

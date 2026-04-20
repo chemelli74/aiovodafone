@@ -167,7 +167,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
             self.csrf_token = reply_json["csrf_token"]
 
         if set_cookie:
-            self.session.cookie_jar.update_cookies(response.cookies)
+            self.session.cookie_jar.update_cookies(response.cookies, self.base_url)
 
         return cast("dict[str, Any]", reply_json)
 
