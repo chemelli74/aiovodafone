@@ -24,7 +24,6 @@ if TYPE_CHECKING:
 
     from yarl import URL
 
-HTTP_OK = 200
 DEFAULT_DEVICE_ID = 7
 
 
@@ -44,28 +43,32 @@ def _acall(
     return method(*args, **kwargs)
 
 
-def _make_login_reply(
-    json_data: dict[str, Any], cookies: dict[str, object] | None = None
-) -> tuple[dict[str, Any], FakeResponse]:
-    return (json_data, FakeResponse(json_data=json_data, cookies=cookies))
-
-
 def test_auto_hub_request_ok_and_csrf(base_url: URL) -> None:
     """Ensure successful request updates csrf token from response JSON."""
 
     async def _request(*_args: object, **_kwargs: object) -> FakeResponse:
-        return FakeResponse(status=200, json_data={"csrf_token": "t"})
+        return FakeResponse(
+            status=200,
+            json_data={"csrf_token": "t"},
+            cookies={"session_id": "abc"},
+        )
 
     api = VodafoneStationUltraHubApi(
         base_url, "u", "p", cast("Any", FakeSession(request_impl=_request))
     )
-    reply_json, response = cast(
-        "tuple[dict[str, Any], FakeResponse]",
-        asyncio.run(_acall(api, "_auto_hub_request_page_result", HTTPMethod.GET, "x")),
+    reply_json = asyncio.run(
+        _acall(
+            api,
+            "_auto_hub_request_page_result",
+            HTTPMethod.GET,
+            "x",
+            set_cookie=True,
+        )
     )
     assert reply_json == {"csrf_token": "t"}
-    assert response.status == HTTP_OK
     assert api.csrf_token == "t"
+    cookie_jar = cast("FakeCookieJar", api.session.cookie_jar)
+    assert len(cookie_jar.updated) > 0
 
 
 def test_auto_hub_request_non_200_raises(base_url: URL) -> None:
@@ -118,7 +121,7 @@ def test_login_raises_when_missing_csrf(
     api = _api(base_url)
 
     async def _auto(*_args: object, **_kwargs: object) -> object:
-        return _make_login_reply({})
+        return {}
 
     monkeypatch.setattr(api, "_auto_hub_request_page_result", _auto)
     with pytest.raises(CannotAuthenticate):
@@ -130,12 +133,9 @@ def test_login_invalid_password(base_url: URL, monkeypatch: pytest.MonkeyPatch) 
     api = _api(base_url)
     api.csrf_token = "token"
     replies = [
-        _make_login_reply(
-            {"csrf_token": "t", "X_INTERNAL_ID": 7},
-            cookies={"a": "b"},
-        ),
-        _make_login_reply({"X_VODAFONE_WebUISecret": "test-secret"}),
-        _make_login_reply({"X_INTERNAL_Password_Status": "Invalid_PWD"}),
+        {"csrf_token": "t", "X_INTERNAL_ID": 7},
+        {"X_VODAFONE_WebUISecret": "test-secret"},
+        {"X_INTERNAL_Password_Status": "Invalid_PWD"},
     ]
 
     async def _auto(*_args: object, **_kwargs: object) -> object:
@@ -154,12 +154,9 @@ def test_login_already_logged(base_url: URL, monkeypatch: pytest.MonkeyPatch) ->
     api = _api(base_url)
     api.csrf_token = "token"
     replies = [
-        _make_login_reply(
-            {"csrf_token": "t", "X_INTERNAL_ID": 7},
-            cookies={"a": "b"},
-        ),
-        _make_login_reply({"X_VODAFONE_WebUISecret": "test_secret"}),
-        _make_login_reply({"X_INTERNAL_Is_Duplicate": "true"}),
+        {"csrf_token": "t", "X_INTERNAL_ID": 7},
+        {"X_VODAFONE_WebUISecret": "test_secret"},
+        {"X_INTERNAL_Is_Duplicate": "true"},
     ]
 
     async def _auto(*_args: object, **_kwargs: object) -> object:
@@ -180,12 +177,9 @@ def test_login_success_and_missing_secret(
     api = _api(base_url)
     api.csrf_token = "token"
     ok_replies = [
-        _make_login_reply(
-            {"csrf_token": "t", "X_INTERNAL_ID": 7},
-            cookies={"a": "b"},
-        ),
-        _make_login_reply({"X_VODAFONE_WebUISecret": "test_secret"}),
-        _make_login_reply({}),
+        {"csrf_token": "t", "X_INTERNAL_ID": 7},
+        {"X_VODAFONE_WebUISecret": "test_secret"},
+        {},
     ]
 
     async def _auto_ok(*_args: object, **_kwargs: object) -> object:
@@ -198,11 +192,8 @@ def test_login_success_and_missing_secret(
     api2 = _api(base_url)
     api2.csrf_token = "token"
     missing_secret = [
-        _make_login_reply(
-            {"csrf_token": "t", "X_INTERNAL_ID": 7},
-            cookies={"a": "b"},
-        ),
-        _make_login_reply({}),
+        {"csrf_token": "t", "X_INTERNAL_ID": 7},
+        {},
     ]
 
     async def _auto_bad(*_args: object, **_kwargs: object) -> object:
@@ -231,7 +222,7 @@ def test_get_devices_data(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> Non
     }
 
     async def _auto(*_args: object, **_kwargs: object) -> object:
-        return _make_login_reply(payload)
+        return payload
 
     monkeypatch.setattr(api, "_auto_hub_request_page_result", _auto)
     data = asyncio.run(api.get_devices_data())
@@ -254,7 +245,7 @@ def test_get_sensor_data(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None
     }
 
     async def _auto(*_args: object, **_kwargs: object) -> object:
-        return _make_login_reply(payload)
+        return payload
 
     monkeypatch.setattr(api, "_auto_hub_request_page_result", _auto)
     data = asyncio.run(api.get_sensor_data())
