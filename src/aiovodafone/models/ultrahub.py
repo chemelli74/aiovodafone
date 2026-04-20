@@ -4,12 +4,10 @@ import contextlib
 import hashlib
 from datetime import UTC, datetime, timedelta
 from http import HTTPMethod
-from typing import Any
+from typing import Any, cast
 
 from aiohttp import (
-    ClientResponse,
     ClientSession,
-    ClientTimeout,
 )
 from yarl import URL
 
@@ -52,20 +50,20 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         if not force_logout:
             self.csrf_token = ""
 
-        reply_json, reply = await self._auto_hub_request_page_result(
+        reply_json = await self._auto_hub_request_page_result(
             HTTPMethod.GET,
             DEVICES_SETTINGS["UltraHub"]["login_url"],
             params={"X_INTERNAL_FIELDS": "X_RDK_ONT_Veip_1_OperationalState"},
+            set_cookie=True,
         )
 
         if "X_INTERNAL_ID" in reply_json:
             self.id = reply_json["X_INTERNAL_ID"]
-            self.session.cookie_jar.update_cookies(reply.cookies)
 
         if self.csrf_token == "":
             raise CannotAuthenticate
 
-        reply_json, _ = await self._auto_hub_request_page_result(
+        reply_json = await self._auto_hub_request_page_result(
             HTTPMethod.GET,
             "api/users/details.jst",
             params={"__id": self.id, "X_INTERNAL_FIELDS": "X_VODAFONE_WebUISecret"},
@@ -76,6 +74,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
             self.salt_web_ui = web_secret[:10]
             self.salt = web_secret[10:]
             password = self._encrypt_string()
+
             payload = {
                 "__id": self.id,
                 "X_VODAFONE_Password": password,
@@ -83,13 +82,12 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
                 "csrf_token": self.csrf_token,
             }
 
-            reply_json, reply = await self._auto_hub_request_page_result(
+            reply_json = await self._auto_hub_request_page_result(
                 HTTPMethod.POST,
                 "api/users/login.jst",
                 payload=payload,
+                set_cookie=True,
             )
-
-            self.session.cookie_jar.update_cookies(reply.cookies)
 
             if reply_json.get("X_INTERNAL_Password_Status") == "Invalid_PWD":
                 await self._cleanup_session()
@@ -148,8 +146,8 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         page: str,
         payload: dict[str, Any] | None = None,
         params: dict[str, Any] | None = None,
-        timeout: ClientTimeout = DEFAULT_TIMEOUT,
-    ) -> tuple[dict[str, Any], ClientResponse]:
+        set_cookie: bool = False,
+    ) -> dict[str, Any]:
         """Request data from a web page."""
         url = self.base_url.joinpath(page)
         _LOGGER.debug("%s page %s", method, url)
@@ -158,15 +156,20 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
             method,
             page,
             payload=payload,
-            timeout=timeout,
+            timeout=DEFAULT_TIMEOUT,
             query=params if params is not None else {},
             allow_redirects=False,
         )
+
         reply_json = await response.json()
+
         if "csrf_token" in reply_json:
             self.csrf_token = reply_json["csrf_token"]
 
-        return reply_json, response
+        if set_cookie:
+            self.session.cookie_jar.update_cookies(response.cookies)
+
+        return cast("dict[str, Any]", reply_json)
 
     async def _cleanup_session(self) -> None:
         """Cleanup session."""
@@ -185,7 +188,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
 
         devices_dict: dict[str, VodafoneStationDevice] = {}
 
-        reply_json, _ = await self._auto_hub_request_page_result(
+        reply_json = await self._auto_hub_request_page_result(
             HTTPMethod.GET, "api/device/bulk/details.jst"
         )
 
@@ -215,7 +218,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
 
     async def get_sensor_data(self) -> dict[str, Any]:
         """Get router sensor data."""
-        reply_json, _ = await self._auto_hub_request_page_result(
+        reply_json = await self._auto_hub_request_page_result(
             HTTPMethod.GET, "api/device/details.jst"
         )
 
