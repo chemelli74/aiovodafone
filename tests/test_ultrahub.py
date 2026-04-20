@@ -51,16 +51,28 @@ def test_auto_hub_request_ok_and_csrf(base_url: URL) -> None:
     """Ensure successful request updates csrf token from response JSON."""
 
     async def _request(*_args: object, **_kwargs: object) -> FakeResponse:
-        return FakeResponse(status=200, json_data={"csrf_token": "t"})
+        return FakeResponse(
+            status=200,
+            json_data={"csrf_token": "t"},
+            cookies={"session_id": "abc"},
+        )
 
     api = VodafoneStationUltraHubApi(
         base_url, "u", "p", cast("Any", FakeSession(request_impl=_request))
     )
     reply_json = asyncio.run(
-        _acall(api, "_auto_hub_request_page_result", HTTPMethod.GET, "x")
+        _acall(
+            api,
+            "_auto_hub_request_page_result",
+            HTTPMethod.GET,
+            "x",
+            set_cookie=True,
+        )
     )
     assert reply_json == {"csrf_token": "t"}
     assert api.csrf_token == "t"
+    cookie_jar = cast("FakeCookieJar", api.session.cookie_jar)
+    assert len(cookie_jar.updated) > 0
 
 
 def test_auto_hub_request_non_200_raises(base_url: URL) -> None:
