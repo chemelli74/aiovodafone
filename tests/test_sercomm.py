@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from datetime import UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -37,7 +36,7 @@ WIFI_CASES_DIR = Path(__file__).parent.joinpath("fixtures", "sercomm")
 WIFI_RAW_CASES = cast(
     "list[dict[str, object]]",
     [
-        json.loads(path.read_text(encoding="utf-8"))
+        orjson.loads(path.read_text(encoding="utf-8"))
         for path in sorted(WIFI_CASES_DIR.glob("*.json"))
     ],
 )
@@ -249,7 +248,7 @@ def test_build_payload_and_wifi_helpers(base_url: URL) -> None:
     """Ensure payload conversion and Wi-Fi helper format logic works."""
     api = _api(base_url)
     payload = build_json_from_sjcl({"x": b"y", "v": 1})
-    assert json.loads(payload) == {"x": "y", "v": 1}
+    assert orjson.loads(payload) == {"x": "y", "v": 1}
     assert (
         asyncio.run(
             _acall(
@@ -397,7 +396,7 @@ def test_login_encrypted_second_try(
         raise CannotAuthenticate
 
     async def _return_login(payload: dict[str, object]) -> bool:
-        return payload["LoginName"] == api.username
+        return bool(payload["LoginName"] == api.username)
 
     attempts = iter([_raise_auth, _return_login])
 

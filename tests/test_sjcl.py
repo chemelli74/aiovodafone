@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import base64
-import json
 import urllib.parse
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+import orjson
 import pytest
 
 import aiovodafone.sjcl as sjcl_mod
@@ -34,7 +34,7 @@ def fixture_sjcl_fixture_path(sjcl_fixture_name: str) -> Path:
 def fixture_sjcl_fixture(sjcl_fixture_path: Path) -> dict[str, Any]:
     """Load and return the selected router SJCL fixture content."""
     return cast(
-        "dict[str, Any]", json.loads(sjcl_fixture_path.read_text(encoding="utf-8"))
+        "dict[str, Any]", orjson.loads(sjcl_fixture_path.read_text(encoding="utf-8"))
     )
 
 
@@ -59,8 +59,8 @@ def _normalize_plain_payload(
     )
 
     try:
-        decoded = json.loads(raw_text)
-    except json.JSONDecodeError:
+        decoded = orjson.loads(raw_text)
+    except orjson.JSONDecodeError:
         # UltraHub fixture payload is URL-encoded key/value data.
         parsed_qsl = cast(
             "list[tuple[str, str]]",
@@ -187,7 +187,7 @@ def test_ultrahub_encrypt(
     encrypted_json_data = api._encrypt_string()  # noqa: SLF001
 
     # Compare both content and insertion order.
-    assert list(json.loads(encrypted_json_data).items()) == list(
+    assert list(orjson.loads(encrypted_json_data).items()) == list(
         sjcl_fixture["encrypted_data"].items()
     )
 
