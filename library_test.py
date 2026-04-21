@@ -1,12 +1,12 @@
 """Test script for aiovodafone library."""
 
 import asyncio
-import json
 import logging
 import sys
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
+import orjson
 from aiohttp import ClientSession, CookieJar
 from colorlog import ColoredFormatter
 
@@ -56,7 +56,7 @@ def get_arguments() -> tuple[ArgumentParser, Namespace]:
     # taking the options in the optional JSON file as a basis
     if arguments.configfile and Path(arguments.configfile).exists():
         with Path.open(arguments.configfile) as f:
-            arguments = parser.parse_args(namespace=Namespace(**json.load(f)))
+            arguments = parser.parse_args(namespace=Namespace(**orjson.loads(f.read())))
 
     return parser, arguments
 
