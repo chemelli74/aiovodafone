@@ -181,10 +181,10 @@ def test_ultrahub_encrypt(
         session=cast("Any", FakeSession()),
     )
 
-    api.salt = sjcl_fixture["keys"]["salt"]
-    api.salt_web_ui = sjcl_fixture["keys"]["salt_web_ui"]
-
-    encrypted_json_data = api._encrypt_string()  # noqa: SLF001
+    encrypted_json_data = api._encrypt_string(  # noqa: SLF001
+        sjcl_fixture["keys"]["salt_web_ui"],
+        bytes(sjcl_fixture["keys"]["salt"], "utf-8"),
+    )
 
     # Compare both content and insertion order.
     assert list(orjson.loads(encrypted_json_data).items()) == list(

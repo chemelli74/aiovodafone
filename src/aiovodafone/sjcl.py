@@ -135,12 +135,10 @@ class SJCL:
 
         if salt is None:
             salt = get_random_bytes(self.salt_size)
-            key = PBKDF2(
-                passphrase, salt, count=count, dkLen=dk_len, hmac_hash_module=SHA256
-            )
 
-        else:
-            key = bytes.fromhex(passphrase)
+        key = PBKDF2(
+            passphrase, salt, count=count, dkLen=dk_len, hmac_hash_module=SHA256
+        )
 
         iv = get_random_bytes(iv_length)
 
