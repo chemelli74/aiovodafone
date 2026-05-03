@@ -4,7 +4,7 @@
 # Stop on errors
 set -e
 
-POETRY_VERSION="2.3.4" # renovate: depName=poetry datasource=pypi
+POETRY_VERSION="2.4.0" # renovate: depName=poetry datasource=pypi
 
 pipx install poetry=="$POETRY_VERSION"
 pipx install pre-commit
