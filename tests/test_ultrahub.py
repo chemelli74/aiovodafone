@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 from http import HTTPMethod
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+import orjson
 import pytest
 from aiohttp import ClientResponseError
 
@@ -253,10 +255,55 @@ def test_get_sensor_data(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None
     assert data["cm_status"] == "ok"
 
 
-def test_simple_methods(base_url: URL) -> None:
+def test_simple_methods(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure simple and unsupported API methods return expected defaults/errors."""
     api = _api(base_url)
-    assert asyncio.run(api.get_wifi_data()) == {WIFI_DATA: {}}
+
+    fixture_json = orjson.loads(
+        Path(__file__)
+        .parent.joinpath("fixtures", "ultrahub", "wifi_data.json")
+        .read_text(encoding="utf-8")
+    )
+
+    async def _get_wifi_pages(*_args: object, **_kwargs: object) -> object:
+        if _args[1] == "api/users/details.jst":
+            return {"X_VODAFONE_WebUISecret": fixture_json["keys"]["password"]}
+        if _args[1] == "api/wifi/ssids/list.jst":
+            return {"ssids": fixture_json["ssid_list"]}
+        if _args[1] == "api/wifi/aps/list.jst":
+            return {
+                "aps": [
+                    {
+                        "Security_KeyPassphrase": orjson.dumps(
+                            fixture_json["encrypted_data"]
+                        )
+                    }
+                ]
+            }
+        return {}
+
+    async def _qr(*_args: object, **_kwargs: object) -> object:
+        return b"qr"
+
+    api.csrf_token = "t"
+    api.id = 7
+
+    monkeypatch.setattr(api, "_auto_hub_request_page_result", _get_wifi_pages)
+    monkeypatch.setattr(api, "_generate_guest_qr_code", _qr)
+    assert asyncio.run(api.get_wifi_data()) == {
+        WIFI_DATA: {
+            "guest": {
+                "on": 0,
+                "qr_code": b"qr",
+                "ssid": "guest",
+            },
+            "main": {
+                "on": 1,
+                "ssid": "main",
+            },
+        },
+    }
+
     assert asyncio.run(api.get_docis_data()) == {}
     assert asyncio.run(api.get_voice_data()) == {}
 

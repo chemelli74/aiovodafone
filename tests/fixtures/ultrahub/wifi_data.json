@@ -1,0 +1,32 @@
+{
+  "keys": {
+    "password": "router_password",
+    "salt": "5C63595D10B1A29B"
+  },
+  "encrypted_data": {
+    "salt": "NUM2MzU5NUQxMEIxQTI5Qg==",
+    "iv": "UlNLQllDdEVtckxnbEsxWg==",
+    "v": 1,
+    "iter": 1000,
+    "ks": 128,
+    "ts": 64,
+    "mode": "ccm",
+    "adata": "",
+    "cipher": "aes",
+    "ct": "gCvwjfEwnkS0oXyCJXXbfl2PJuDIx4g="
+  },
+  "ssid_list": [
+    {
+      "Enable": "true",
+      "SSID": "main"
+    },
+    {
+      "Enable": "false",
+      "SSID": "unused"
+    },
+    {
+      "Enable": "false",
+      "SSID": "guest"
+    }
+  ]
+}
