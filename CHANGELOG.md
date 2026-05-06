@@ -1,5 +1,39 @@
 # Changelog
 
+## v3.2.0 (2026-05-06)
+
+### Features
+
+- Add wi-fi management to ultrahub ([`ead0e8e`](https://github.com/chemelli74/aiovodafone/commit/ead0e8e12cdc530d36aae6cd4e8c46b457b42070))
+
+
+### Testing
+
+- Standardize the use of orjson ([`a1905b4`](https://github.com/chemelli74/aiovodafone/commit/a1905b434b335c602b2f65ad019ad22641c1d729))
+- Improve sjcl tests with fixtures ([`37858f5`](https://github.com/chemelli74/aiovodafone/commit/37858f57edf8bf27b2ee9ca69c249bbe15eeec58))
+
+
+### Refactoring
+
+- Auto page result for ultrahub ([`3825ea3`](https://github.com/chemelli74/aiovodafone/commit/3825ea308eda874a2dfd6224719b0e2a4559f827))
+- Avoid direct use of session requests ([`f3d8cbd`](https://github.com/chemelli74/aiovodafone/commit/f3d8cbd3e29c79f49c1852245d5fc7cd0536d559))
+- Align ultrahub to use sjcl ([`24430d0`](https://github.com/chemelli74/aiovodafone/commit/24430d0e9135756b84d23ab0f53d05c34639d309))
+- Optimize for testing ([`55ac007`](https://github.com/chemelli74/aiovodafone/commit/55ac0076e40401f3192c0d7ab2b3948167c4d1bd))
+
+
+### Build system
+
+- Improve environment ([`97411a7`](https://github.com/chemelli74/aiovodafone/commit/97411a75b3bbe8ce0b9874edcdc2f2b9e0edafcf))
+- Bump aiohttp from 3.13.4 to 3.13.5 ([`62a6035`](https://github.com/chemelli74/aiovodafone/commit/62a6035449238401ba8f5bcfb999b9d32cdf1075))
+- Bump orjson from 3.11.7 to 3.11.8 ([`c0c8de1`](https://github.com/chemelli74/aiovodafone/commit/c0c8de193dd1b82f13abf2a2a27b6c8d3144a8f9))
+- Bump pygments from 2.19.2 to 2.20.0 ([`e105a62`](https://github.com/chemelli74/aiovodafone/commit/e105a621e22ed86779f5e78b1195874161ba4685))
+- Bump aiohttp from 3.13.3 to 3.13.4 ([`1b8b951`](https://github.com/chemelli74/aiovodafone/commit/1b8b951dce84d4ee0e6b5f5db09fb25fef5f2f38))
+- Bump codecov/codecov-action from 5 to 6 ([`071748f`](https://github.com/chemelli74/aiovodafone/commit/071748f51c6982439afd75db7b8b04f2c45ee244))
+- Bump pytest-cov from 7.0.0 to 7.1.0 ([`d000ed4`](https://github.com/chemelli74/aiovodafone/commit/d000ed42a1a8d81bf9be6de9da6f10f9913ff474))
+- Mypy config ([`3111126`](https://github.com/chemelli74/aiovodafone/commit/3111126e34c6d9a1da9d74b3467b86e98f168266))
+- Improve and cleanup ([`b81803c`](https://github.com/chemelli74/aiovodafone/commit/b81803c7e206c247b5ee457ec2161c7e8aca35bf))
+
+
 ## v3.1.3 (2026-03-06)
 
 ### Bug fixes
