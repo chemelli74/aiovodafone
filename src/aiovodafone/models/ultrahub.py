@@ -1,11 +1,12 @@
 """UltraHub Vodafone Station model API implementation."""
 
+import base64
 import contextlib
-import hashlib
 from datetime import UTC, datetime, timedelta
 from http import HTTPMethod
 from typing import Any, cast
 
+import orjson
 from aiohttp import (
     ClientSession,
 )
@@ -40,8 +41,6 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         self.id = DEVICES_SETTINGS["UltraHub"]["default_id"]
         self._sjcl_iterations = 1000
         self._sjcl_dklen = 16
-        self.salt: str = ""
-        self.salt_web_ui: str = ""
 
     async def login(self, force_logout: bool = False) -> bool:
         """Router login."""
@@ -63,78 +62,44 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         if self.csrf_token == "":
             raise CannotAuthenticate
 
+        returned_keys = await self._obtain_hub_keys()
+
+        password = self._encrypt_string(
+            returned_keys["passphrase"], returned_keys["salt"]
+        )
+        payload = {
+            "__id": self.id,
+            "X_VODAFONE_Password": password,
+            "Push": str(force_logout).lower(),
+            "csrf_token": self.csrf_token,
+        }
+
         reply_json = await self._auto_hub_request_page_result(
-            HTTPMethod.GET,
-            "api/users/details.jst",
-            params={"__id": self.id, "X_INTERNAL_FIELDS": "X_VODAFONE_WebUISecret"},
+            HTTPMethod.POST,
+            "api/users/login.jst",
+            payload=payload,
+            set_cookie=True,
         )
 
-        if "X_VODAFONE_WebUISecret" in reply_json:
-            web_secret = reply_json["X_VODAFONE_WebUISecret"]
-            self.salt_web_ui = web_secret[:10]
-            self.salt = web_secret[10:]
-            password = self._encrypt_string()
+        if reply_json.get("X_INTERNAL_Password_Status") == "Invalid_PWD":
+            await self._cleanup_session()
+            raise CannotAuthenticate
 
-            payload = {
-                "__id": self.id,
-                "X_VODAFONE_Password": password,
-                "Push": str(force_logout).lower(),
-                "csrf_token": self.csrf_token,
-            }
+        if reply_json.get("X_INTERNAL_Is_Duplicate") == "true":
+            await self._cleanup_session()
+            raise AlreadyLogged
 
-            reply_json = await self._auto_hub_request_page_result(
-                HTTPMethod.POST,
-                "api/users/login.jst",
-                payload=payload,
-                set_cookie=True,
-            )
+        return True
 
-            if reply_json.get("X_INTERNAL_Password_Status") == "Invalid_PWD":
-                await self._cleanup_session()
-                raise CannotAuthenticate
-
-            if reply_json.get("X_INTERNAL_Is_Duplicate") == "true":
-                await self._cleanup_session()
-                raise AlreadyLogged
-
-            return True
-
-        raise GenericLoginError
-
-    def _sjcl_derived_key(self) -> bytes:
-        """Derive PBKDF2-HMAC-SHA256 key."""
-        return hashlib.pbkdf2_hmac(
-            "sha256",
-            self.salt_web_ui.encode("utf-8"),
-            bytes(self.salt, "utf-8"),
-            self._sjcl_iterations,
-            self._sjcl_dklen,
-        )
-
-    def _encrypt_string(self) -> str:
-        """Calculate login hash (password), the salt and the salt (web UI).
-
-        Args:
-        ----
-            salt (str): salt given by the login response
-            salt_web_ui (str): salt given by the web UI
-
-        Returns:
-        -------
-            str: the hash for the session API
-
-        """
-        _LOGGER.debug("Calculate credential hash")
-
-        key = self._sjcl_derived_key()
-
+    def _encrypt_string(self, passphrase: str, salt: bytes) -> str:
+        """Encrypt the router password with the given passphrase and salt."""
         value_dict = SJCL().encrypt(
             self.password.encode("utf-8"),
-            key.hex(),
+            passphrase,
             mode="ccm",
             count=self._sjcl_iterations,
             dk_len=self._sjcl_dklen,
-            salt=self.salt_web_ui.encode("utf-8"),
+            salt=salt,
         )
         # salt is not needed as it is derived from the web secret
         value_dict.pop("salt")
@@ -163,18 +128,37 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
 
         reply_json = await response.json()
 
-        if "csrf_token" in reply_json:
+        if reply_json is not None and "csrf_token" in reply_json:
             self.csrf_token = reply_json["csrf_token"]
 
         if set_cookie:
             self.session.cookie_jar.update_cookies(response.cookies, self.base_url)
 
-        return cast("dict[str, Any]", reply_json)
+        return cast("dict[str, Any]", reply_json or {})
 
     async def _cleanup_session(self) -> None:
         """Cleanup session."""
         self.csrf_token = ""
         self.session.cookie_jar.clear()  # may be clear by domain
+
+    async def _obtain_hub_keys(
+        self,
+    ) -> dict[str, Any]:
+        """Before doing an encrypt or decrypt you need to get a key."""
+        reply_json = await self._auto_hub_request_page_result(
+            HTTPMethod.GET,
+            "api/users/details.jst",
+            params={"__id": self.id, "X_INTERNAL_FIELDS": "X_VODAFONE_WebUISecret"},
+        )
+
+        if reply_json is not None and "X_VODAFONE_WebUISecret" in reply_json:
+            web_secret = reply_json["X_VODAFONE_WebUISecret"]
+            return {
+                "passphrase": web_secret[:10],
+                "salt": bytes(web_secret[10:], "utf-8"),
+            }
+
+        raise GenericLoginError("Failed to get hub keys.")
 
     def convert_uptime(self, uptime: str) -> datetime:
         """Convert uptime to datetime."""
@@ -244,8 +228,45 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         self,
     ) -> dict[str, Any]:
         """Get Wi-Fi data."""
-        _LOGGER.debug("Get Wi-Fi data not implemented for UltraHub devices")
-        return {WIFI_DATA: {}}
+        data: dict[str, Any] = {WIFI_DATA: {}}
+
+        retuned_keys = await self._obtain_hub_keys()
+
+        ssids_json = await self._auto_hub_request_page_result(
+            HTTPMethod.GET,
+            "api/wifi/ssids/list.jst",
+            params={"X_INTERNAL_FIELDS": "__id,Enable,SSID"},
+        )
+
+        keypass_json = await self._auto_hub_request_page_result(
+            HTTPMethod.GET,
+            "api/wifi/aps/list.jst",
+            params={"__id_list": "3", "X_INTERNAL_FIELDS": "Security_KeyPassphrase"},
+        )
+
+        data[WIFI_DATA]["main"] = {
+            "ssid": ssids_json["ssids"][0]["SSID"],
+            "on": 1 if ssids_json["ssids"][0]["Enable"] == "true" else 0,
+        }
+
+        data[WIFI_DATA]["guest"] = {
+            "ssid": ssids_json["ssids"][2]["SSID"],
+            "on": 1 if ssids_json["ssids"][2]["Enable"] == "true" else 0,
+        }
+
+        json = orjson.loads(keypass_json["aps"][0]["Security_KeyPassphrase"])
+
+        sjcl = SJCL()
+        sjcl.salt_size = len(retuned_keys["salt"])
+        json["salt"] = base64.b64encode(retuned_keys["salt"])
+
+        pwd = sjcl.decrypt(json, retuned_keys["passphrase"]).decode("utf-8")
+
+        data[WIFI_DATA]["guest"]["qr_code"] = await self._generate_guest_qr_code(
+            data[WIFI_DATA]["guest"]["ssid"], pwd, "WPA2+WPA3"
+        )
+
+        return data
 
     async def get_docis_data(self) -> dict[str, Any]:
         """Get router docis data."""
@@ -294,4 +315,20 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         band: WifiBand,
     ) -> None:  # pragma: no cover
         """Enable/Disable Wi-Fi."""
-        raise NotImplementedError("Method not implemented for UltraHub devices")
+        _LOGGER.debug("Set wifi status for %s", band)
+
+        if not self.csrf_token:
+            _LOGGER.warning("Cannot set wifi status, not authenticated")
+            return
+
+        body: dict[str, Any]
+        if wifi_type == WifiType.GUEST:
+            body = {"ssids": {"3": {"Enable": str(enable).lower()}}}
+        else:
+            body = {"wifi": {"X_VODAFONE_WiFiNetwork": str(enable).lower()}}
+
+        payload = {"body": build_json_from_sjcl(body), "csrf_token": self.csrf_token}
+
+        await self._auto_hub_request_page_result(
+            HTTPMethod.POST, "api/wifi/bulk/update.jst", payload=payload
+        )
