@@ -10,6 +10,7 @@ from aiohttp import ClientConnectorError
 
 from aiovodafone.exceptions import ModelNotSupported
 from aiovodafone.models import DeviceType, get_device_type, init_device_class
+from aiovodafone.models.homeware import VodafoneStationHomewareApi
 from aiovodafone.models.sercomm import VodafoneStationSercommApi
 from aiovodafone.models.technicolor import VodafoneStationTechnicolorApi
 from aiovodafone.models.ultrahub import VodafoneStationUltraHubApi
@@ -57,6 +58,18 @@ def test_init_device_class_ultrahub(base_url: URL) -> None:
         cast("Any", session),
     )
     assert isinstance(api, VodafoneStationUltraHubApi)
+
+
+def test_init_device_class_homeware(base_url: URL) -> None:
+    """Ensure Homeware device type initializes Homeware API class."""
+    session = FakeSession()
+    api = init_device_class(
+        base_url,
+        DeviceType.HOMEWARE,
+        {"username": "u", "password": "p"},
+        cast("Any", session),
+    )
+    assert isinstance(api, VodafoneStationHomewareApi)
 
 
 def test_init_device_class_unsupported_type_raises(base_url: URL) -> None:
@@ -185,3 +198,15 @@ def test_get_device_type_continues_on_non_200_status() -> None:
     device_type, _ = asyncio.run(get_device_type("192.168.1.1", cast("Any", session)))
     assert calls["count"] >= MIN_ATTEMPTS
     assert device_type == DeviceType.SERCOMM
+
+
+def test_get_device_type_detects_homeware() -> None:
+    """Detect Homeware model from status==alive JSON response."""
+    response = FakeResponse(
+        status=200,
+        text_data='{"status": "alive"}',
+        json_data={"status": "alive"},
+    )
+    session = _session_for_detection(response)
+    device_type, _ = asyncio.run(get_device_type("192.168.1.1", cast("Any", session)))
+    assert device_type == DeviceType.HOMEWARE
