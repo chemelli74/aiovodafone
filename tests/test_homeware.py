@@ -57,14 +57,14 @@ def test_srp_client_public_key_hex(
 
 
 def test_srp_calculate_proofs_invalid_server_key_raises() -> None:
-    """Raise ValueError when server public key is zero mod K."""
+    """Raise GenericLoginError when server public key is zero mod K."""
     srp = TechnicolorSRP("u", "p")
-    with pytest.raises(ValueError, match="B % K == 0"):
+    with pytest.raises(GenericLoginError, match="B % K == 0"):
         srp.calculate_proofs("aabb", "00")  # int("00", 16) = 0, 0 % K = 0
 
 
 def test_srp_calculate_proofs_h_zero_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Raise ValueError when scrambling parameter h is zero (mocked SHA-256)."""
+    """Raise GenericLoginError when scrambling parameter h is zero (mocked SHA-256)."""
 
     class _ZeroDigest:
         def digest(self) -> bytes:
@@ -72,7 +72,7 @@ def test_srp_calculate_proofs_h_zero_raises(monkeypatch: pytest.MonkeyPatch) -> 
 
     monkeypatch.setattr(_hashlib, "sha256", lambda _data: _ZeroDigest())
     srp = TechnicolorSRP("u", "p")
-    with pytest.raises(ValueError, match="h == 0"):
+    with pytest.raises(GenericLoginError, match="h == 0"):
         srp.calculate_proofs("aabb", "03")
 
 
