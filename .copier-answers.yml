@@ -14,7 +14,7 @@ package_name: aiovodafone
 project_name: aiovodafone
 project_short_description: Python library to control Vodafone Station
 project_slug: aiovodafone
-run_poetry_install: true
+run_poetry_install: false
 setup_github: false
 setup_pre_commit: true
 
