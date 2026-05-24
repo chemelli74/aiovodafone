@@ -13,7 +13,6 @@ from aiohttp import (
     ClientResponse,
     ClientResponseError,
     ClientSession,
-    ClientTimeout,
 )
 from yarl import URL
 
@@ -21,6 +20,8 @@ from .const import (
     _LOGGER,
     DEFAULT_TIMEOUT,
     HEADERS,
+    REQUEST_ALLOW_REDIRECTS,
+    REQUEST_TIMEOUT,
     WifiBand,
     WifiType,
 )
@@ -71,14 +72,13 @@ class VodafoneStationCommonApi(ABC):
             SimpleCookie(f"domain={self.base_url.host}; name=login_uid; value=1;"),
         )
 
-    async def _request_page_result(  # noqa: PLR0913
+    async def _request_page_result(
         self,
         method: str,
         page: str,
         payload: dict[str, Any] | str | None = None,
-        timeout: ClientTimeout = DEFAULT_TIMEOUT,
         query: dict[str, Any] | None = None,
-        allow_redirects: bool = True,
+        additional_params: dict[str, Any] | None = None,
     ) -> ClientResponse:
         """Request data from a web page."""
         _LOGGER.debug("%s page %s from host %s", method, page, self.base_url.host)
@@ -90,6 +90,10 @@ class VodafoneStationCommonApi(ABC):
                 "csrf_token": self.csrf_token,
             }
         )
+
+        # Additional parameters
+        allow_redirects = (additional_params or {}).get(REQUEST_ALLOW_REDIRECTS, False)
+        timeout = (additional_params or {}).get(REQUEST_TIMEOUT, DEFAULT_TIMEOUT)
 
         url = self.base_url.joinpath(page)
         if query_params:
