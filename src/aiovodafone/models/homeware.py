@@ -94,7 +94,7 @@ class TechnicolorSRP:
             The client_proof (M) to be sent to the server.
 
         Raises:
-            ValueError: If server provides an invalid public key (B % K == 0)
+            GenericLoginError: If server provides an invalid public key (B % K == 0)
                         or h == 0.
 
         """
@@ -467,7 +467,7 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
         )
         html = await reply.text()
 
-        match = re.search(r"var content = ({.*?});", html)
+        match = re.search(r"var content = ({.*?});", html, re.DOTALL)
         if not match:
             raise GenericLoginError("Could not find WiFi settings in page HTML")
 

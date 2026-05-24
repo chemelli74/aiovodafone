@@ -70,10 +70,16 @@ async def get_device_type(
 ) -> tuple[DeviceType, URL]:
     """Find out the device type of a Vodafone Stations and returns it as enum.
 
-    The Technicolor devices always answer with a valid HTTP response, the
-    Sercomm returns 404 on a missing page. This helps to determine which we are
-    talking with.
-    For detecting the Sercomm devices, a look up for a CSRF token is used.
+    - The Technicolor devices always answer with a valid HTTP response, the
+
+    - Sercomm returns 404 on a missing page. This helps to determine which we are
+      talking with.
+      For detecting the Sercomm devices, a look up for a CSRF token is used.
+
+    - The UltraHub is identified by a specific key in the JSON response.
+
+    - The Homeware devices return a JSON response with a ``status`` field set to
+    ``alive``.
 
     Args:
     ----
