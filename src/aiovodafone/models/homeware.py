@@ -104,8 +104,7 @@ class TechnicolorSRP:
         # Parse server public key B and perform safety check
         b_int = int(server_public, 16)
         if b_int % _K == 0:
-            msg = "Invalid server public key (B % K == 0)."
-            raise ValueError(msg)
+            raise GenericLoginError("Invalid server public key (B % K == 0).")
 
         # Calculate h = SHA256(pad(D) || pad(B))
         d_bytes = self._d_public.to_bytes(_K_LEN_BYTES, byteorder="big")
@@ -116,8 +115,7 @@ class TechnicolorSRP:
 
         # Perform second safety check
         if h_int == 0:
-            msg = "Invalid scrambling parameter (h == 0)."
-            raise ValueError(msg)
+            raise GenericLoginError("Invalid scrambling parameter (h == 0).")
 
         # Calculate n = SHA256(salt + SHA256(username + ":" + password))
         credentials = f"{self.username}:{self.password}".encode()
@@ -173,10 +171,9 @@ class TechnicolorSRP:
 
         """
         if self._server_verification is None:
-            msg = (
+            raise RuntimeError(
                 "Server verification value not calculated. Call calculate_proofs first."
             )
-            raise RuntimeError(msg)
 
         return hmac.compare_digest(
             self._server_verification.upper(), server_proof.upper()
@@ -235,8 +232,9 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
         server_public = auth1_response.get("B")
 
         if not salt or not server_public:
-            msg = "Invalid response from first authentication request"
-            raise GenericLoginError(msg)
+            raise GenericLoginError(
+                "Invalid response from first authentication request"
+            )
 
         auth2_reply: ClientResponse = await self._request_page_result(
             HTTPMethod.POST,
@@ -251,12 +249,12 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
         server_proof = auth2_response.get("M")
 
         if not server_proof:
-            msg = "Invalid response from second authentication request"
-            raise GenericLoginError(msg)
+            raise GenericLoginError(
+                "Invalid response from second authentication request"
+            )
 
         if not srp.verify_server(server_proof):
-            msg = "Server authentication failed - proof mismatch"
-            raise GenericLoginError(msg)
+            raise GenericLoginError("Server authentication failed - proof mismatch")
 
         _LOGGER.debug("Auth cookies set: %s", list(auth2_reply.cookies.keys()))
 
@@ -341,7 +339,7 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
         )
         return {device.mac: device for device in devices if device is not None}
 
-    async def get_sensor_data(self) -> dict[str, str]:
+    async def get_sensor_data(self) -> dict[str, Any]:
         """Fetch router system information."""
         sysinfo_reply = await self._request_page_result(
             HTTPMethod.GET,
@@ -407,8 +405,7 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
     async def restart_connection(self, connection_type: str) -> None:
         """Reconnect your DSL or Fibre connection."""
         if connection_type not in {"dsl", "ethwan"}:
-            msg = f"Unknown connection type '{connection_type}'"
-            raise ValueError(msg)
+            raise ValueError(f"Unknown connection type '{connection_type}'")
         await self._request_page_result(
             HTTPMethod.POST,
             "modals/status-support/restart.lp",
@@ -455,8 +452,7 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
 
         # Ensure at least one component was parsed
         if not any(components.values()) and not re.search(r"\b0\b", uptime):
-            msg = f"Failed to parse uptime string: {uptime!r}"
-            raise ValueError(msg)
+            raise ValueError(f"Failed to parse uptime string: {uptime!r}")
 
         delta = dt.timedelta(**components)
         boot_time = dt.datetime.now(tz=dt.UTC) - delta
@@ -473,8 +469,7 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
 
         match = re.search(r"var content = ({.*?});", html)
         if not match:
-            msg = "Could not find WiFi settings in page HTML"
-            raise GenericLoginError(msg)
+            raise GenericLoginError("Could not find WiFi settings in page HTML")
 
         return cast("dict[str, Any]", orjson.loads(match.group(1)))
 
