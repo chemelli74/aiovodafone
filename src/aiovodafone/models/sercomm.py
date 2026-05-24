@@ -16,7 +16,6 @@ from aiohttp import (
     ClientResponse,
     ClientResponseError,
     ClientSession,
-    ClientTimeout,
 )
 from bs4 import BeautifulSoup
 from yarl import URL
@@ -24,10 +23,8 @@ from yarl import URL
 from aiovodafone.api import VodafoneStationCommonApi, VodafoneStationDevice
 from aiovodafone.const import (
     _LOGGER,
-    DEFAULT_TIMEOUT,
     DEVICE_SERCOMM_LOGIN_STATUS,
     DEVICES_SETTINGS,
-    POST_RESTART_TIMEOUT,
     WIFI_DATA,
     WifiBand,
     WifiType,
@@ -81,10 +78,9 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         self,
         page: str,
         payload: dict[str, Any] | str,
-        timeout: ClientTimeout = DEFAULT_TIMEOUT,
     ) -> dict[Any, Any] | str:
         """Post html page and process reply."""
-        reply = await self._request_page_result(HTTPMethod.POST, page, payload, timeout)
+        reply = await self._request_page_result(HTTPMethod.POST, page, payload)
         _LOGGER.debug("POST raw reply (%s): %s", page, await reply.text())
         reply_json = await reply.json(content_type="text/html")
         _LOGGER.debug("POST json reply (%s): %s", page, reply_json)
@@ -484,10 +480,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
             if not await self._check_logged_in():
                 await self.login()
             await self._request_page_result(
-                HTTPMethod.POST,
-                "data/statussupportrestart.json",
-                payload,
-                POST_RESTART_TIMEOUT,
+                HTTPMethod.POST, "data/statussupportrestart.json", payload
             )
         except asyncio.exceptions.TimeoutError:
             pass

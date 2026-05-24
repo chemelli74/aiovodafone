@@ -13,7 +13,6 @@ from aiohttp import (
     ClientResponse,
     ClientResponseError,
     ClientSession,
-    ClientTimeout,
 )
 from yarl import URL
 
@@ -71,12 +70,11 @@ class VodafoneStationCommonApi(ABC):
             SimpleCookie(f"domain={self.base_url.host}; name=login_uid; value=1;"),
         )
 
-    async def _request_page_result(  # noqa: PLR0913
+    async def _request_page_result(
         self,
         method: str,
         page: str,
         payload: dict[str, Any] | str | None = None,
-        timeout: ClientTimeout = DEFAULT_TIMEOUT,
         query: dict[str, Any] | None = None,
         allow_redirects: bool = True,
     ) -> ClientResponse:
@@ -100,7 +98,7 @@ class VodafoneStationCommonApi(ABC):
                 url,
                 data=payload,
                 headers=self.headers,
-                timeout=timeout,
+                timeout=DEFAULT_TIMEOUT,
                 ssl=False,
                 allow_redirects=allow_redirects,
             )

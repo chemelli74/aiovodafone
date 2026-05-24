@@ -17,7 +17,6 @@ HEADERS = {
     "Priority": "u=1",
 }
 DEFAULT_TIMEOUT = ClientTimeout(10)
-POST_RESTART_TIMEOUT = ClientTimeout(2)
 WIFI_DATA = "wifi_data"
 
 
