@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 from http import HTTPMethod
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
@@ -119,7 +120,12 @@ def test_request_page_result_client_response_error_raises(base_url: URL) -> None
     """Verify request helper wraps aiohttp response errors."""
 
     async def _request(*_args: object, **_kwargs: object) -> FakeResponse:
-        raise ClientResponseError(cast("Any", object()), (), status=400, message="boom")
+        raise ClientResponseError(
+            cast("Any", SimpleNamespace(real_url="http://router.local")),
+            (),
+            status=400,
+            message="boom",
+        )
 
     api = DummyCommonApi(
         base_url, "u", "p", cast("Any", FakeSession(request_impl=_request))
