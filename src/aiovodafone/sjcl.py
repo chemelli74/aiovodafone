@@ -112,7 +112,7 @@ class SJCL:
         # split tag from ciphertext (tag was simply appended to ciphertext)
         mac = ciphertext[-(data["ts"] // 8) :]
         ciphertext = ciphertext[: -(data["ts"] // 8)]
-        cipher = AES.new(key, aes_mode, nonce, mac_len=tlen // 8)
+        cipher = AES.new(key, cast("Any", aes_mode), nonce, mac_len=tlen // 8)
         plaintext = cipher.decrypt(ciphertext)
 
         cipher.verify(mac)
@@ -147,7 +147,7 @@ class SJCL:
         else:
             nonce = iv
 
-        cipher = AES.new(key, aes_mode, nonce, mac_len=tlen // 8)
+        cipher = AES.new(key, cast("Any", aes_mode), nonce, mac_len=tlen // 8)
 
         ciphertext = cipher.encrypt(plaintext)
         mac = cipher.digest()
