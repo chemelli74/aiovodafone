@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from http import HTTPMethod
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
 
 import orjson
@@ -90,7 +91,12 @@ def test_auto_hub_request_client_error_raises(base_url: URL) -> None:
     """Ensure aiohttp client errors are wrapped as GenericResponseError."""
 
     async def _request(*_args: object, **_kwargs: object) -> FakeResponse:
-        raise ClientResponseError(cast("Any", object()), (), status=400, message="boom")
+        raise ClientResponseError(
+            cast("Any", SimpleNamespace(real_url="http://router.local")),
+            (),
+            status=400,
+            message="boom",
+        )
 
     api = VodafoneStationUltraHubApi(
         base_url, "u", "p", cast("Any", FakeSession(request_impl=_request))

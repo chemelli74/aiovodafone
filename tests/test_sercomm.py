@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import orjson
 import pytest
-from aiohttp import ClientConnectorError, ClientResponseError
+from aiohttp import ClientConnectorError
 
 from aiovodafone.const import WIFI_DATA, WifiBand, WifiType
 from aiovodafone.exceptions import (
@@ -529,20 +529,16 @@ def test_restart_connection_and_router(
     assert calls["post"] == 1
 
     async def _post_header_err(*_args: object, **_kwargs: object) -> object:
-        raise ClientResponseError(
-            cast("Any", object()), (), status=400, message="Invalid header token"
-        )
+        raise GenericResponseError("Client response error: Invalid header token")
 
     monkeypatch.setattr(api, "_post_sercomm_page", _post_header_err)
     asyncio.run(api.restart_connection("wan"))
 
     async def _post_other_err(*_args: object, **_kwargs: object) -> object:
-        raise ClientResponseError(
-            cast("Any", object()), (), status=400, message="other"
-        )
+        raise GenericResponseError("Client response error: other")
 
     monkeypatch.setattr(api, "_post_sercomm_page", _post_other_err)
-    with pytest.raises(ClientResponseError):
+    with pytest.raises(GenericResponseError):
         asyncio.run(api.restart_connection("wan"))
 
     async def _request_timeout(*_args: object, **_kwargs: object) -> object:

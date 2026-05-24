@@ -19,8 +19,9 @@ HEADERS = {
 DEFAULT_TIMEOUT = ClientTimeout(10)
 POST_RESTART_TIMEOUT = ClientTimeout(2)
 
-REQUEST_TIMEOUT = "timeout"
 REQUEST_ALLOW_REDIRECTS = "allow_redirects"
+REQUEST_SUPPRESS_LOG = "suppress_log"
+REQUEST_TIMEOUT = "timeout"
 
 WIFI_DATA = "wifi_data"
 

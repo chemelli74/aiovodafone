@@ -1,5 +1,23 @@
 # Changelog
 
+## v3.2.1 (2026-05-24)
+
+### Bug fixes
+
+- Suppress sercomm known reply errors ([`440650b`](https://github.com/chemelli74/aiovodafone/commit/440650bc4c3ecba9580cd6eb32becf8ba9b974e1))
+
+
+### Build system
+
+- Modernize development environment ([`5b45b3a`](https://github.com/chemelli74/aiovodafone/commit/5b45b3a21ffbb391b9693014b6ecb7a29c7e94a7))
+
+
+### Refactoring
+
+- Pylance errors ([`adc9c82`](https://github.com/chemelli74/aiovodafone/commit/adc9c82bd9aed40502ee142bad7efb103bc3d914))
+- Requests additional parameters ([`5cb72d9`](https://github.com/chemelli74/aiovodafone/commit/5cb72d986a0f23478cd83a7081ceaf0bb5c7dcec))
+
+
 ## v3.2.0 (2026-05-06)
 
 ### Features
