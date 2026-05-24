@@ -15,8 +15,8 @@ from yarl import URL
 from aiovodafone.api import VodafoneStationCommonApi, VodafoneStationDevice
 from aiovodafone.const import (
     _LOGGER,
-    DEFAULT_TIMEOUT,
     DEVICES_SETTINGS,
+    REQUEST_ALLOW_REDIRECTS,
     WIFI_DATA,
     WifiBand,
     WifiType,
@@ -121,9 +121,8 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
             method,
             page,
             payload=payload,
-            timeout=DEFAULT_TIMEOUT,
             query=params if params is not None else {},
-            allow_redirects=False,
+            additional_params={REQUEST_ALLOW_REDIRECTS: False},
         )
 
         reply_json = await response.json()
