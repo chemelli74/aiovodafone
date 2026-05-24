@@ -21,6 +21,7 @@ from .const import (
     DEFAULT_TIMEOUT,
     HEADERS,
     REQUEST_ALLOW_REDIRECTS,
+    REQUEST_SUPPRESS_LOG,
     REQUEST_TIMEOUT,
     WifiBand,
     WifiType,
@@ -93,6 +94,7 @@ class VodafoneStationCommonApi(ABC):
 
         # Additional parameters
         allow_redirects = (additional_params or {}).get(REQUEST_ALLOW_REDIRECTS, False)
+        suppress_log = (additional_params or {}).get(REQUEST_SUPPRESS_LOG, False)
         timeout = (additional_params or {}).get(REQUEST_TIMEOUT, DEFAULT_TIMEOUT)
 
         url = self.base_url.joinpath(page)
@@ -118,10 +120,13 @@ class VodafoneStationCommonApi(ABC):
                 )
                 raise GenericResponseError
         except ClientResponseError as err:
-            _LOGGER.exception(
-                "%s page %s from host %s failed", method, page, self.base_url.host
-            )
-            raise GenericResponseError from err
+            # Some models return text replies with invalid HTML headers.
+            # Suppress expected errors to prevent log spam.
+            if not suppress_log:
+                _LOGGER.exception(
+                    "%s page %s from host %s failed", method, page, self.base_url.host
+                )
+            raise GenericResponseError(f"Client response error: {err!s}") from err
         else:
             return response
 
