@@ -25,6 +25,7 @@ from aiovodafone.const import (
     _LOGGER,
     DEVICE_SERCOMM_LOGIN_STATUS,
     DEVICES_SETTINGS,
+    POST_RESTART_TIMEOUT,
     REQUEST_TIMEOUT,
     WIFI_DATA,
     WifiBand,
@@ -484,7 +485,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
                 HTTPMethod.POST,
                 "data/statussupportrestart.json",
                 payload,
-                additional_params={REQUEST_TIMEOUT: 2},
+                additional_params={REQUEST_TIMEOUT: POST_RESTART_TIMEOUT},
             )
         except asyncio.exceptions.TimeoutError:
             pass

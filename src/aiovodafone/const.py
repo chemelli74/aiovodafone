@@ -17,6 +17,7 @@ HEADERS = {
     "Priority": "u=1",
 }
 DEFAULT_TIMEOUT = ClientTimeout(10)
+POST_RESTART_TIMEOUT = ClientTimeout(2)
 
 REQUEST_TIMEOUT = "timeout"
 REQUEST_ALLOW_REDIRECTS = "allow_redirects"
