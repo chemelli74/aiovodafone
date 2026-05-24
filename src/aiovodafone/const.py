@@ -17,6 +17,10 @@ HEADERS = {
     "Priority": "u=1",
 }
 DEFAULT_TIMEOUT = ClientTimeout(10)
+
+REQUEST_TIMEOUT = "timeout"
+REQUEST_ALLOW_REDIRECTS = "allow_redirects"
+
 WIFI_DATA = "wifi_data"
 
 

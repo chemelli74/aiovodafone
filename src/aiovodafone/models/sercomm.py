@@ -25,6 +25,7 @@ from aiovodafone.const import (
     _LOGGER,
     DEVICE_SERCOMM_LOGIN_STATUS,
     DEVICES_SETTINGS,
+    REQUEST_TIMEOUT,
     WIFI_DATA,
     WifiBand,
     WifiType,
@@ -480,7 +481,10 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
             if not await self._check_logged_in():
                 await self.login()
             await self._request_page_result(
-                HTTPMethod.POST, "data/statussupportrestart.json", payload
+                HTTPMethod.POST,
+                "data/statussupportrestart.json",
+                payload,
+                additional_params={REQUEST_TIMEOUT: 2},
             )
         except asyncio.exceptions.TimeoutError:
             pass

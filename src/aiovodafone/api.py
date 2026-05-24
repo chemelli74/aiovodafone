@@ -20,6 +20,8 @@ from .const import (
     _LOGGER,
     DEFAULT_TIMEOUT,
     HEADERS,
+    REQUEST_ALLOW_REDIRECTS,
+    REQUEST_TIMEOUT,
     WifiBand,
     WifiType,
 )
@@ -76,7 +78,7 @@ class VodafoneStationCommonApi(ABC):
         page: str,
         payload: dict[str, Any] | str | None = None,
         query: dict[str, Any] | None = None,
-        allow_redirects: bool = True,
+        additional_params: dict[str, Any] | None = None,
     ) -> ClientResponse:
         """Request data from a web page."""
         _LOGGER.debug("%s page %s from host %s", method, page, self.base_url.host)
@@ -89,6 +91,10 @@ class VodafoneStationCommonApi(ABC):
             }
         )
 
+        # Additional parameters
+        allow_redirects = (additional_params or {}).get(REQUEST_ALLOW_REDIRECTS, False)
+        timeout = (additional_params or {}).get(REQUEST_TIMEOUT, DEFAULT_TIMEOUT)
+
         url = self.base_url.joinpath(page)
         if query_params:
             url = url.with_query(query_params)
@@ -98,7 +104,7 @@ class VodafoneStationCommonApi(ABC):
                 url,
                 data=payload,
                 headers=self.headers,
-                timeout=DEFAULT_TIMEOUT,
+                timeout=timeout,
                 ssl=False,
                 allow_redirects=allow_redirects,
             )
