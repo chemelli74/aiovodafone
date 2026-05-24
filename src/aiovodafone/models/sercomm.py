@@ -14,7 +14,6 @@ import orjson
 from aiohttp import (
     ClientConnectorError,
     ClientResponse,
-    ClientResponseError,
     ClientSession,
 )
 from bs4 import BeautifulSoup
@@ -26,6 +25,7 @@ from aiovodafone.const import (
     DEVICE_SERCOMM_LOGIN_STATUS,
     DEVICES_SETTINGS,
     POST_RESTART_TIMEOUT,
+    REQUEST_SUPPRESS_LOG,
     REQUEST_TIMEOUT,
     WIFI_DATA,
     WifiBand,
@@ -80,9 +80,12 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         self,
         page: str,
         payload: dict[str, Any] | str,
+        additional_params: dict[str, Any] | None = None,
     ) -> dict[Any, Any] | str:
         """Post html page and process reply."""
-        reply = await self._request_page_result(HTTPMethod.POST, page, payload)
+        reply = await self._request_page_result(
+            HTTPMethod.POST, page, payload, additional_params=additional_params
+        )
         _LOGGER.debug("POST raw reply (%s): %s", page, await reply.text())
         reply_json = await reply.json(content_type="text/html")
         _LOGGER.debug("POST json reply (%s): %s", page, reply_json)
@@ -463,15 +466,19 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         try:
             if not await self._check_logged_in():
                 await self.login()
-            await self._post_sercomm_page("data/statussupportrestart.json", payload)
-        except ClientResponseError as ex:
+            await self._post_sercomm_page(
+                "data/statussupportrestart.json",
+                payload,
+                additional_params={REQUEST_SUPPRESS_LOG: True},
+            )
+        except GenericResponseError as ex:
             _LOGGER.debug(
                 'Client response error for "restart_connection" is: %s',
-                ex.message,
+                ex,
             )
-            # Some models dump a text reply with wrong HTML headers
+            # Some models return text replies with invalid HTML headers.
             # as reply to a reconnection request
-            if not ex.message.startswith("Invalid header token"):
+            if "Invalid header token" not in str(ex):
                 raise
 
     async def restart_router(self) -> None:
