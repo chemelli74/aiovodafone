@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.3.0 (2026-05-24)
+
+### Features
+
+- Add support for homeware routers ([`639021d`](https://github.com/chemelli74/aiovodafone/commit/639021d90e1d46e437e67c116ef5d88e22e19807))
+
+
 ## v3.2.1 (2026-05-24)
 
 ### Bug fixes
