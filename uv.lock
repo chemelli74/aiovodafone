@@ -145,7 +145,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiohttp", specifier = ">=3.12.7" },
+    { name = "aiohttp", specifier = ">=3.14.0" },
     { name = "beautifulsoup4" },
     { name = "orjson", specifier = ">=3.10,<4" },
     { name = "pycryptodome", specifier = ">=3.17,<4" },
