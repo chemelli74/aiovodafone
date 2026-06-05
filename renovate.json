@@ -4,6 +4,31 @@
   "prHourlyLimit": 0,
   "prConcurrentLimit": 0,
   "branchConcurrentLimit": 0,
+  "postUpdateOptions": ["uvLock"],
+  "packageRules": [
+    {
+      "matchManagers": ["pep621"],
+      "groupName": "python dependencies (uv)",
+      "rangeStrategy": "bump",
+      "separateMajorMinor": true,
+      "separateMinorPatch": false
+    },
+    {
+      "matchPackagePatterns": ["*"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true
+    },
+    {
+      "matchPackagePatterns": ["*"],
+      "matchUpdateTypes": ["minor"],
+      "automerge": false
+    },
+    {
+      "matchPackagePatterns": ["*"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    }
+  ],
   "customManagers": [
     {
       "customType": "regex",
