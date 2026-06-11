@@ -258,6 +258,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         sjcl = SJCL()
         sjcl.salt_size = len(retuned_keys["salt"])
         json["salt"] = base64.b64encode(retuned_keys["salt"])
+        json["iter"] = 1000
 
         pwd = sjcl.decrypt(json, retuned_keys["passphrase"]).decode("utf-8")
 

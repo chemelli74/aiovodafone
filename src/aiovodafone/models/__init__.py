@@ -128,7 +128,7 @@ async def get_device_type(
                         )
                         return (DeviceType.TECHNICOLOR, return_url)
 
-                    if "X_VODAFONE_ServiceStatus_1" in response_json:
+                    if "X_VODAFONE_WebUI_Language" in response_json:
                         session.cookie_jar.clear()  # Needed to cleanup session
                         _LOGGER.debug("Detected device type: %s", DeviceType.ULTRAHUB)
                         return (DeviceType.ULTRAHUB, return_url)
