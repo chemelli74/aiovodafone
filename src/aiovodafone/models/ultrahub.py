@@ -259,7 +259,7 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
         sjcl.salt_size = len(retuned_keys["salt"])
         json["salt"] = base64.b64encode(retuned_keys["salt"])
 
-        """The value passed back is always wrong"""
+        # The API currently returns an incorrect value (always 10000)
         json["iter"] = self._sjcl_iterations
 
         pwd = sjcl.decrypt(json, retuned_keys["passphrase"]).decode("utf-8")
