@@ -61,7 +61,10 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
       - name: Sync Dependencies
-        run: uv sync --frozen --group dev
+        run: uv sync --frozen --all-groups
+        shell: bash
+      - name: Verify lock consistency
+        run: uv lock --check
         shell: bash
       - name: Test with Pytest
         run: uv run pytest --cov-report=xml
