@@ -1,6 +1,6 @@
 {
   "$schema": "https://renovatebot.com",
-  "extends": ["config:recommended"],
+  "extends": ["config:recommended", ":enablePreCommit"],
   "prHourlyLimit": 0,
   "prConcurrentLimit": 0,
   "branchConcurrentLimit": 0,
