@@ -5,18 +5,6 @@
   "prConcurrentLimit": 0,
   "branchConcurrentLimit": 0,
   "rangeStrategy": "update-lockfile",
-  "customManagers": [
-    {
-      "customType": "regex",
-      "managerFilePatterns": ["/(^|/)\\.devcontainer/devcontainer\\.json$/"],
-      "matchStrings": [
-        "\"image\":\\s*\"mcr\\.microsoft\\.com/devcontainers/python:(?<prefix>[^-]+)-(?<currentValue>[^\"]+)\""
-      ],
-      "depNameTemplate": "python",
-      "datasourceTemplate": "python-version",
-      "autoReplaceStringTemplate": "\"image\": \"mcr.microsoft.com/devcontainers/python:1-{{{newValue}}}\""
-    }
-  ],
   "packageRules": [
     {
       "matchPackageNames": ["*"],
@@ -27,6 +15,11 @@
       "matchPackageNames": ["*"],
       "matchUpdateTypes": ["minor", "major"],
       "automerge": false
+    },
+    {
+      "matchManagers": ["pre-commit", "devcontainer"],
+      "matchUpdateTypes": ["patch", "minor", "major"],
+      "automerge": true
     }
   ],
   "lockFileMaintenance": {
