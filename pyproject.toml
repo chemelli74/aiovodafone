@@ -17,7 +17,7 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14", # renovate: depName=python datasource=python-version
+    "Programming Language :: Python :: 3.14", # renovate: customPinnedDependency=python,datasource=python-version
     "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
@@ -46,7 +46,7 @@ version_variables = ["src/aiovodafone/__init__.py:__version__",]
 
 # Keep this version in sync with scripts/setup.sh and .github/workflows/ci.yml.
 build_command = """
-    python -m pip install \"uv==0.11.24\"
+    python -m pip install \"uv==0.11.24\"  # renovate: customPinnedDependency=python,datasource=python-version
     uv lock --upgrade-package "$PACKAGE_NAME"
     git add uv.lock
     uv build

@@ -1,67 +1,20 @@
 {
+  "$schema": "https://renovatebot.com",
   "extends": ["config:recommended"],
-  "dependencyDashboardApproval": false,
   "prHourlyLimit": 0,
   "prConcurrentLimit": 0,
   "branchConcurrentLimit": 0,
   "rangeStrategy": "update-lockfile",
-  "lockFileMaintenance": {
-    "enabled": false
-  },
   "packageRules": [
     {
-      "matchManagers": ["pep621"],
-      "groupName": "python dependencies (uv)",
-      "rangeStrategy": "bump",
-      "separateMajorMinor": true,
-      "separateMinorPatch": false
-    },
-    {
-      "matchPackagePatterns": ["pep621"],
+      "matchPackagePatterns": ["*"],
       "matchUpdateTypes": ["patch"],
       "automerge": true
     },
     {
       "matchPackagePatterns": ["*"],
-      "matchUpdateTypes": ["minor"],
+      "matchUpdateTypes": ["minor", "major"],
       "automerge": false
-    },
-    {
-      "matchPackagePatterns": ["*"],
-      "matchUpdateTypes": ["major"],
-      "automerge": false
-    }
-  ],
-  "customManagers": [
-    {
-      "customType": "regex",
-      "managerFilePatterns": [
-        "/(^|/)scripts/setup\\.sh$/",
-        "/(^|/)\\.github/workflows/ci\\.yml$/"
-      ],
-      "matchStrings": [
-        "UV_VERSION\\s*[:=]\\s*\"(?<currentValue>[^\"]+)\"\\s+#\\s+renovate:\\s+depName=(?<depName>\\S+)\\s+datasource=(?<datasource>\\S+)"
-      ]
-    },
-    {
-      "customType": "regex",
-      "managerFilePatterns": ["/(^|/)\\.github/workflows/ci\\.yml$/"],
-      "matchStrings": [
-        "(?<indentation>[ \\t]*)-\\s*\"(?<currentValue>[^\"]+)\"\\s+#\\s+renovate:\\s+depName=python\\s+datasource=python-version"
-      ],
-      "depNameTemplate": "python",
-      "datasourceTemplate": "python-version",
-      "autoReplaceStringTemplate": "{{{indentation}}}- \"{{{newValue}}}\" # renovate: depName=python datasource=python-version"
-    },
-    {
-      "customType": "regex",
-      "managerFilePatterns": ["/(^|/)\\.github/workflows/ci\\.yml$/"],
-      "matchStrings": [
-        "(?<indentation>[ \\t]*)python-version:\\s*\"(?<currentValue>[^\"]+)\"\\s+#\\s+renovate:\\s+depName=python\\s+datasource=python-version"
-      ],
-      "depNameTemplate": "python",
-      "datasourceTemplate": "python-version",
-      "autoReplaceStringTemplate": "{{{indentation}}}python-version: \"{{{newValue}}}\" # renovate: depName=python datasource=python-version"
     },
     {
       "customType": "regex",
@@ -72,25 +25,7 @@
       "depNameTemplate": "python",
       "datasourceTemplate": "python-version",
       "autoReplaceStringTemplate": "\"image\": \"mcr.microsoft.com/devcontainers/python:1-{{{newValue}}}\""
-    },
-    {
-      "customType": "regex",
-      "managerFilePatterns": ["/(^|/)pyproject\\.toml$/"],
-      "matchStrings": [
-        "\"Programming Language :: Python :: (?<currentValue>[^\"]+)\",\\s*#\\s+renovate:\\s+depName=python\\s+datasource=python-version"
-      ],
-      "depNameTemplate": "python",
-      "datasourceTemplate": "python-version",
-      "autoReplaceStringTemplate": "\"Programming Language :: Python :: {{{newValue}}}\", # renovate: depName=python datasource=python-version"
-    },
-    {
-      "customType": "regex",
-      "managerFilePatterns": ["/(^|/)pyproject\\.toml$/"],
-      "matchStrings": [
-        "build_command\\s*=\\s*\"\"\"[\\s\\S]*?python -m pip install \\\\\\\"uv==(?<currentValue>[^\\\\\"]+)\\\\\"[\\s\\S]*?\"\"\""
-      ],
-      "depNameTemplate": "uv",
-      "datasourceTemplate": "pypi"
     }
-  ]
+  ],
+  "lockFileMaintenance": { "enabled": false }
 }
