@@ -5,17 +5,7 @@
   "prConcurrentLimit": 0,
   "branchConcurrentLimit": 0,
   "rangeStrategy": "update-lockfile",
-  "packageRules": [
-    {
-      "matchPackagePatterns": ["*"],
-      "matchUpdateTypes": ["patch"],
-      "automerge": true
-    },
-    {
-      "matchPackagePatterns": ["*"],
-      "matchUpdateTypes": ["minor", "major"],
-      "automerge": false
-    },
+  "customManagers": [
     {
       "customType": "regex",
       "managerFilePatterns": ["/(^|/)\\.devcontainer/devcontainer\\.json$/"],
@@ -27,5 +17,19 @@
       "autoReplaceStringTemplate": "\"image\": \"mcr.microsoft.com/devcontainers/python:1-{{{newValue}}}\""
     }
   ],
-  "lockFileMaintenance": { "enabled": false }
+  "packageRules": [
+    {
+      "matchPackageNames": ["*"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true
+    },
+    {
+      "matchPackageNames": ["*"],
+      "matchUpdateTypes": ["minor", "major"],
+      "automerge": false
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": false
+  }
 }
