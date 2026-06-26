@@ -1,10 +1,13 @@
 {
-  "extends": ["github>browniebroke/renovate-configs:python"],
+  "extends": ["config:recommended"],
   "dependencyDashboardApproval": false,
   "prHourlyLimit": 0,
   "prConcurrentLimit": 0,
   "branchConcurrentLimit": 0,
-  "postUpdateOptions": ["uvLock"],
+  "rangeStrategy": "update-lockfile",
+  "lockFileMaintenance": {
+    "enabled": false
+  },
   "packageRules": [
     {
       "matchManagers": ["pep621"],
