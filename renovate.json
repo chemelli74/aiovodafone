@@ -17,7 +17,7 @@
       "separateMinorPatch": false
     },
     {
-      "matchPackagePatterns": ["*"],
+      "matchPackagePatterns": ["pep621"],
       "matchUpdateTypes": ["patch"],
       "automerge": true
     },
