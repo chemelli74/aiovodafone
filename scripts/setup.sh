@@ -17,7 +17,7 @@ fi
 if ! prek --version 2>/dev/null; then
     uv tool install prek
 fi
-uv sync --frozen --group dev
+uv sync --frozen --all-groups
 prek install --overwrite
 prek install --hook-type commit-msg --overwrite
 
