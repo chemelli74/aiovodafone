@@ -8,17 +8,22 @@
   "packageRules": [
     {
       "matchPackageNames": ["*"],
-      "matchUpdateTypes": ["patch"],
+      "matchUpdateTypes": ["patch", "minor"],
       "automerge": true
     },
     {
       "matchPackageNames": ["*"],
-      "matchUpdateTypes": ["minor", "major"],
+      "matchUpdateTypes": ["major"],
       "automerge": false
     },
     {
       "matchManagers": ["pre-commit", "devcontainer"],
-      "matchUpdateTypes": ["patch", "minor", "major"],
+      "matchUpdateTypes": ["major"],
+      "automerge": true
+    },
+    {
+      "matchPackageNames": ["uv"],
+      "matchUpdateTypes": ["major"],
       "automerge": true
     }
   ],
