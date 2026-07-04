@@ -1,10 +1,21 @@
 {
-  "$schema": "https://renovatebot.com",
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", ":enablePreCommit"],
   "prHourlyLimit": 0,
   "prConcurrentLimit": 0,
   "branchConcurrentLimit": 0,
   "rangeStrategy": "update-lockfile",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["pyproject.toml"],
+      "matchStrings": [
+        "version\\s*=\\s*\"(?<currentValue>[0-9.]+)\"\\s*#\\s*renovate:\\s*depName=(?<depName>[^\\s]+)\\s+datasource=(?<datasource>[^\\s]+)"
+      ],
+      "versioningTemplate": "semver-coerced"
+    }
+  ],
+
   "packageRules": [
     {
       "matchPackageNames": ["*"],
