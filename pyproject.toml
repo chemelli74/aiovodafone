@@ -50,7 +50,7 @@ version_variables = ["src/aiovodafone/__init__.py:__version__",]
 
 # Keep this version in sync with scripts/setup.sh and .github/workflows/ci.yml.
 build_command = """
-    UV_VERSION=$(grep 'version =' pyproject.toml | sed -E 's/.*"([^"]+)".*/\\1/')
+    UV_VERSION=$(./scripts/get-pyproject-uv.version.sh)
     python -m pip install "uv==$UV_VERSION"
     uv lock --upgrade-package "$PACKAGE_NAME"
     git add uv.lock

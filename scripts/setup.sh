@@ -7,8 +7,8 @@ set -e
 # Use copy mode for UV to avoid hardlink warnings on different filesystems
 export UV_LINK_MODE=copy
 
-# Only source of truth is pyproject.toml, so we extract the version from there
-UV_VERSION=$(grep 'version =' pyproject.toml | sed -E 's/.*"([^"]+)".*/\1/')
+# Fetch the centralized uv version from the companion script
+UV_VERSION=$(./scripts/get-pyproject-uv.version.sh)
 
 if ! uv --version 2>/dev/null; then
     pipx install "uv==$UV_VERSION"
