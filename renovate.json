@@ -5,6 +5,7 @@
   "prConcurrentLimit": 0,
   "branchConcurrentLimit": 0,
   "rangeStrategy": "update-lockfile",
+  "labels": ["renovate"],
   "customManagers": [
     {
       "customType": "regex",
@@ -15,8 +16,11 @@
       "versioningTemplate": "semver-coerced"
     }
   ],
-
   "packageRules": [
+    {
+      "matchPackageNames": ["*"],
+      "addLabels": ["dependencies"]
+    },
     {
       "matchPackageNames": ["*"],
       "matchUpdateTypes": ["patch", "minor"],
@@ -36,6 +40,10 @@
       "matchPackageNames": ["uv"],
       "matchUpdateTypes": ["major"],
       "automerge": true
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "addLabels": ["github_actions"]
     }
   ],
   "lockFileMaintenance": {
