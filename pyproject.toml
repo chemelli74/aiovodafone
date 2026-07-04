@@ -40,13 +40,17 @@ dev = [
     "pytest-cov>=5,<8"
 ]
 
+[tool.uv-version]
+# Source of truth for the uv version. All other version references must be derived from this value.
+version = "0.11.24" # renovate: depName=uv datasource=pypi
+
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
 version_variables = ["src/aiovodafone/__init__.py:__version__",]
 
 # Keep this version in sync with scripts/setup.sh and .github/workflows/ci.yml.
 build_command = """
-    UV_VERSION=$(grep 'UV_VERSION:' .github/workflows/ci.yml | sed -E 's/.*"([^"]+)".*/\\1/')
+    UV_VERSION=$(grep 'version =' pyproject.toml | sed -E 's/.*"([^"]+)".*/\\1/')
     python -m pip install "uv==$UV_VERSION"
     uv lock --upgrade-package "$PACKAGE_NAME"
     git add uv.lock
