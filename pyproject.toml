@@ -48,7 +48,7 @@ version = "0.11.26" # renovate: depName=uv datasource=pypi
 version_toml = ["pyproject.toml:project.version"]
 version_variables = ["src/aiovodafone/__init__.py:__version__",]
 
-# Keep this version in sync with scripts/setup.sh and .github/workflows/ci.yml.
+# Extract version from [tool.uv-version], single source of truth.
 build_command = """
     UV_VERSION=$(./scripts/get-pyproject-uv.version.sh)
     python -m pip install "uv==$UV_VERSION"
