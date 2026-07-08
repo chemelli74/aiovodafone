@@ -64,7 +64,7 @@ jobs:
         run: |
           echo "UV_VERSION=$(./scripts/get-pyproject-uv.version.sh)" >> "$GITHUB_ENV"
       - name: Setup UV
-        uses: astral-sh/setup-uv@f98e06938123ccabd21905ea5d0069192241f9f1 # v8.3.1
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
         with:
           version: ${{ env.UV_VERSION }}
       - name: Verify lock consistency
