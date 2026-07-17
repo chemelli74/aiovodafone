@@ -19,6 +19,7 @@ from yarl import URL
 from .const import (
     _LOGGER,
     DEFAULT_TIMEOUT,
+    DEVICES_SETTINGS,
     HEADERS,
     REQUEST_ALLOW_REDIRECTS,
     REQUEST_SUPPRESS_LOG,
@@ -27,6 +28,7 @@ from .const import (
     WifiType,
 )
 from .exceptions import (
+    CannotAuthenticate,
     GenericResponseError,
 )
 
@@ -46,6 +48,9 @@ class VodafoneStationDevice:
 
 class VodafoneStationCommonApi(ABC):
     """Common API calls for Vodafone Station routers."""
+
+    device_type: str
+    """String identifying the device type. Must be a valid key in DEVICES_SETTINGS."""
 
     def __init__(
         self,
@@ -120,6 +125,23 @@ class VodafoneStationCommonApi(ABC):
                 )
                 raise GenericResponseError
         except ClientResponseError as err:
+            login_page = f"/{DEVICES_SETTINGS[self.device_type]['login_url']}"
+            if (
+                err.status == HTTPStatus.FOUND
+                and err.headers
+                and err.headers.get("Location") == login_page
+            ):
+                _LOGGER.debug(
+                    "%s page %s from host %s redirects to login page '%s'",
+                    method,
+                    page,
+                    self.base_url.host,
+                    login_page,
+                )
+                raise CannotAuthenticate(
+                    "Client response redirect to login page '%s'", login_page
+                ) from err
+
             # Some models return text replies with invalid HTML headers.
             # Suppress expected errors to prevent log spam.
             if not suppress_log:

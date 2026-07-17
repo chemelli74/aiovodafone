@@ -12,7 +12,7 @@ import pytest
 from aiohttp import ClientResponseError
 
 from aiovodafone.api import VodafoneStationCommonApi, VodafoneStationDevice
-from aiovodafone.exceptions import GenericResponseError
+from aiovodafone.exceptions import CannotAuthenticate, GenericResponseError
 from tests.conftest import FakeCookieJar, FakeResponse, FakeSession
 
 if TYPE_CHECKING:
@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 
 class DummyCommonApi(VodafoneStationCommonApi):
     """Concrete test double for exercising common API base helpers."""
+
+    device_type = "Sercomm"
 
     def convert_uptime(self, _uptime: str) -> datetime:
         """Return a timezone-aware datetime for abstract method compliance."""
@@ -131,6 +133,27 @@ def test_request_page_result_client_response_error_raises(base_url: URL) -> None
         base_url, "u", "p", cast("Any", FakeSession(request_impl=_request))
     )
     with pytest.raises(GenericResponseError):
+        asyncio.run(_acall(api, "_request_page_result", HTTPMethod.GET, "status"))
+
+
+def test_request_page_result_login_redirect_raises_cannot_authenticate(
+    base_url: URL,
+) -> None:
+    """Verify request helper detects a login-page redirect and re-authenticates."""
+
+    async def _request(*_args: object, **_kwargs: object) -> FakeResponse:
+        raise ClientResponseError(
+            cast("Any", SimpleNamespace(real_url="http://router.local")),
+            (),
+            status=302,
+            message="Found",
+            headers={"Location": "/login.html"},
+        )
+
+    api = DummyCommonApi(
+        base_url, "u", "p", cast("Any", FakeSession(request_impl=_request))
+    )
+    with pytest.raises(CannotAuthenticate):
         asyncio.run(_acall(api, "_request_page_result", HTTPMethod.GET, "status"))
 
 
