@@ -116,6 +116,23 @@ class VodafoneStationCommonApi(ABC):
                 allow_redirects=allow_redirects,
             )
             if response.status != HTTPStatus.OK:
+                login_page = f"/{DEVICES_SETTINGS[self.device_type]['login_url']}"
+                if (
+                    response.status == HTTPStatus.FOUND
+                    and response.headers
+                    and response.headers.get("Location") == login_page
+                ):
+                    _LOGGER.debug(
+                        "%s page %s from host %s redirects to login page '%s'",
+                        method,
+                        page,
+                        self.base_url.host,
+                        login_page,
+                    )
+                    raise CannotAuthenticate(
+                        "Client response redirect to login page '%s'", login_page
+                    ) from None
+
                 _LOGGER.warning(
                     "%s page %s from host %s failed: %s",
                     method,
@@ -125,23 +142,6 @@ class VodafoneStationCommonApi(ABC):
                 )
                 raise GenericResponseError
         except ClientResponseError as err:
-            login_page = f"/{DEVICES_SETTINGS[self.device_type]['login_url']}"
-            if (
-                err.status == HTTPStatus.FOUND
-                and err.headers
-                and err.headers.get("Location") == login_page
-            ):
-                _LOGGER.debug(
-                    "%s page %s from host %s redirects to login page '%s'",
-                    method,
-                    page,
-                    self.base_url.host,
-                    login_page,
-                )
-                raise CannotAuthenticate(
-                    "Client response redirect to login page '%s'", login_page
-                ) from err
-
             # Some models return text replies with invalid HTML headers.
             # Suppress expected errors to prevent log spam.
             if not suppress_log:
