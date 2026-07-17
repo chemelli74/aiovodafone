@@ -130,7 +130,7 @@ class VodafoneStationCommonApi(ABC):
                         login_page,
                     )
                     raise CannotAuthenticate(
-                        "Client response redirect to login page '%s'", login_page
+                        f"Client response redirect to login page '{login_page}'"
                     ) from None
 
                 _LOGGER.warning(

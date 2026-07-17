@@ -12,6 +12,7 @@ import pytest
 from aiohttp import ClientResponseError
 
 from aiovodafone.api import VodafoneStationCommonApi, VodafoneStationDevice
+from aiovodafone.const import DEVICES_SETTINGS
 from aiovodafone.exceptions import CannotAuthenticate, GenericResponseError
 from tests.conftest import FakeCookieJar, FakeResponse, FakeSession
 
@@ -140,20 +141,18 @@ def test_request_page_result_login_redirect_raises_cannot_authenticate(
     base_url: URL,
 ) -> None:
     """Verify request helper detects a login-page redirect and re-authenticates."""
+    login_page = f"/{DEVICES_SETTINGS[DummyCommonApi.device_type]['login_url']}"
 
     async def _request(*_args: object, **_kwargs: object) -> FakeResponse:
-        raise ClientResponseError(
-            cast("Any", SimpleNamespace(real_url="http://router.local")),
-            (),
-            status=302,
-            message="Found",
-            headers={"Location": "/login.html"},
-        )
+        return FakeResponse(status=302, headers={"Location": login_page})
 
     api = DummyCommonApi(
         base_url, "u", "p", cast("Any", FakeSession(request_impl=_request))
     )
-    with pytest.raises(CannotAuthenticate):
+    with pytest.raises(
+        CannotAuthenticate,
+        match=f"Client response redirect to login page '{login_page}'",
+    ):
         asyncio.run(_acall(api, "_request_page_result", HTTPMethod.GET, "status"))
 
 
