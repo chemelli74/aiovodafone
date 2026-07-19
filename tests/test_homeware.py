@@ -477,6 +477,25 @@ def test_logout(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None:
     asyncio.run(api.logout())
 
 
+def test_logout_redirect_to_login_succeeds(
+    base_url: URL, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Logout succeeds when the router redirects to the login page."""
+    api = _api(base_url)
+    responses = iter(
+        [
+            FakeResponse(text_data="csrf"),
+            FakeResponse(status=302, text_data="login.lp"),
+        ]
+    )
+
+    async def _fake(*_a: object, **_kw: object) -> FakeResponse:
+        return next(responses)
+
+    monkeypatch.setattr(api, "_request_page_result", _fake)
+    asyncio.run(api.logout())
+
+
 # ---------------------------------------------------------------------------
 # convert_uptime
 # ---------------------------------------------------------------------------

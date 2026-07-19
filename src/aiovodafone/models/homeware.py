@@ -435,6 +435,7 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
             "home.lp",
             payload={"action": "logout", "CSRFtoken": await self._get_csrf_token()},
             query={},
+            additional_params={"allow_redirects": True},
         )
 
     def convert_uptime(self, uptime: str) -> dt.datetime:
