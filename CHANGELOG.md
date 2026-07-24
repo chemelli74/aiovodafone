@@ -1,5 +1,31 @@
 # Changelog
 
+## v3.3.1 (2026-07-24)
+
+### Documentation
+
+- Contrib-readme-action has updated readme ([`d3dd8c6`](https://github.com/chemelli74/aiovodafone/commit/d3dd8c6af67529018dcbb5352735b99f21420946))
+
+
+### Bug fixes
+
+- Follow redirect when logging out ([`8dcfc2c`](https://github.com/chemelli74/aiovodafone/commit/8dcfc2c3dec44aa3ccd880ae15603c1a9a584d7c))
+
+
+### Build system
+
+- Tweaks ([`a23bb23`](https://github.com/chemelli74/aiovodafone/commit/a23bb238e98936654f69b1d9c90404d9680eac78))
+- Add labels to renovate prs ([`8b7778d`](https://github.com/chemelli74/aiovodafone/commit/8b7778dbdde719528025e269ad5f369da8a94e42))
+- Renovate uv via regex ([`61e1ed2`](https://github.com/chemelli74/aiovodafone/commit/61e1ed2203c043ad6275676633a8747eb5b7f8ab))
+- Uv version management with renovate ([`480e736`](https://github.com/chemelli74/aiovodafone/commit/480e736b5e81899d05fcac8ef72d4a9a6bd14535))
+- Improve updates management ([`f0cc5a6`](https://github.com/chemelli74/aiovodafone/commit/f0cc5a6eafb9d00ab682833493badd53c10a4ead))
+- Refactor uv version management ([`3ae77a7`](https://github.com/chemelli74/aiovodafone/commit/3ae77a74df367bee6547bf433dc01b702a05bb56))
+- Improve update system - part 3 ([`b8eb77f`](https://github.com/chemelli74/aiovodafone/commit/b8eb77f194d31f75c09ebaee7921dc0a049cab6c))
+- Improve update system - part 2 ([`edbbb42`](https://github.com/chemelli74/aiovodafone/commit/edbbb426fd9fe4a7e4a84334876ee86d34981ad6))
+- Improve update system ([`523eb6c`](https://github.com/chemelli74/aiovodafone/commit/523eb6cae2b7c4522bb1107c51d42b04418010cd))
+- Bump aiohttp to 3.14.0 ([`5c68a64`](https://github.com/chemelli74/aiovodafone/commit/5c68a64a8df04fe8924b3232b08b2d7cf341b806))
+
+
 ## v3.3.0 (2026-05-24)
 
 ### Features
