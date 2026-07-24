@@ -44,6 +44,8 @@ from aiovodafone.sjcl import SJCL, build_json_from_sjcl
 class VodafoneStationSercommApi(VodafoneStationCommonApi):
     """Queries Vodafone Station running Sercomm firmware."""
 
+    device_type = "Sercomm"
+
     def __init__(
         self,
         url: URL,

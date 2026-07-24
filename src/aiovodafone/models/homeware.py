@@ -196,6 +196,8 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
      - UK VOX 3.0 (THG3000) - firmware v19
     """
 
+    device_type = "Homeware"
+
     async def _get_csrf_token(self) -> str:
         """Fetch CSRF token from the router."""
         _LOGGER.debug("Fetching CSRF token")

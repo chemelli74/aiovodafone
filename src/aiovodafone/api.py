@@ -19,6 +19,7 @@ from yarl import URL
 from .const import (
     _LOGGER,
     DEFAULT_TIMEOUT,
+    DEVICES_SETTINGS,
     HEADERS,
     REQUEST_ALLOW_REDIRECTS,
     REQUEST_SUPPRESS_LOG,
@@ -27,6 +28,7 @@ from .const import (
     WifiType,
 )
 from .exceptions import (
+    CannotAuthenticate,
     GenericResponseError,
 )
 
@@ -46,6 +48,9 @@ class VodafoneStationDevice:
 
 class VodafoneStationCommonApi(ABC):
     """Common API calls for Vodafone Station routers."""
+
+    device_type: str
+    """String identifying the device type. Must be a valid key in DEVICES_SETTINGS."""
 
     def __init__(
         self,
@@ -111,6 +116,23 @@ class VodafoneStationCommonApi(ABC):
                 allow_redirects=allow_redirects,
             )
             if response.status != HTTPStatus.OK:
+                login_page = f"/{DEVICES_SETTINGS[self.device_type]['login_url']}"
+                if (
+                    response.status == HTTPStatus.FOUND
+                    and response.headers
+                    and response.headers.get("Location") == login_page
+                ):
+                    _LOGGER.debug(
+                        "%s page %s from host %s redirects to login page '%s'",
+                        method,
+                        page,
+                        self.base_url.host,
+                        login_page,
+                    )
+                    raise CannotAuthenticate(
+                        f"Client response redirect to login page '{login_page}'"
+                    ) from None
+
                 _LOGGER.warning(
                     "%s page %s from host %s failed: %s",
                     method,
