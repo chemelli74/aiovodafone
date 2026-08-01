@@ -108,8 +108,8 @@ def test_get_device_type_detects_ultrahub_and_clears_cookie_jar() -> None:
     """Detect UltraHub model and verify cookie cleanup side effect."""
     response = FakeResponse(
         status=200,
-        text_data='{"X_VODAFONE_ServiceStatus_1": "ok"}',
-        json_data={"X_VODAFONE_ServiceStatus_1": "ok"},
+        text_data='{"X_VODAFONE_WebUI_Language": "ok"}',
+        json_data={"X_VODAFONE_WebUI_Language": "ok"},
     )
     session = _session_for_detection(response)
     device_type, _ = asyncio.run(get_device_type("192.168.1.1", cast("Any", session)))
