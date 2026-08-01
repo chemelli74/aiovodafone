@@ -1,3 +1,6 @@
+# Copyright 2023 Simone Chemelli and contributors
+# SPDX-License-Identifier: Apache-2.0
+
 """Decrypt and encrypt messages compatible to the "SJCL" message format.
 
 Credits to https://github.com/berlincode/sjcl
