@@ -90,9 +90,6 @@ exclude_lines = [
     'if __name__ == "__main__":',
 ]
 
-[tool.ruff.isort]
-known-first-party = ["aiovodafone", "tests"]
-
 [tool.mypy]
 check_untyped_defs = true
 disallow_any_generics = true
