@@ -16,6 +16,8 @@ from aiovodafone.exceptions import AlreadyLogged, CannotAuthenticate, ResultTime
 class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     """Queries Vodafone Station running Technicolor firmware."""
 
+    device_type = "Technicolor"
+
     async def _encrypt_string(
         self,
         credential: str,

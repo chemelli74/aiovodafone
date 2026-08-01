@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import pytest
@@ -47,6 +47,7 @@ class FakeResponse:
     json_data: object | None = None
     content_type: str = "application/json"
     cookies: dict[str, object] | None = None
+    headers: dict[str, str] = field(default_factory=dict)
 
     async def text(self) -> str:
         """Return configured plain-text payload."""
