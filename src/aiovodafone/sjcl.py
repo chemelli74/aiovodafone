@@ -126,6 +126,7 @@ class SJCL:
         self,
         plaintext: bytes,
         passphrase: str,
+        *,
         mode: str = "ccm",
         count: int = 10000,
         dk_len: int = 16,
