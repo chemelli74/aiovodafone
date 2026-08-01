@@ -1,3 +1,6 @@
+# Copyright 2023 Simone Chemelli and contributors
+# SPDX-License-Identifier: Apache-2.0
+
 """Shared pytest fixtures and lightweight async HTTP fakes."""
 
 from __future__ import annotations

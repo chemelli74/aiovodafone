@@ -1,4 +1,7 @@
-"""Vodafone Homeware Technicolor device API implementation."""
+# Copyright 2023 Simone Chemelli and contributors
+# SPDX-License-Identifier: Apache-2.0
+
+"""Homeware Vodafone Station model API implementation."""
 
 import datetime as dt
 import hashlib

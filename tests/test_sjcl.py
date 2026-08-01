@@ -1,3 +1,6 @@
+# Copyright 2023 Simone Chemelli and contributors
+# SPDX-License-Identifier: Apache-2.0
+
 """Fixture-based tests for SJCL encryption/decryption compatibility."""
 
 from __future__ import annotations
