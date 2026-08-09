@@ -90,9 +90,17 @@ _ONTTOKEN_RE = re.compile(
     re.I,
 )
 _PRODUCT_NAME_RE = re.compile(r"productName\s*=\s*'((?:\\x[0-9a-fA-F]{2}|[^'])*)'")
+# index.asp: stDeviceInfo(domain, SoftwareVersion, UpTimeStr)
 _DEVICE_INFO_RE = re.compile(
     r'new\s+stDeviceInfo\(\s*"([^"]*)"\s*,\s*"([^"]*)"\s*,\s*"([^"]*)"\s*\)'
 )
+# Status_ptvdf.asp: stDeviceInfo(domain, Serial, HW, SW, Description, UpTimeSeconds)
+_STATUS_DEVICE_INFO_RE = re.compile(
+    r'new\s+stDeviceInfo\(\s*"([^"]*)"\s*,\s*"([^"]*)"\s*,\s*"([^"]*)"\s*,'
+    r'\s*"([^"]*)"\s*,\s*"((?:[^"\\]|\\.)*)"\s*,\s*"([^"]*)"\s*\)'
+)
+_CPU_USED_RE = re.compile(r"var\s+cpuUsed\s*=\s*'([^']*)'")
+_MEM_USED_RE = re.compile(r"var\s+memUsed\s*=\s*'([^']*)'")
 _LINE_URI_RE = re.compile(r'new\s+stLineURI\(\s*"[^"]*"\s*,\s*"([^"]*)"\s*\)')
 _WAN_IP_RE = re.compile(r"new\s+WanIP\((.*?)\)\s*(?:,|;|\))", re.S)
 
@@ -411,7 +419,7 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
 
     async def get_sensor_data(self) -> dict[str, Any]:
         """Collect sensor values expected by the Home Assistant integration."""
-        _LOGGER.debug("Getting sensor data host %s", self.base_url.host)
+        _LOGGER.debug("Getting sensor data for host %s", self.base_url.host)
         index_text = await self._request_text("index.asp")
         wan_text = await self._request_text(
             "html/bbsp/common/getwanlist.asp",
@@ -419,6 +427,9 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
             payload="",
         )
 
+        # Only include keys with real values for numeric HA sensors. Empty
+        # strings for data_rate / percentage keys crash entity updates
+        # (ValueError on float("")) and make entities flap unavailable.
         data: dict[str, Any] = {
             "sys_serial_number": "",
             "sys_firmware_version": "",
@@ -436,10 +447,6 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
             "vf_internet_key_ip_addr": "",
             "phone_num1": "",
             "phone_num2": "",
-            "down_str": "",
-            "up_str": "",
-            "sys_cpu_usage": "",
-            "sys_memory_usage": "",
             "sys_reboot_cause": "",
             "wan_status": "",
         }
@@ -455,10 +462,45 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
             data["fw_version"] = device_info.group(2)
             data["sys_uptime"] = device_info.group(3)
 
+        # Status page: CPU/memory + full DeviceInfo (serial, HW, SW, uptime secs).
+        with contextlib.suppress(GenericResponseError, GenericLoginError):
+            status_text = await self._request_text(
+                "html/bbsp/status/Status_ptvdf.asp"
+            )
+            if cpu_match := _CPU_USED_RE.search(status_text):
+                cpu = cpu_match.group(1).strip()
+                if cpu.endswith("%") and cpu[:-1].strip():
+                    data["sys_cpu_usage"] = cpu
+            if mem_match := _MEM_USED_RE.search(status_text):
+                mem = mem_match.group(1).strip()
+                if mem.endswith("%") and mem[:-1].strip():
+                    data["sys_memory_usage"] = mem
+            if status_info := _STATUS_DEVICE_INFO_RE.search(status_text):
+                serial = _decode_js_string(status_info.group(2)).strip()
+                hardware = _decode_js_string(status_info.group(3)).strip()
+                software = _decode_js_string(status_info.group(4)).strip()
+                description = _decode_js_string(status_info.group(5)).strip()
+                uptime_secs = status_info.group(6).strip()
+                if serial:
+                    data["sys_serial_number"] = serial
+                if hardware:
+                    data["sys_hardware_version"] = hardware
+                if software:
+                    data["sys_firmware_version"] = software
+                    data["fw_version"] = software
+                if uptime_secs.isdigit():
+                    data["sys_uptime"] = uptime_secs
+                # Prefer short model from productName; fall back to description.
+                if not data["sys_model_name"] and description:
+                    data["sys_model_name"] = description.split("(")[0].strip()
+
         # Serial is not always exposed on user-level pages; use WAN MAC / model.
         internet_ip = ""
         wan_uptime = ""
-        for args in (_parse_ctor_args(match.group(1)) for match in _WAN_IP_RE.finditer(wan_text)):
+        for args in (
+            _parse_ctor_args(match.group(1))
+            for match in _WAN_IP_RE.finditer(wan_text)
+        ):
             if len(args) < 16:
                 continue
             service = args[8] if len(args) > 8 else ""
@@ -470,7 +512,9 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
                 wan_uptime = uptime
                 data["wan_status"] = status
                 data["fiber_ipaddr"] = external_ip
-                data["fiber_ready"] = "1" if status.lower() == "connected" else "0"
+                data["fiber_ready"] = (
+                    "1" if status.lower() == "connected" else "0"
+                )
                 break
 
         data["wan_ip4_addr"] = internet_ip
@@ -490,7 +534,9 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
             data["sys_serial_number"] = "-".join(parts)
 
         if not data["sys_hardware_version"]:
-            data["sys_hardware_version"] = data["sys_model_name"] or self._product_name
+            data["sys_hardware_version"] = (
+                data["sys_model_name"] or self._product_name
+            )
 
         # Phone numbers (optional page).
         with contextlib.suppress(GenericResponseError, GenericLoginError):
@@ -512,7 +558,9 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
 
         # IPv6 WAN address when present.
         with contextlib.suppress(GenericResponseError, GenericLoginError):
-            ipv6_text = await self._request_text("html/bbsp/common/wanipv6state.asp")
+            ipv6_text = await self._request_text(
+                "html/bbsp/common/wanipv6state.asp"
+            )
             for args in _parse_ctor_calls(ipv6_text, "IPv6AddressInfo"):
                 if len(args) >= 4 and args[3] and args[3] != "::":
                     data["wan_ip6_addr"] = args[3]

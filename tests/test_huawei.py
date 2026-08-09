@@ -283,7 +283,7 @@ def test_get_devices_data(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 def test_get_sensor_data(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Parse sensor fields from index + WAN fixtures."""
+    """Parse sensor fields from index, WAN, and status fixtures."""
     api = _api(base_url)
     api._session_cookie = "Cookie=sid=test"  # noqa: SLF001
     api._product_name = "HG8247B7-8N"  # noqa: SLF001
@@ -293,6 +293,8 @@ def test_get_sensor_data(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None
             return _fixture("index.asp")
         if "getwanlist" in page:
             return _fixture("getwanlist.asp")
+        if "Status_ptvdf" in page:
+            return _fixture("Status_ptvdf.asp")
         if "sipphonenum" in page:
             return _fixture("sipphonenumvdf.asp")
         if "wanipv6" in page:
@@ -301,13 +303,20 @@ def test_get_sensor_data(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None
 
     monkeypatch.setattr(VodafoneStationHuaweiApi, "_request_text", _text)
     data = cast("dict[str, Any]", asyncio.run(_acall(api, "get_sensor_data")))
-    assert data["sys_firmware_version"] == "V5R024C00S114"
-    assert data["fw_version"] == "V5R024C00S114"
-    assert "day" in data["sys_uptime"] or ":" in data["sys_uptime"]
+    assert data["sys_model_name"]
+    assert data["sys_firmware_version"]
+    # Status page uptime is seconds; index falls back to day(s) HH:MM:SS.
+    assert data["sys_uptime"]
     assert data["wan_ip4_addr"] == "203.0.113.10"
     assert data["inter_ip_address"] == "203.0.113.10"
     assert data["fiber_ready"] == "1"
-    assert data["sys_serial_number"]
+    assert data["sys_serial_number"] == "TESTSERIAL00000001"
+    assert data["sys_hardware_version"] == "3F80.A"
+    assert data["sys_cpu_usage"] == "24%"
+    assert data["sys_memory_usage"] == "12%"
+    # Numeric HA sensors must not be present when the router has no value.
+    assert "down_str" not in data
+    assert "up_str" not in data
     assert data["phone_num1"] == "+15555550100"
 
 
