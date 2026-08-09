@@ -13,7 +13,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 import aiohttp
-from aiohttp import ClientResponseError, ClientSession
+from aiohttp import ClientError, ClientResponseError, ClientSession
 from yarl import URL
 
 from aiovodafone.api import VodafoneStationCommonApi, VodafoneStationDevice
@@ -101,6 +101,10 @@ _STATUS_DEVICE_INFO_RE = re.compile(
 )
 _CPU_USED_RE = re.compile(r"var\s+cpuUsed\s*=\s*'([^']*)'")
 _MEM_USED_RE = re.compile(r"var\s+memUsed\s*=\s*'([^']*)'")
+# Status_ptvdf.asp: stMainDhcpInfo(domain, DHCPServerEnable, MACAddress)
+_MAIN_DHCP_MAC_RE = re.compile(
+    r'new\s+stMainDhcpInfo\(\s*"[^"]*"\s*,\s*"[^"]*"\s*,\s*"([^"]*)"\s*\)'
+)
 _LINE_URI_RE = re.compile(r'new\s+stLineURI\(\s*"[^"]*"\s*,\s*"([^"]*)"\s*\)')
 _WAN_IP_RE = re.compile(r"new\s+WanIP\((.*?)\)\s*(?:,|;|\))", re.S)
 
@@ -207,7 +211,7 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
                 connector=connector, cookie_jar=aiohttp.DummyCookieJar()
             ) as login_session:
                 # Login page exposes productName used as model.
-                with contextlib.suppress(ClientResponseError, TimeoutError, AttributeError):
+                with contextlib.suppress(TimeoutError, ClientError):
                     login_page = await login_session.request(
                         HTTPMethod.GET,
                         self.base_url.joinpath(""),
@@ -246,7 +250,7 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
                         ssl=False,
                         allow_redirects=False,
                     )
-                except ClientResponseError as err:
+                except (TimeoutError, ClientError) as err:
                     raise CannotConnect from err
 
                 if token_response.status != HTTPStatus.OK:
@@ -289,7 +293,7 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
                         ssl=False,
                         allow_redirects=False,
                     )
-                except ClientResponseError as err:
+                except (TimeoutError, ClientError) as err:
                     raise CannotConnect from err
 
                 headers = login_response.headers
@@ -356,14 +360,17 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
         *,
         method: str = HTTPMethod.GET,
         payload: dict[str, Any] | str | None = None,
+        params: dict[str, str] | None = None,
         additional_params: dict[str, Any] | None = None,
     ) -> str:
         """Perform an authenticated request and return decoded body text."""
         timeout = (additional_params or {}).get(REQUEST_TIMEOUT, DEFAULT_TIMEOUT)
         url = self.base_url.joinpath(page)
-        _LOGGER.debug("%s page %s host %s", method, page, self.base_url.host)
+        if params:
+            url = url.with_query(params)
+        _LOGGER.debug("%s page %s for host %s", method, page, self.base_url.host)
         try:
-            response = await self.session.request(
+            async with self.session.request(
                 method,
                 url,
                 data=payload,
@@ -371,17 +378,18 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
                 timeout=timeout,
                 ssl=False,
                 allow_redirects=False,
-            )
-        except ClientResponseError as err:
+            ) as response:
+                if response.status == HTTPStatus.FORBIDDEN:
+                    raise GenericLoginError("Session expired (HTTP 403)")
+                if response.status != HTTPStatus.OK:
+                    raise GenericResponseError(
+                        f"{method} {page} failed with status {response.status}"
+                    )
+                return _decode_js_string(await response.text())
+        except (GenericLoginError, GenericResponseError):
+            raise
+        except (TimeoutError, ClientError) as err:
             raise GenericResponseError(f"Client response error: {err!s}") from err
-
-        if response.status == HTTPStatus.FORBIDDEN:
-            raise GenericLoginError("Session expired (HTTP 403)")
-        if response.status != HTTPStatus.OK:
-            raise GenericResponseError(
-                f"{method} {page} failed with status {response.status}"
-            )
-        return _decode_js_string(await response.text())
 
     async def get_devices_data(self) -> dict[str, VodafoneStationDevice]:
         """Return connected/known LAN devices keyed by MAC address."""
@@ -494,7 +502,12 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
                 if not data["sys_model_name"] and description:
                     data["sys_model_name"] = description.split("(")[0].strip()
 
-        # Serial is not always exposed on user-level pages; use WAN MAC / model.
+            if dhcp_mac := _MAIN_DHCP_MAC_RE.search(status_text):
+                lan_mac = dhcp_mac.group(1).strip().lower()
+                if lan_mac.count(":") == 5:
+                    data["_lan_mac"] = lan_mac
+
+        # WAN addressing from getwanlist.asp.
         internet_ip = ""
         wan_uptime = ""
         for args in (
@@ -503,8 +516,8 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
         ):
             if len(args) < 16:
                 continue
-            service = args[8] if len(args) > 8 else ""
-            status = args[12] if len(args) > 12 else args[5]
+            service = args[8]
+            status = args[12]
             external_ip = args[15]
             uptime = args[43] if len(args) > 43 else ""
             if service.lower() == "internet":
@@ -525,13 +538,13 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
         if not data["sys_model_name"] and self._product_name:
             data["sys_model_name"] = self._product_name
 
-        # User-level UI often hides ONT serial; build a stable unique id.
+        # Prefer real ONT serial; else stable LAN MAC / host (never dynamic WAN IP).
         if not data["sys_serial_number"]:
-            parts = [
-                data["sys_model_name"] or self._product_name or "HUAWEI",
-                internet_ip or (self.base_url.host or "ont"),
-            ]
-            data["sys_serial_number"] = "-".join(parts)
+            stable = data.pop("_lan_mac", None) or self.base_url.host or "ont"
+            model = data["sys_model_name"] or self._product_name or "HUAWEI"
+            data["sys_serial_number"] = f"{model}-{stable}"
+        else:
+            data.pop("_lan_mac", None)
 
         if not data["sys_hardware_version"]:
             data["sys_hardware_version"] = (
@@ -673,10 +686,6 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
             raise GenericLoginError("Missing onttoken for Wi-Fi update")
 
         domain = f"InternetGatewayDevice.LANDevice.1.WLANConfiguration.{instance}"
-        page = (
-            f"set.cgi?x={domain}"
-            f"&RequestFile=html/amp/ptvdf/vdfWlanBasicNew.asp"
-        )
         payload = urlencode(
             {
                 "x.Enable": "1" if enable else "0",
@@ -684,9 +693,13 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
             }
         )
         await self._request_text(
-            page,
+            "set.cgi",
             method=HTTPMethod.POST,
             payload=payload,
+            params={
+                "x": domain,
+                "RequestFile": "html/amp/ptvdf/vdfWlanBasicNew.asp",
+            },
         )
         # Token is single-use on many firmwares.
         self.csrf_token = ""
@@ -709,10 +722,6 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
 
         # Common Huawei ONT reboot parameter. Some builds ignore unknown fields
         # without error; callers should treat this as best-effort.
-        page = (
-            "set.cgi?x=InternetGatewayDevice.X_HW_DEBUG.SMP.DM"
-            "&RequestFile=html/ssmp/cfgfile/cfgfileptvdf.asp"
-        )
         payload = urlencode(
             {
                 "x.X_HW_Command": "Reboot",
@@ -721,9 +730,13 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
         )
         with contextlib.suppress(TimeoutError, GenericResponseError):
             await self._request_text(
-                page,
+                "set.cgi",
                 method=HTTPMethod.POST,
                 payload=payload,
+                params={
+                    "x": "InternetGatewayDevice.X_HW_DEBUG.SMP.DM",
+                    "RequestFile": "html/ssmp/cfgfile/cfgfileptvdf.asp",
+                },
                 additional_params={REQUEST_TIMEOUT: POST_RESTART_TIMEOUT},
             )
         self.csrf_token = ""
@@ -731,17 +744,18 @@ class VodafoneStationHuaweiApi(VodafoneStationCommonApi):
 
     async def logout(self) -> None:
         """Log out and clear the local session cookie."""
-        _LOGGER.debug("Logging out router %s", self.base_url.host)
+        _LOGGER.debug("Logging out from router %s", self.base_url.host)
         if self._session_cookie:
-            with contextlib.suppress(Exception):
-                await self.session.request(
+            with contextlib.suppress(TimeoutError, ClientError, GenericLoginError):
+                async with self.session.request(
                     HTTPMethod.GET,
                     self.base_url.joinpath("logout.cgi"),
                     headers=self._auth_headers(),
                     timeout=DEFAULT_TIMEOUT,
                     ssl=False,
                     allow_redirects=False,
-                )
+                ):
+                    pass
         self._session_cookie = None
         self.csrf_token = ""
         self.session.cookie_jar.clear()

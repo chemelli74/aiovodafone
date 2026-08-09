@@ -80,8 +80,13 @@ def test_convert_uptime_day_string(base_url: URL) -> None:
 def test_convert_uptime_seconds(base_url: URL) -> None:
     """Parse integer-second uptime."""
     api = _api(base_url)
+    before = datetime.now(tz=UTC)
     boot = api.convert_uptime("120")
-    assert datetime.now(tz=UTC) - boot >= timedelta(seconds=100)
+    after = datetime.now(tz=UTC)
+    expected_delta = timedelta(seconds=120)
+    assert before - expected_delta - timedelta(seconds=2) <= boot <= (
+        after - expected_delta + timedelta(seconds=2)
+    )
 
 
 def test_init_device_class_huawei(base_url: URL) -> None:
@@ -361,6 +366,7 @@ def test_set_wifi_status_posts_enable(
         seen["page"] = page
         seen["method"] = kwargs.get("method")
         seen["payload"] = kwargs.get("payload")
+        seen["params"] = kwargs.get("params")
         return "ok"
 
     monkeypatch.setattr(VodafoneStationHuaweiApi, "_request_text", _text)
@@ -379,8 +385,12 @@ def test_set_wifi_status_posts_enable(
             WifiBand.BAND_2_4_GHZ,
         )
     )
-    assert "WLANConfiguration.2" in str(seen["page"])
+    assert seen["page"] == "set.cgi"
     assert seen["method"] == HTTPMethod.POST
+    assert seen["params"] == {
+        "x": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.2",
+        "RequestFile": "html/amp/ptvdf/vdfWlanBasicNew.asp",
+    }
     assert "x.Enable=1" in str(seen["payload"])
     assert "x.X_HW_Token=tok123" in str(seen["payload"])
 

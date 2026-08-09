@@ -33,7 +33,7 @@ function() {
     this.ValidTimeRemaining = ValidTimeRemaining;
   }
   
-  var IPv6AddressList =  new Array(new IPv6AddressInfo("InternetGatewayDevice.WANDevice.1.X_HW_ShowInterface.1.IPv6Address.1","","None","2001\x3adb8\x3a1\x3a1\x3a\x3a1","","",""),new IPv6AddressInfo("InternetGatewayDevice.WANDevice.1.X_HW_ShowInterface.1.IPv6Address.2","","LinkLocal","fe80\x3a\x3a5669\x3a90ff\x3afe21\x3aaf55","","",""),null);
+  var IPv6AddressList =  new Array(new IPv6AddressInfo("InternetGatewayDevice.WANDevice.1.X_HW_ShowInterface.1.IPv6Address.1","","None","2001\x3adb8\x3a1\x3a1\x3a\x3a1","","",""),new IPv6AddressInfo("InternetGatewayDevice.WANDevice.1.X_HW_ShowInterface.1.IPv6Address.2","","LinkLocal","fe80\x3a\x3a0000\x3a00ff\x3afe00\x3a0001","","",""),null);
   
   function IPv6WanInfo(domain, Type, ConnectionStatus, L2EncapType, MACAddress, Vlan, Pri,
                        DNSServers, AFTRName, AFTRPeerAddr,DefaultRouterAddress,V6UpTime)
