@@ -21,6 +21,7 @@ from aiovodafone.const import _LOGGER, DEVICES_SETTINGS, HEADERS
 from aiovodafone.exceptions import ModelNotSupported
 
 from .homeware import VodafoneStationHomewareApi
+from .huawei import VodafoneStationHuaweiApi
 from .sercomm import VodafoneStationSercommApi
 from .technicolor import VodafoneStationTechnicolorApi
 from .ultrahub import VodafoneStationUltraHubApi
@@ -33,6 +34,7 @@ class DeviceType(StrEnum):
     SERCOMM = "Sercomm"
     TECHNICOLOR = "Technicolor"
     ULTRAHUB = "UltraHub"
+    HUAWEI = "Huawei"
 
 
 class_registry: dict[DeviceType, type[VodafoneStationCommonApi]] = {
@@ -47,6 +49,9 @@ class_registry: dict[DeviceType, type[VodafoneStationCommonApi]] = {
     ),
     DeviceType.ULTRAHUB: cast(
         "type[VodafoneStationCommonApi]", VodafoneStationUltraHubApi
+    ),
+    DeviceType.HUAWEI: cast(
+        "type[VodafoneStationCommonApi]", VodafoneStationHuaweiApi
     ),
 }
 
@@ -83,6 +88,8 @@ async def get_device_type(
 
     - The Homeware devices return a JSON response with a ``status`` field set to
     ``alive``.
+    - Huawei (PT Vodafone ONT) devices return the root login HTML containing
+      ``login.cgi`` and ``GetRandCount.asp``.
 
     Args:
     ----
@@ -143,6 +150,12 @@ async def get_device_type(
                     if response_json.get("status") == "alive":
                         _LOGGER.debug("Detected device type: %s", DeviceType.HOMEWARE)
                         return (DeviceType.HOMEWARE, return_url)
+                    if (
+                        "login.cgi" in response_text
+                        and "GetRandCount.asp" in response_text
+                    ):
+                        _LOGGER.debug("Detected device type: %s", DeviceType.HUAWEI)
+                        return (DeviceType.HUAWEI, return_url)
 
             except (
                 ClientConnectorSSLError,
