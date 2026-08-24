@@ -18,7 +18,7 @@ from yarl import URL
 
 from aiovodafone.api import VodafoneStationCommonApi
 from aiovodafone.const import _LOGGER, DEVICES_SETTINGS, HEADERS
-from aiovodafone.exceptions import ModelNotSupported
+from aiovodafone.exceptions import CannotConnect, ModelNotSupported
 
 from .homeware import VodafoneStationHomewareApi
 from .sercomm import VodafoneStationSercommApi
@@ -150,5 +150,8 @@ async def get_device_type(
             ):
                 _LOGGER.debug("Unable to login using protocol %s", protocol)
                 continue
+            except TimeoutError as err:
+                _LOGGER.debug("Timeout while trying to connect to %s", url)
+                raise CannotConnect from err
 
     raise ModelNotSupported
