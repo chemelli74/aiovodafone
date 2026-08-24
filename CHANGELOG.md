@@ -1,5 +1,23 @@
 # Changelog
 
+## v3.3.2 (2026-08-24)
+
+### Bug fixes
+
+- Handle timeouterror in get_device_type ([`b63f3a4`](https://github.com/chemelli74/aiovodafone/commit/b63f3a424993f5182ad375b0b7e5e25f3ebf2111))
+
+
+### Build system
+
+- Tweaks ([`cfc349b`](https://github.com/chemelli74/aiovodafone/commit/cfc349bbd1a3b1060271d2df1964003d0771b5e3))
+- Fix ruff configuration ([`fa833a1`](https://github.com/chemelli74/aiovodafone/commit/fa833a168423cfab5b34664a67da72c73c70e553))
+
+
+### Refactoring
+
+- Convert all files to lf unix-style ([`22dd445`](https://github.com/chemelli74/aiovodafone/commit/22dd445fa479ac52fea41f148d25459c10b724ea))
+
+
 ## v3.3.1 (2026-07-24)
 
 ### Documentation
