@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.3.3 (2026-09-07)
+
+### Bug fixes
+
+- Login expired may redirect to login page ([`a5eb2df`](https://github.com/chemelli74/aiovodafone/commit/a5eb2dffaf6b88ce25f14344c2be5216e407fa10))
+
+
 ## v3.3.2 (2026-08-24)
 
 ### Bug fixes
