@@ -1,3 +1,6 @@
+# Copyright 2023 Simone Chemelli and contributors
+# SPDX-License-Identifier: Apache-2.0
+
 """Technicolor Vodafone Station model API implementation."""
 
 import asyncio
@@ -15,6 +18,8 @@ from aiovodafone.exceptions import AlreadyLogged, CannotAuthenticate, ResultTime
 
 class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
     """Queries Vodafone Station running Technicolor firmware."""
+
+    device_type = "Technicolor"
 
     async def _encrypt_string(
         self,

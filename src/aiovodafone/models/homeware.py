@@ -1,4 +1,7 @@
-"""Vodafone Homeware Technicolor device API implementation."""
+# Copyright 2023 Simone Chemelli and contributors
+# SPDX-License-Identifier: Apache-2.0
+
+"""Homeware Vodafone Station model API implementation."""
 
 import datetime as dt
 import hashlib
@@ -195,6 +198,8 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
      - UK Vodafone Ultra Hub (DGM4980) - firmware v22
      - UK VOX 3.0 (THG3000) - firmware v19
     """
+
+    device_type = "Homeware"
 
     async def _get_csrf_token(self) -> str:
         """Fetch CSRF token from the router."""
@@ -435,6 +440,7 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
             "home.lp",
             payload={"action": "logout", "CSRFtoken": await self._get_csrf_token()},
             query={},
+            additional_params={"allow_redirects": True},
         )
 
     def convert_uptime(self, uptime: str) -> dt.datetime:

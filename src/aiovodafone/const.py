@@ -1,3 +1,6 @@
+# Copyright 2023 Simone Chemelli and contributors
+# SPDX-License-Identifier: Apache-2.0
+
 """Constants for Vodafone Station."""
 
 import logging

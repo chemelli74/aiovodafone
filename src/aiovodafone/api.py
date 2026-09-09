@@ -1,3 +1,6 @@
+# Copyright 2023 Simone Chemelli and contributors
+# SPDX-License-Identifier: Apache-2.0
+
 """Support for Vodafone Station."""
 
 from abc import ABC, abstractmethod
@@ -19,6 +22,7 @@ from yarl import URL
 from .const import (
     _LOGGER,
     DEFAULT_TIMEOUT,
+    DEVICES_SETTINGS,
     HEADERS,
     REQUEST_ALLOW_REDIRECTS,
     REQUEST_SUPPRESS_LOG,
@@ -27,6 +31,7 @@ from .const import (
     WifiType,
 )
 from .exceptions import (
+    CannotAuthenticate,
     GenericResponseError,
 )
 
@@ -46,6 +51,9 @@ class VodafoneStationDevice:
 
 class VodafoneStationCommonApi(ABC):
     """Common API calls for Vodafone Station routers."""
+
+    device_type: str
+    """Device type, must be a valid key in DEVICES_SETTINGS."""
 
     def __init__(
         self,
@@ -111,13 +119,22 @@ class VodafoneStationCommonApi(ABC):
                 allow_redirects=allow_redirects,
             )
             if response.status != HTTPStatus.OK:
-                _LOGGER.warning(
-                    "%s page %s from host %s failed: %s",
-                    method,
-                    page,
-                    self.base_url.host,
-                    response.status,
-                )
+                context = f"{method} page {page} from host {self.base_url.host}"
+                login_page = f"/{DEVICES_SETTINGS[self.device_type]['login_url']}"
+                if (
+                    response.status == HTTPStatus.FOUND
+                    and response.headers.get("Location") == login_page
+                ):
+                    _LOGGER.debug(
+                        "%s redirects to login page '%s'", context, login_page
+                    )
+                    raise CannotAuthenticate(
+                        f"{context} redirects to login page '{login_page}'"
+                    ) from None
+                if response.status == HTTPStatus.UNAUTHORIZED:
+                    _LOGGER.debug("%s returned 401", context)
+                    raise CannotAuthenticate(f"{context} returned 401") from None
+                _LOGGER.warning("%s failed: %s", context, response.status)
                 raise GenericResponseError
         except ClientResponseError as err:
             # Some models return text replies with invalid HTML headers.

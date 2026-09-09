@@ -1,3 +1,6 @@
+# Copyright 2023 Simone Chemelli and contributors
+# SPDX-License-Identifier: Apache-2.0
+
 """Test script for aiovodafone library."""
 
 import asyncio

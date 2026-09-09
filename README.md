@@ -120,6 +120,13 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
                 </a>
             </td>
             <td align="center">
+                <a href="https://github.com/NikNakk">
+                    <img src="https://avatars.githubusercontent.com/u/2175487?v=4" width="100;" alt="NikNakk"/>
+                    <br />
+                    <sub><b>Nick Kennedy</b></sub>
+                </a>
+            </td>
+            <td align="center">
                 <a href="https://github.com/myhomeiot">
                     <img src="https://avatars.githubusercontent.com/u/70070601?v=4" width="100;" alt="myhomeiot"/>
                     <br />

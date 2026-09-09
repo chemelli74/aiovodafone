@@ -1,3 +1,6 @@
+# Copyright 2023 Simone Chemelli and contributors
+# SPDX-License-Identifier: Apache-2.0
+
 """Tests for the Homeware model API implementation."""
 
 from __future__ import annotations
@@ -5,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import hashlib as _hashlib
 import secrets as _secrets
+from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
@@ -472,6 +476,28 @@ def test_logout(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None:
 
     async def _fake(*_a: object, **_kw: object) -> FakeResponse:
         return FakeResponse(text_data="csrf")
+
+    monkeypatch.setattr(api, "_request_page_result", _fake)
+    asyncio.run(api.logout())
+
+
+def test_logout_redirect_to_login_succeeds(
+    base_url: URL, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Logout succeeds when the router redirects to the login page."""
+    api = _api(base_url)
+    responses = iter(
+        [
+            FakeResponse(text_data="csrf"),
+            FakeResponse(status=HTTPStatus.FOUND, text_data="login.lp"),
+        ]
+    )
+
+    async def _fake(*_a: object, **_kw: object) -> FakeResponse:
+        response = next(responses)
+        if response.status == HTTPStatus.FOUND:
+            assert _kw["additional_params"] == {"allow_redirects": True}
+        return response
 
     monkeypatch.setattr(api, "_request_page_result", _fake)
     asyncio.run(api.logout())

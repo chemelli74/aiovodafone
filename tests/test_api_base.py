@@ -1,3 +1,6 @@
+# Copyright 2023 Simone Chemelli and contributors
+# SPDX-License-Identifier: Apache-2.0
+
 """Tests for common API base helpers."""
 
 from __future__ import annotations
@@ -12,7 +15,8 @@ import pytest
 from aiohttp import ClientResponseError
 
 from aiovodafone.api import VodafoneStationCommonApi, VodafoneStationDevice
-from aiovodafone.exceptions import GenericResponseError
+from aiovodafone.const import DEVICES_SETTINGS
+from aiovodafone.exceptions import CannotAuthenticate, GenericResponseError
 from tests.conftest import FakeCookieJar, FakeResponse, FakeSession
 
 if TYPE_CHECKING:
@@ -21,6 +25,8 @@ if TYPE_CHECKING:
 
 class DummyCommonApi(VodafoneStationCommonApi):
     """Concrete test double for exercising common API base helpers."""
+
+    device_type = "Sercomm"
 
     def convert_uptime(self, _uptime: str) -> datetime:
         """Return a timezone-aware datetime for abstract method compliance."""
@@ -113,6 +119,38 @@ def test_request_page_result_non_200_raises(base_url: URL) -> None:
         base_url, "u", "p", cast("Any", FakeSession(request_impl=_request))
     )
     with pytest.raises(GenericResponseError):
+        asyncio.run(_acall(api, "_request_page_result", HTTPMethod.GET, "status"))
+
+
+def test_request_page_result_login_redirect_raises_cannot_authenticate(
+    base_url: URL,
+) -> None:
+    """Verify a 302 redirect to the login page is treated as an auth failure."""
+    login_page = f"/{DEVICES_SETTINGS[DummyCommonApi.device_type]['login_url']}"
+
+    async def _request(*_args: object, **_kwargs: object) -> FakeResponse:
+        return FakeResponse(status=302, headers={"Location": login_page})
+
+    api = DummyCommonApi(
+        base_url, "u", "p", cast("Any", FakeSession(request_impl=_request))
+    )
+    with pytest.raises(
+        CannotAuthenticate,
+        match=f"redirects to login page '{login_page}'",
+    ):
+        asyncio.run(_acall(api, "_request_page_result", HTTPMethod.GET, "status"))
+
+
+def test_request_page_result_401_raises_cannot_authenticate(base_url: URL) -> None:
+    """Verify a bare 401 (expired session) is treated as an auth failure."""
+
+    async def _request(*_args: object, **_kwargs: object) -> FakeResponse:
+        return FakeResponse(status=401)
+
+    api = DummyCommonApi(
+        base_url, "u", "p", cast("Any", FakeSession(request_impl=_request))
+    )
+    with pytest.raises(CannotAuthenticate, match="returned 401"):
         asyncio.run(_acall(api, "_request_page_result", HTTPMethod.GET, "status"))
 
 

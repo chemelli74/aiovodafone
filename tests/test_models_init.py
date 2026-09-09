@@ -1,3 +1,6 @@
+# Copyright 2023 Simone Chemelli and contributors
+# SPDX-License-Identifier: Apache-2.0
+
 """Tests for model registry and device detection."""
 
 from __future__ import annotations
@@ -8,7 +11,7 @@ from typing import TYPE_CHECKING, Any, cast
 import pytest
 from aiohttp import ClientConnectorError
 
-from aiovodafone.exceptions import ModelNotSupported
+from aiovodafone.exceptions import CannotConnect, ModelNotSupported
 from aiovodafone.models import DeviceType, get_device_type, init_device_class
 from aiovodafone.models.homeware import VodafoneStationHomewareApi
 from aiovodafone.models.sercomm import VodafoneStationSercommApi
@@ -21,55 +24,34 @@ if TYPE_CHECKING:
 
     from yarl import URL
 
+    from aiovodafone.api import VodafoneStationCommonApi
+
 MIN_ATTEMPTS = 2
 
 
-def test_init_device_class_sercomm(base_url: URL) -> None:
-    """Ensure Sercomm device type initializes Sercomm API class."""
+@pytest.mark.parametrize(
+    ("device_type", "expected_class"),
+    [
+        (DeviceType.SERCOMM, VodafoneStationSercommApi),
+        (DeviceType.TECHNICOLOR, VodafoneStationTechnicolorApi),
+        (DeviceType.ULTRAHUB, VodafoneStationUltraHubApi),
+        (DeviceType.HOMEWARE, VodafoneStationHomewareApi),
+    ],
+)
+def test_init_device_class(
+    base_url: URL,
+    device_type: DeviceType,
+    expected_class: type[VodafoneStationCommonApi],
+) -> None:
+    """Ensure each device type initializes its matching API class."""
     session = FakeSession()
     api = init_device_class(
         base_url,
-        DeviceType.SERCOMM,
+        device_type,
         {"username": "u", "password": "p"},
         cast("Any", session),
     )
-    assert isinstance(api, VodafoneStationSercommApi)
-
-
-def test_init_device_class_technicolor(base_url: URL) -> None:
-    """Ensure Technicolor device type initializes Technicolor API class."""
-    session = FakeSession()
-    api = init_device_class(
-        base_url,
-        DeviceType.TECHNICOLOR,
-        {"username": "u", "password": "p"},
-        cast("Any", session),
-    )
-    assert isinstance(api, VodafoneStationTechnicolorApi)
-
-
-def test_init_device_class_ultrahub(base_url: URL) -> None:
-    """Ensure UltraHub device type initializes UltraHub API class."""
-    session = FakeSession()
-    api = init_device_class(
-        base_url,
-        DeviceType.ULTRAHUB,
-        {"username": "u", "password": "p"},
-        cast("Any", session),
-    )
-    assert isinstance(api, VodafoneStationUltraHubApi)
-
-
-def test_init_device_class_homeware(base_url: URL) -> None:
-    """Ensure Homeware device type initializes Homeware API class."""
-    session = FakeSession()
-    api = init_device_class(
-        base_url,
-        DeviceType.HOMEWARE,
-        {"username": "u", "password": "p"},
-        cast("Any", session),
-    )
-    assert isinstance(api, VodafoneStationHomewareApi)
+    assert isinstance(api, expected_class)
 
 
 def test_init_device_class_unsupported_type_raises(base_url: URL) -> None:
@@ -117,17 +99,35 @@ def test_get_device_type_detects_ultrahub_and_clears_cookie_jar() -> None:
     assert session.cookie_jar.cleared is True
 
 
-def test_get_device_type_detects_sercomm_from_html() -> None:
-    """Detect Sercomm model from csrf token found in HTML."""
-    response = FakeResponse(
-        status=200,
-        text_data="<script>var csrf_token = 'abc';</script>",
-        json_data={},
-        content_type="text/html",
-    )
+@pytest.mark.parametrize(
+    ("response", "expected_type"),
+    [
+        (
+            FakeResponse(
+                status=200,
+                text_data="<script>var csrf_token = 'abc';</script>",
+                json_data={},
+                content_type="text/html",
+            ),
+            DeviceType.SERCOMM,
+        ),
+        (
+            FakeResponse(
+                status=200,
+                text_data='{"status": "alive"}',
+                json_data={"status": "alive"},
+            ),
+            DeviceType.HOMEWARE,
+        ),
+    ],
+)
+def test_get_device_type_detects(
+    response: FakeResponse, expected_type: DeviceType
+) -> None:
+    """Detect model type from a single distinguishing response payload."""
     session = _session_for_detection(response)
     device_type, _ = asyncio.run(get_device_type("192.168.1.1", cast("Any", session)))
-    assert device_type == DeviceType.SERCOMM
+    assert device_type == expected_type
 
 
 def test_get_device_type_skips_invalid_json_and_raises() -> None:
@@ -200,13 +200,12 @@ def test_get_device_type_continues_on_non_200_status() -> None:
     assert device_type == DeviceType.SERCOMM
 
 
-def test_get_device_type_detects_homeware() -> None:
-    """Detect Homeware model from status==alive JSON response."""
-    response = FakeResponse(
-        status=200,
-        text_data='{"status": "alive"}',
-        json_data={"status": "alive"},
-    )
-    session = _session_for_detection(response)
-    device_type, _ = asyncio.run(get_device_type("192.168.1.1", cast("Any", session)))
-    assert device_type == DeviceType.HOMEWARE
+def test_get_device_type_raises_cannot_connect_on_timeout() -> None:
+    """Convert a TimeoutError while probing into CannotConnect."""
+
+    def _get(*_args: object, **_kwargs: object) -> FakeResponse:
+        raise TimeoutError
+
+    session = FakeSession(get_impl=_get)
+    with pytest.raises(CannotConnect):
+        asyncio.run(get_device_type("192.168.1.1", cast("Any", session)))

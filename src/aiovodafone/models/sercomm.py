@@ -1,3 +1,6 @@
+# Copyright 2023 Simone Chemelli and contributors
+# SPDX-License-Identifier: Apache-2.0
+
 """Sercomm Vodafone Station model API implementation."""
 
 import asyncio
@@ -43,6 +46,8 @@ from aiovodafone.sjcl import SJCL, build_json_from_sjcl
 
 class VodafoneStationSercommApi(VodafoneStationCommonApi):
     """Queries Vodafone Station running Sercomm firmware."""
+
+    device_type = "Sercomm"
 
     def __init__(
         self,

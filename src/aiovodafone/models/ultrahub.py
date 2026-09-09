@@ -1,3 +1,6 @@
+# Copyright 2023 Simone Chemelli and contributors
+# SPDX-License-Identifier: Apache-2.0
+
 """UltraHub Vodafone Station model API implementation."""
 
 import base64
@@ -32,6 +35,8 @@ from aiovodafone.sjcl import SJCL, build_json_from_sjcl
 
 class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
     """Queries Vodafone Ultra Hub."""
+
+    device_type = "UltraHub"
 
     def __init__(
         self, url: URL, username: str, password: str, session: ClientSession
