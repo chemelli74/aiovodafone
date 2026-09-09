@@ -317,6 +317,41 @@ def test_simple_methods(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None:
     assert asyncio.run(api.get_voice_data()) == {}
 
 
+def test_get_wifi_data_overrides_wrong_iter(
+    base_url: URL, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ensure a wrong iter reported by newer firmware does not break decryption."""
+    api = _api(base_url)
+
+    fixture_json = orjson.loads(
+        Path(__file__)
+        .parent.joinpath("fixtures", "ultrahub", "wifi_data.json")
+        .read_text(encoding="utf-8")
+    )
+    encrypted_data = {**fixture_json["encrypted_data"], "iter": 10000}
+
+    async def _get_wifi_pages(*_args: object, **_kwargs: object) -> object:
+        if _args[1] == "api/users/details.jst":
+            return {"X_VODAFONE_WebUISecret": fixture_json["keys"]["password"]}
+        if _args[1] == "api/wifi/ssids/list.jst":
+            return {"ssids": fixture_json["ssid_list"]}
+        if _args[1] == "api/wifi/aps/list.jst":
+            return {"aps": [{"Security_KeyPassphrase": orjson.dumps(encrypted_data)}]}
+        return {}
+
+    async def _qr(*_args: object, **_kwargs: object) -> object:
+        return b"qr"
+
+    api.csrf_token = "t"
+    api.id = 7
+
+    monkeypatch.setattr(api, "_auto_hub_request_page_result", _get_wifi_pages)
+    monkeypatch.setattr(api, "_generate_guest_qr_code", _qr)
+
+    data = asyncio.run(api.get_wifi_data())
+    assert data[WIFI_DATA]["guest"]["qr_code"] == b"qr"
+
+
 def test_restart_router_suppresses_error_and_cleans(
     base_url: URL, monkeypatch: pytest.MonkeyPatch
 ) -> None:
