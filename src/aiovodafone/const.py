@@ -61,6 +61,10 @@ DEVICES_SETTINGS: dict[str, Any] = {
         "params": {"X_INTERNAL_FIELDS": "X_VODAFONE_ServiceStatus_1"},
         "default_id": 3,
     },
+    "Huawei": {
+        # Root login page contains productName / GetRandCount.asp markers.
+        "login_url": "",
+    },
 }
 
 DEVICE_SERCOMM_LOGIN_STATUS = [
