@@ -5,7 +5,6 @@ lint.logger-objects = ["aiovodafone.const._LOGGER"]
 lint.select = ["ALL"]
 
 lint.ignore = [
-    "ASYNC109", # Checks for async functions with a timeout argument
     "COM812",   # Trailing comma missing (conflicts with formatter)
     "D203",     # 1 blank line required before class docstring (conflicts with `no-blank-line-before-class` (D211))
     "D213",     # Multi-line docstring summary should start at the second line (conflicts with multi-line-summary-first-line` (D212))
@@ -22,10 +21,6 @@ lint.ignore = [
 [lint.per-file-ignores]
 "library_test.py" = [
     "PLR0915",   # Too many statements
-    "T201",      # `print` found
-]
-"docs/script_grab.py" = [
-    "INP001",    # Missing an __init__.py file
     "T201",      # `print` found
 ]
 "tests/*" = [
