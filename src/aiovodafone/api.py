@@ -91,7 +91,7 @@ class VodafoneStationCommonApi(ABC):
     ) -> ClientResponse:
         """Request data from a web page."""
         _LOGGER.debug("%s page %s from host %s", method, page, self.base_url.host)
-        query_params = (
+        query_params: dict[str, Any] = (
             query
             if query is not None
             else {
@@ -154,7 +154,7 @@ class VodafoneStationCommonApi(ABC):
         security: str,
     ) -> BytesIO:
         """Get Wi-Fi Guest QR code."""
-        settings = {
+        settings: dict[str, int | str] = {
             "kind": "png",
             "scale": 4,
             "border": 0,
@@ -168,7 +168,7 @@ class VodafoneStationCommonApi(ABC):
         stream = BytesIO()
         qr_code.save(
             out=stream,
-            kind=settings["kind"],
+            kind=str(settings["kind"]),
             scale=settings["scale"],
             border=settings["border"],
         )

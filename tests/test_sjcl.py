@@ -116,7 +116,7 @@ def fixture_fixed_encryption_salt(
     def _fixed_random(size: int) -> bytes:
         if size == len(fixed_salt):
             return fixed_salt
-        return cast("bytes", original_random(size))
+        return original_random(size)
 
     monkeypatch.setattr(sjcl_mod, "get_random_bytes", _fixed_random)
 
