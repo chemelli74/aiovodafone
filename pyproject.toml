@@ -80,6 +80,8 @@ testpaths = ["tests"]
 
 [tool.coverage.run]
 branch = true
+source = ["aiovodafone"]
+omit = ["library_test.py"]
 
 [tool.coverage.report]
 exclude_lines = [

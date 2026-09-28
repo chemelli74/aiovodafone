@@ -1,4 +1,0 @@
-[run]
-source = aiovodafone
-omit =
-    library_test.py
