@@ -180,26 +180,24 @@ def test_get_challenge(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None:
     assert asyncio.run(_acall(api, "_get_challenge")) == "c"
 
 
-def test_reset_true_and_false(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        pytest.param(200, True, id="ok"),
+        pytest.param(500, False, id="error"),
+    ],
+)
+def test_reset_true_and_false(
+    base_url: URL, monkeypatch: pytest.MonkeyPatch, status: int, expected: bool
+) -> None:
     """Ensure reset helper returns true only for successful status."""
     api = _api(base_url)
 
-    class _FakeClientResponse:
-        def __init__(self, status: int) -> None:
-            self.status = status
+    async def _request(*_args: object, **_kwargs: object) -> object:
+        return FakeResponse(status=status)
 
-    monkeypatch.setattr(sercomm_mod, "ClientResponse", _FakeClientResponse)
-
-    async def _request_ok(*_args: object, **_kwargs: object) -> object:
-        return _FakeClientResponse(200)
-
-    async def _request_other(*_args: object, **_kwargs: object) -> object:
-        return object()
-
-    monkeypatch.setattr(api, "_request_page_result", _request_ok)
-    assert asyncio.run(_acall(api, "_reset")) is True
-    monkeypatch.setattr(api, "_request_page_result", _request_other)
-    assert asyncio.run(_acall(api, "_reset")) is False
+    monkeypatch.setattr(api, "_request_page_result", _request)
+    assert asyncio.run(_acall(api, "_reset")) is expected
 
 
 @pytest.mark.parametrize(
@@ -311,7 +309,7 @@ def test_format_sensor_wifi_data(
     expected_absent = cast("list[str]", wifi_raw_case["expected_absent"])
 
     def _decrypt(*_args: object, **_kwargs: object) -> str:
-        return cast("str", orjson.dumps(raw).decode("utf-8"))
+        return orjson.dumps(raw).decode("utf-8")
 
     async def _qr(*_args: object, **_kwargs: object) -> object:
         return b"qr"

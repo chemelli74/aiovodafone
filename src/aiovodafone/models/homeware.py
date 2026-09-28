@@ -209,7 +209,7 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
             DEVICES_SETTINGS["Homeware"]["login_url"],
             query={"action": "getcsrf"},
         )
-        return cast("str", await reply.text())
+        return await reply.text()
 
     async def login(self, force_logout: bool = False) -> bool:
         """Log into the router afresh."""
