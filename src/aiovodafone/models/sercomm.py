@@ -453,8 +453,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
     async def logout(self) -> None:
         """Router logout."""
-        if hasattr(self, "session"):
-            self.session.cookie_jar.clear()
+        self.session.cookie_jar.clear()
 
     async def restart_connection(self, connection_type: str) -> None:
         """Internet Connection restart."""
