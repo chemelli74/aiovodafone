@@ -1,5 +1,33 @@
 # Changelog
 
+## v3.3.4 (2026-09-29)
+
+### Bug fixes
+
+- Handle voice data reply without data key ([`8eaa1e8`](https://github.com/chemelli74/aiovodafone/commit/8eaa1e825e327f9b947c708e30d7c19cafff31fc))
+
+
+### Testing
+
+- Improve tests ([`1379b1a`](https://github.com/chemelli74/aiovodafone/commit/1379b1afe5b1487d3301b4500c589888a57867bc))
+
+
+### Refactoring
+
+- Remove unreachable branches in homeware and sercomm ([`d561607`](https://github.com/chemelli74/aiovodafone/commit/d56160785a607486ff9490958dd1d54b10ac536e))
+
+
+### Build system
+
+- Pin runtime deps for mypy pre-commit hook ([`6f66c3d`](https://github.com/chemelli74/aiovodafone/commit/6f66c3da06b231f3e728c6944938d165abc27d2d))
+- Align vs code terminal env and contributing guide ([`f681355`](https://github.com/chemelli74/aiovodafone/commit/f681355cd11fa0c10469c60c70985614998095ca))
+- Remove unused ruff ignores ([`18d5080`](https://github.com/chemelli74/aiovodafone/commit/18d5080468584759a0d8d24c13307a148c9bf883))
+- Allow orjson extension in pylint ([`21a2847`](https://github.com/chemelli74/aiovodafone/commit/21a284733eb19dc69bb0798bcf26e65b2cd927d3))
+- Enable coverage collection in pytest ([`7f5d280`](https://github.com/chemelli74/aiovodafone/commit/7f5d280de1fed1db86badfbd205afdc2832a2e54))
+- Replace unmaintained labels tool ([`6d918b1`](https://github.com/chemelli74/aiovodafone/commit/6d918b130fc8245e8ab4d9415eb117283295e594))
+- Bump soupsieve from 2.8.4 to 2.9 in the uv group across 1 directory ([`2018c9f`](https://github.com/chemelli74/aiovodafone/commit/2018c9f915f603fc9540f607bb41ce14ff6d7052))
+
+
 ## v3.3.3 (2026-09-07)
 
 ### Bug fixes
