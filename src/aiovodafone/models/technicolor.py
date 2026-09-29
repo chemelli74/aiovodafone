@@ -313,10 +313,10 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
                         "status": response_json["data"][f"status{line}"],
                     }
 
-        if "DocsisStatus" in response_json["data"]:
-            data["general"] = {
-                "status": response_json["data"]["DocsisStatus"],
-            }
+            if "DocsisStatus" in response_json["data"]:
+                data["general"] = {
+                    "status": response_json["data"]["DocsisStatus"],
+                }
 
         return data
 

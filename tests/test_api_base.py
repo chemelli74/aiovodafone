@@ -15,7 +15,7 @@ import pytest
 from aiohttp import ClientResponseError
 
 from aiovodafone.api import VodafoneStationCommonApi, VodafoneStationDevice
-from aiovodafone.const import DEVICES_SETTINGS
+from aiovodafone.const import DEVICES_SETTINGS, REQUEST_SUPPRESS_LOG
 from aiovodafone.exceptions import CannotAuthenticate, GenericResponseError
 from tests.conftest import FakeCookieJar, FakeResponse, FakeSession
 
@@ -154,7 +154,19 @@ def test_request_page_result_401_raises_cannot_authenticate(base_url: URL) -> No
         asyncio.run(_acall(api, "_request_page_result", HTTPMethod.GET, "status"))
 
 
-def test_request_page_result_client_response_error_raises(base_url: URL) -> None:
+@pytest.mark.parametrize(
+    ("suppress_log", "expect_log"),
+    [
+        pytest.param(False, True, id="logged"),
+        pytest.param(True, False, id="suppressed"),
+    ],
+)
+def test_request_page_result_client_response_error_raises(
+    base_url: URL,
+    caplog: pytest.LogCaptureFixture,
+    suppress_log: bool,
+    expect_log: bool,
+) -> None:
     """Verify request helper wraps aiohttp response errors."""
 
     async def _request(*_args: object, **_kwargs: object) -> FakeResponse:
@@ -169,7 +181,16 @@ def test_request_page_result_client_response_error_raises(base_url: URL) -> None
         base_url, "u", "p", cast("Any", FakeSession(request_impl=_request))
     )
     with pytest.raises(GenericResponseError):
-        asyncio.run(_acall(api, "_request_page_result", HTTPMethod.GET, "status"))
+        asyncio.run(
+            _acall(
+                api,
+                "_request_page_result",
+                HTTPMethod.GET,
+                "status",
+                additional_params={REQUEST_SUPPRESS_LOG: suppress_log},
+            )
+        )
+    assert ("page status from host" in caplog.text) is expect_log
 
 
 def test_generate_guest_qr_code_returns_png_stream(base_url: URL) -> None:

@@ -77,6 +77,34 @@ def test_auto_hub_request_ok_and_csrf(base_url: URL) -> None:
     assert len(cookie_jar.updated) > 0
 
 
+@pytest.mark.parametrize(
+    "json_data",
+    [
+        pytest.param(None, id="null_reply"),
+        pytest.param({"other": 1}, id="no_csrf_token"),
+    ],
+)
+def test_auto_hub_request_without_csrf_or_cookie(
+    base_url: URL, json_data: dict[str, Any] | None
+) -> None:
+    """Ensure replies without csrf token keep state and skip cookie update."""
+
+    async def _request(*_args: object, **_kwargs: object) -> FakeResponse:
+        return FakeResponse(status=200, json_data=json_data)
+
+    api = VodafoneStationUltraHubApi(
+        base_url, "u", "p", cast("Any", FakeSession(request_impl=_request))
+    )
+    api.csrf_token = "old"
+    reply_json = asyncio.run(
+        _acall(api, "_auto_hub_request_page_result", HTTPMethod.GET, "x")
+    )
+    assert reply_json == (json_data or {})
+    assert api.csrf_token == "old"
+    cookie_jar = cast("FakeCookieJar", api.session.cookie_jar)
+    assert cookie_jar.updated == []
+
+
 def test_auto_hub_request_non_200_raises(base_url: URL) -> None:
     """Ensure non-200 responses are converted to GenericResponseError."""
 

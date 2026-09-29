@@ -390,27 +390,51 @@ def test_get_docis_data(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None:
     assert "u" in data["upstream"]
 
 
+@pytest.mark.parametrize(
+    ("payload", "expected"),
+    [
+        pytest.param(
+            {
+                "data": {
+                    "callnumber1": "123",
+                    "LineStatus1": "up",
+                    "status1": "ok",
+                    "DocsisStatus": "ready",
+                }
+            },
+            {
+                "line1": {"call_number": "123", "line_status": "up", "status": "ok"},
+                "line2": {},
+                "general": {"status": "ready"},
+            },
+            id="with_data",
+        ),
+        pytest.param(
+            {"data": {}},
+            {"line1": {}, "line2": {}, "general": {}},
+            id="empty_data",
+        ),
+        pytest.param(
+            {},
+            {"line1": {}, "line2": {}, "general": {}},
+            id="without_data",
+        ),
+    ],
+)
 def test_get_voice_data_with_and_without_data(
-    base_url: URL, monkeypatch: pytest.MonkeyPatch
+    base_url: URL,
+    monkeypatch: pytest.MonkeyPatch,
+    payload: dict[str, Any],
+    expected: dict[str, Any],
 ) -> None:
     """Ensure voice status payload is parsed into line and general data."""
     api = _api(base_url)
-    payload = {
-        "data": {
-            "callnumber1": "123",
-            "LineStatus1": "up",
-            "status1": "ok",
-            "DocsisStatus": "ready",
-        }
-    }
 
     async def _request(*_args: object, **_kwargs: object) -> object:
         return FakeResponse(json_data=payload)
 
     monkeypatch.setattr(api, "_request_page_result", _request)
-    data = asyncio.run(api.get_voice_data())
-    assert data["line1"]["call_number"] == "123"
-    assert data["general"]["status"] == "ready"
+    assert asyncio.run(api.get_voice_data()) == expected
 
 
 def test_restart_router_and_logout(

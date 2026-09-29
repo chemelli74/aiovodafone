@@ -491,7 +491,7 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
         state = str(int(enable))
         if wifi_type == WifiType.MAIN:
             current["multiAP_wifi_enable"] = state
-        elif wifi_type == WifiType.GUEST:
+        else:
             current["wifi_state2"] = state
 
         current["action"] = "SAVE"
