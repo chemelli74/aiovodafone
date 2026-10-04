@@ -180,26 +180,24 @@ def test_get_challenge(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None:
     assert asyncio.run(_acall(api, "_get_challenge")) == "c"
 
 
-def test_reset_true_and_false(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        pytest.param(200, True, id="ok"),
+        pytest.param(500, False, id="error"),
+    ],
+)
+def test_reset_true_and_false(
+    base_url: URL, monkeypatch: pytest.MonkeyPatch, status: int, expected: bool
+) -> None:
     """Ensure reset helper returns true only for successful status."""
     api = _api(base_url)
 
-    class _FakeClientResponse:
-        def __init__(self, status: int) -> None:
-            self.status = status
+    async def _request(*_args: object, **_kwargs: object) -> object:
+        return FakeResponse(status=status)
 
-    monkeypatch.setattr(sercomm_mod, "ClientResponse", _FakeClientResponse)
-
-    async def _request_ok(*_args: object, **_kwargs: object) -> object:
-        return _FakeClientResponse(200)
-
-    async def _request_other(*_args: object, **_kwargs: object) -> object:
-        return object()
-
-    monkeypatch.setattr(api, "_request_page_result", _request_ok)
-    assert asyncio.run(_acall(api, "_reset")) is True
-    monkeypatch.setattr(api, "_request_page_result", _request_other)
-    assert asyncio.run(_acall(api, "_reset")) is False
+    monkeypatch.setattr(api, "_request_page_result", _request)
+    assert asyncio.run(_acall(api, "_reset")) is expected
 
 
 @pytest.mark.parametrize(
@@ -311,7 +309,7 @@ def test_format_sensor_wifi_data(
     expected_absent = cast("list[str]", wifi_raw_case["expected_absent"])
 
     def _decrypt(*_args: object, **_kwargs: object) -> str:
-        return cast("str", orjson.dumps(raw).decode("utf-8"))
+        return orjson.dumps(raw).decode("utf-8")
 
     async def _qr(*_args: object, **_kwargs: object) -> object:
         return b"qr"
@@ -551,7 +549,54 @@ def test_restart_connection_and_router(
     asyncio.run(api.restart_router())
 
 
-def test_set_wifi_status(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ("restart_method", "restart_args"),
+    [
+        pytest.param("restart_connection", ("wan",), id="connection"),
+        pytest.param("restart_router", (), id="router"),
+    ],
+)
+def test_restart_skips_login_when_logged_in(
+    base_url: URL,
+    monkeypatch: pytest.MonkeyPatch,
+    restart_method: str,
+    restart_args: tuple[str, ...],
+) -> None:
+    """Ensure restart does not login again when a session is active."""
+    api = _api(base_url)
+    calls = {"login": 0}
+
+    async def _check() -> bool:
+        return True
+
+    async def _login() -> bool:
+        calls["login"] += 1
+        return True
+
+    async def _request(*_args: object, **_kwargs: object) -> object:
+        return {}
+
+    monkeypatch.setattr(api, "_check_logged_in", _check)
+    monkeypatch.setattr(api, "login", _login)
+    monkeypatch.setattr(api, "_post_sercomm_page", _request)
+    monkeypatch.setattr(api, "_request_page_result", _request)
+    asyncio.run(_acall(api, restart_method, *restart_args))
+    assert calls["login"] == 0
+
+
+@pytest.mark.parametrize(
+    ("split_ssid_enable", "expected_ssid_5g"),
+    [
+        pytest.param("0", "main", id="split_disabled_mirrors_ssid"),
+        pytest.param("1", "other", id="split_enabled_keeps_ssid"),
+    ],
+)
+def test_set_wifi_status(
+    base_url: URL,
+    monkeypatch: pytest.MonkeyPatch,
+    split_ssid_enable: str,
+    expected_ssid_5g: str,
+) -> None:
     """Ensure Wi-Fi status update sends payload and validates reply."""
     api = _api(base_url)
     wifi_plain_data_attr = "_wifi_plain_data"
@@ -559,7 +604,7 @@ def test_set_wifi_status(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None
         api,
         wifi_plain_data_attr,
         {
-            "split_ssid_enable": "0",
+            "split_ssid_enable": split_ssid_enable,
             "wifi_ssid": "main",
             "wifi_ssid_5g": "other",
             "wifi_network_onoff": "1",
@@ -576,9 +621,17 @@ def test_set_wifi_status(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None
     async def _post(*_args: object, **_kwargs: object) -> object:
         return "1"
 
+    built: list[dict[str, Any]] = []
+
+    def _build_string(data: dict[str, Any]) -> str:
+        built.append(data)
+        return "payload"
+
     monkeypatch.setattr(api, "_request_page_result", _request)
     monkeypatch.setattr(api, "_post_sercomm_page", _post)
+    monkeypatch.setattr(api, "_sjcl_build_string", _build_string)
     asyncio.run(api.set_wifi_status(False, WifiType.MAIN, WifiBand.BAND_2_4_GHZ))
+    assert built[0]["wifi_ssid_5g"] == expected_ssid_5g
 
     async def _post_bad(*_args: object, **_kwargs: object) -> object:
         return "0"

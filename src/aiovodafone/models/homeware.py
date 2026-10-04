@@ -209,7 +209,7 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
             DEVICES_SETTINGS["Homeware"]["login_url"],
             query={"action": "getcsrf"},
         )
-        return cast("str", await reply.text())
+        return await reply.text()
 
     async def login(self, force_logout: bool = False) -> bool:
         """Log into the router afresh."""
@@ -491,7 +491,7 @@ class VodafoneStationHomewareApi(VodafoneStationCommonApi):
         state = str(int(enable))
         if wifi_type == WifiType.MAIN:
             current["multiAP_wifi_enable"] = state
-        elif wifi_type == WifiType.GUEST:
+        else:
             current["wifi_state2"] = state
 
         current["action"] = "SAVE"

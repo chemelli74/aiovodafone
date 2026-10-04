@@ -1,6 +1,6 @@
 [project]
 name = "aiovodafone"
-version = "3.3.3"
+version = "3.3.4"
 requires-python = ">=3.12"
 description = "Python library to control Vodafone Station"
 authors = [
@@ -42,7 +42,7 @@ dev = [
 
 [tool.uv-version]
 # Source of truth for the uv version. All other version references must be derived from this value.
-version = "0.12.11" # renovate: depName=uv datasource=pypi
+version = "0.12.23" # renovate: depName=uv datasource=pypi
 
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
@@ -74,12 +74,14 @@ match = "(?!main$)"
 prerelease = true
 
 [tool.pytest.ini_options]
-addopts = "-v -Wdefault"
+addopts = "-v -Wdefault --cov=aiovodafone --cov-report=term-missing"
 pythonpath = ["src"]
 testpaths = ["tests"]
 
 [tool.coverage.run]
 branch = true
+source = ["aiovodafone"]
+omit = ["library_test.py"]
 
 [tool.coverage.report]
 exclude_lines = [
@@ -91,6 +93,8 @@ exclude_lines = [
 ]
 
 [tool.mypy]
+files = ["src", "tests"]
+mypy_path = "src"
 check_untyped_defs = true
 disallow_any_generics = true
 disallow_incomplete_defs = true
@@ -113,6 +117,9 @@ warn_unused_ignores = true
 module = "tests.*"
 allow_untyped_defs = true
 disallow_untyped_decorators = false
+
+[tool.pylint.MASTER]
+extension-pkg-allow-list = ["orjson"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

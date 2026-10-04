@@ -16,7 +16,6 @@ from typing import Any, cast
 import orjson
 from aiohttp import (
     ClientConnectorError,
-    ClientResponse,
     ClientSession,
 )
 from bs4 import BeautifulSoup
@@ -163,10 +162,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         reply = await self._request_page_result(
             HTTPMethod.POST, "data/reset.json", payload
         )
-        if isinstance(reply, ClientResponse):
-            return bool(reply.status == HTTPStatus.OK)
-
-        return False
+        return bool(reply.status == HTTPStatus.OK)
 
     async def _login_json(self, payload: dict[str, Any]) -> bool:
         """Login via json page."""
@@ -457,8 +453,7 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
 
     async def logout(self) -> None:
         """Router logout."""
-        if hasattr(self, "session"):
-            self.session.cookie_jar.clear()
+        self.session.cookie_jar.clear()
 
     async def restart_connection(self, connection_type: str) -> None:
         """Internet Connection restart."""
@@ -546,6 +541,8 @@ class VodafoneStationSercommApi(VodafoneStationCommonApi):
         await self._get_csrf_token(await reply.text())
 
         # Send the request
-        reply = await self._post_sercomm_page("data/wifi_general.json", payload)
-        if str(reply) != "1":
-            raise GenericResponseError(f"Unexpected set_wifi_status response: {reply}")
+        reply_data = await self._post_sercomm_page("data/wifi_general.json", payload)
+        if str(reply_data) != "1":
+            raise GenericResponseError(
+                f"Unexpected set_wifi_status response: {reply_data}"
+            )
