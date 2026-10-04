@@ -86,12 +86,21 @@ def test_get_device_type_detects_technicolor() -> None:
     assert str(url).startswith("https://")
 
 
-def test_get_device_type_detects_ultrahub_and_clears_cookie_jar() -> None:
-    """Detect UltraHub model and verify cookie cleanup side effect."""
+@pytest.mark.parametrize(
+    "marker",
+    [
+        # Firmware < 01.08.82
+        "X_VODAFONE_ServiceStatus_1",
+        # Firmware >= 01.08.82 dropped the field above
+        "X_VODAFONE_WebUI_Language",
+    ],
+)
+def test_get_device_type_detects_ultrahub_and_clears_cookie_jar(marker: str) -> None:
+    """Detect UltraHub model on old and new firmware markers and verify cleanup."""
     response = FakeResponse(
         status=200,
-        text_data='{"X_VODAFONE_ServiceStatus_1": "ok"}',
-        json_data={"X_VODAFONE_ServiceStatus_1": "ok"},
+        text_data=f'{{"{marker}": "ok"}}',
+        json_data={marker: "ok"},
     )
     session = _session_for_detection(response)
     device_type, _ = asyncio.run(get_device_type("192.168.1.1", cast("Any", session)))
@@ -130,17 +139,81 @@ def test_get_device_type_detects(
     assert device_type == expected_type
 
 
-def test_get_device_type_skips_invalid_json_and_raises() -> None:
-    """Raise ModelNotSupported when JSON cannot be decoded or matched."""
-    response = FakeResponse(
-        status=200,
-        text_data="{invalid-json",
-        json_data={},
-        content_type="application/json",
-    )
+@pytest.mark.parametrize(
+    "response",
+    [
+        pytest.param(
+            FakeResponse(
+                status=200,
+                text_data="{invalid-json",
+                json_data={},
+                content_type="application/json",
+            ),
+            id="invalid_json",
+        ),
+        pytest.param(
+            FakeResponse(
+                status=200,
+                text_data='{"X_OTHER_FIELD": "value"}',
+                json_data={"X_OTHER_FIELD": "value"},
+            ),
+            id="no_internal_fields_marker",
+        ),
+    ],
+)
+def test_get_device_type_unmatched_response_raises(response: FakeResponse) -> None:
+    """Raise ModelNotSupported when no response matches a known device."""
     session = _session_for_detection(response)
     with pytest.raises(ModelNotSupported):
         asyncio.run(get_device_type("192.168.1.1", cast("Any", session)))
+
+
+def test_get_device_type_homeware_uses_single_params_entry() -> None:
+    """A device with a single params entry is probed once with those params."""
+    homeware_params: list[object] = []
+
+    def _get(*_args: object, **_kwargs: object) -> FakeResponse:
+        params = _kwargs.get("params")
+        if params == {"getSessionStatus": "true"}:
+            homeware_params.append(params)
+            return FakeResponse(
+                status=200,
+                text_data='{"status": "alive"}',
+                json_data={"status": "alive"},
+            )
+        return FakeResponse(status=404, text_data="", json_data={})
+
+    session = FakeSession(get_impl=_get)
+    device_type, _ = asyncio.run(get_device_type("192.168.1.1", cast("Any", session)))
+    assert device_type == DeviceType.HOMEWARE
+    assert homeware_params == [{"getSessionStatus": "true"}]
+
+
+def test_get_device_type_ultrahub_iterates_internal_fields_entries() -> None:
+    """UltraHub detection tries each X_INTERNAL_FIELDS entry until one matches."""
+    probed_fields: list[str] = []
+
+    def _get(*_args: object, **_kwargs: object) -> FakeResponse:
+        params = cast("dict[str, str]", _kwargs.get("params") or {})
+        internal_fields = params.get("X_INTERNAL_FIELDS")
+        if internal_fields:
+            probed_fields.append(internal_fields)
+        # Newer firmware only echoes back the language field
+        if internal_fields == "X_VODAFONE_WebUI_Language":
+            return FakeResponse(
+                status=200,
+                text_data='{"X_VODAFONE_WebUI_Language": "en"}',
+                json_data={"X_VODAFONE_WebUI_Language": "en"},
+            )
+        return FakeResponse(status=200, text_data="{}", json_data={})
+
+    session = FakeSession(get_impl=_get)
+    device_type, _ = asyncio.run(get_device_type("192.168.1.1", cast("Any", session)))
+    assert device_type == DeviceType.ULTRAHUB
+    assert session.cookie_jar.cleared is True
+    assert probed_fields.index("X_VODAFONE_ServiceStatus_1") < probed_fields.index(
+        "X_VODAFONE_WebUI_Language"
+    )
 
 
 def test_get_device_type_continues_after_connection_error_then_succeeds() -> None:

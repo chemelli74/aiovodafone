@@ -101,57 +101,77 @@ async def get_device_type(
     """
     for device_info in DEVICES_SETTINGS.values():
         api_path = device_info.get("login_url")
+        # Each entry is a distinct set of query params to probe with; devices
+        # without params still get a single pass with no params.
+        params_list = device_info.get("params") or [None]
         for protocol in ["https", "http"]:
-            try:
-                return_url = URL(f"{protocol}://{host}")
-                url = return_url.joinpath(api_path)
-                _LOGGER.debug("Trying url %s", url)
-                async with session.get(
-                    url,
-                    headers=HEADERS,
-                    allow_redirects=False,
-                    params=device_info.get("params"),
-                    ssl=False,
-                ) as response:
-                    _LOGGER.debug("Response for url %s: %s", url, response.status)
-                    if response.status != HTTPStatus.OK:
-                        continue
+            for params in params_list:
+                try:
+                    return_url = URL(f"{protocol}://{host}")
+                    url = return_url.joinpath(api_path)
+                    _LOGGER.debug("Trying url %s", url)
+                    async with session.get(
+                        url,
+                        headers=HEADERS,
+                        allow_redirects=False,
+                        params=params,
+                        ssl=False,
+                    ) as response:
+                        _LOGGER.debug("Response for url %s: %s", url, response.status)
+                        if response.status != HTTPStatus.OK:
+                            continue
 
-                    response_text = await response.text()
-                    response_json: dict[str, Any] = {}
-                    if response.content_type == "application/json":
-                        try:
-                            response_json = orjson.loads(response_text)
-                        except orjson.JSONDecodeError:
-                            _LOGGER.debug("Failed to decode JSON response from %s", url)
+                        response_text = await response.text()
+                        response_json: dict[str, Any] = {}
+                        if response.content_type == "application/json":
+                            try:
+                                response_json = orjson.loads(response_text)
+                            except orjson.JSONDecodeError:
+                                _LOGGER.debug(
+                                    "Failed to decode JSON response from %s", url
+                                )
 
-                    if "data" in response_json and "ModelName" in response_json["data"]:
-                        _LOGGER.debug(
-                            "Detected device type: %s", DeviceType.TECHNICOLOR
-                        )
-                        return (DeviceType.TECHNICOLOR, return_url)
+                        if (
+                            "data" in response_json
+                            and "ModelName" in response_json["data"]
+                        ):
+                            _LOGGER.debug(
+                                "Detected device type: %s", DeviceType.TECHNICOLOR
+                            )
+                            return (DeviceType.TECHNICOLOR, return_url)
 
-                    if "X_VODAFONE_ServiceStatus_1" in response_json:
-                        session.cookie_jar.clear()  # Needed to cleanup session
-                        _LOGGER.debug("Detected device type: %s", DeviceType.ULTRAHUB)
-                        return (DeviceType.ULTRAHUB, return_url)
+                        # Probe the same X_INTERNAL_FIELDS that were requested above
+                        internal_fields = (params or {}).get("X_INTERNAL_FIELDS", "")
+                        if internal_fields and any(
+                            field in response_json
+                            for field in internal_fields.split(",")
+                        ):
+                            session.cookie_jar.clear()  # Needed to cleanup session
+                            _LOGGER.debug(
+                                "Detected device type: %s", DeviceType.ULTRAHUB
+                            )
+                            return (DeviceType.ULTRAHUB, return_url)
 
-                    if "var csrf_token = " in response_text:
-                        _LOGGER.debug("Detected device type: %s", DeviceType.SERCOMM)
-                        return (DeviceType.SERCOMM, return_url)
+                        if "var csrf_token = " in response_text:
+                            _LOGGER.debug(
+                                "Detected device type: %s", DeviceType.SERCOMM
+                            )
+                            return (DeviceType.SERCOMM, return_url)
 
-                    if response_json.get("status") == "alive":
-                        _LOGGER.debug("Detected device type: %s", DeviceType.HOMEWARE)
-                        return (DeviceType.HOMEWARE, return_url)
+                        if response_json.get("status") == "alive":
+                            _LOGGER.debug(
+                                "Detected device type: %s", DeviceType.HOMEWARE
+                            )
+                            return (DeviceType.HOMEWARE, return_url)
 
-            except (
-                ClientConnectorSSLError,
-                ClientConnectorError,
-            ):
-                _LOGGER.debug("Unable to login using protocol %s", protocol)
-                continue
-            except TimeoutError as err:
-                _LOGGER.debug("Timeout while trying to connect to %s", url)
-                raise CannotConnect from err
+                except (
+                    ClientConnectorSSLError,
+                    ClientConnectorError,
+                ):
+                    _LOGGER.debug("Unable to login using protocol %s", protocol)
+                    break
+                except TimeoutError as err:
+                    _LOGGER.debug("Timeout while trying to connect to %s", url)
+                    raise CannotConnect from err
 
     raise ModelNotSupported

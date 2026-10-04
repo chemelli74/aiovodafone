@@ -46,7 +46,7 @@ class WifiBand(StrEnum):
 DEVICES_SETTINGS: dict[str, Any] = {
     "Homeware": {
         "login_url": "login.lp",
-        "params": {"getSessionStatus": "true"},
+        "params": [{"getSessionStatus": "true"}],
     },
     "Sercomm": {
         "login_url": "login.html",
@@ -58,7 +58,10 @@ DEVICES_SETTINGS: dict[str, Any] = {
     },
     "UltraHub": {
         "login_url": "api/config/details.jst",
-        "params": {"X_INTERNAL_FIELDS": "X_VODAFONE_ServiceStatus_1"},
+        "params": [
+            {"X_INTERNAL_FIELDS": "X_VODAFONE_ServiceStatus_1"},  # Firmware <  01.08.82
+            {"X_INTERNAL_FIELDS": "X_VODAFONE_WebUI_Language"},  #  Firmware >= 01.08.82
+        ],
         "default_id": 3,
     },
 }
