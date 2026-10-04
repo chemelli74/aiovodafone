@@ -1,5 +1,17 @@
 # Changelog
 
+## v3.3.5 (2026-10-04)
+
+### Bug fixes
+
+- Handle new firmware for ultrahub ([`96e7ab8`](https://github.com/chemelli74/aiovodafone/commit/96e7ab8323273565d96477b8d280912ec41cf1c4))
+
+
+### Build system
+
+- Move coverage config to pyproject ([`ba1e927`](https://github.com/chemelli74/aiovodafone/commit/ba1e9270aa8b84b2e564636d934cdd009fe42d29))
+
+
 ## v3.3.4 (2026-09-29)
 
 ### Bug fixes
