@@ -129,6 +129,10 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         _LOGGER.debug("Get salt for login")
         payload = {"username": self.username, "password": "seeksalthash"}
+        # Some firmwares (e.g. CGA6444VFES, Vodafone Spain) check for other
+        # sessions already at this step, so the logout flag is needed here too
+        if force_logout:
+            payload["logout"] = "true"
         salt_response = await self._request_page_result(
             HTTPMethod.POST,
             page="api/v1/session/login",
@@ -136,6 +140,14 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         )
 
         salt_json = await salt_response.json()
+        if "salt" not in salt_json:
+            if (
+                salt_json.get("message")
+                == DEVICES_SETTINGS["Technicolor"]["user_already_logged_in"]
+            ):
+                raise AlreadyLogged
+            _LOGGER.error(salt_json)
+            raise CannotAuthenticate
 
         salt = salt_json["salt"]
         salt_web_ui = salt_json["saltwebui"]
@@ -227,8 +239,10 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         data["sys_firmware_version"] = status_json["data"]["firmwareversion"]
         data["sys_hardware_version"] = status_json["data"]["hardwaretype"]
         data["sys_uptime"] = status_json["data"]["uptime"]
-        data["wan_status"] = status_json["data"]["WANStatus"]
-        data["cm_status"] = status_json["data"]["CMStatus"]
+        # Some firmwares (e.g. CGA6444VFES, Vodafone Spain) only report "operational"
+        operational = status_json["data"].get("operational")
+        data["wan_status"] = status_json["data"].get("WANStatus", operational)
+        data["cm_status"] = status_json["data"].get("CMStatus", operational)
         data["lan_mode"] = status_json["data"]["LanMode"]
         return data
 
