@@ -84,6 +84,12 @@ async def get_device_type(
     - The Homeware devices return a JSON response with a ``status`` field set to
     ``alive``.
 
+    A timeout on one probe (e.g. a router silently dropping HTTPS) does not abort
+    the detection: the remaining protocols and device types are still probed.
+    A protocol that timed out once is skipped for the remaining device types.
+    ``CannotConnect`` is only raised if no probe got any HTTP response and at
+    least one of them timed out.
+
     Args:
     ----
         host (str): The router's address, e.g. `192.168.1.1`
@@ -99,12 +105,16 @@ async def get_device_type(
     ]
 
     """
+    timed_out_protocols: set[str] = set()
+    got_response = False
     for device_info in DEVICES_SETTINGS.values():
         api_path = device_info.get("login_url")
         # Each entry is a distinct set of query params to probe with; devices
         # without params still get a single pass with no params.
         params_list = device_info.get("params") or [None]
         for protocol in ["https", "http"]:
+            if protocol in timed_out_protocols:
+                continue
             for params in params_list:
                 try:
                     return_url = URL(f"{protocol}://{host}")
@@ -118,6 +128,7 @@ async def get_device_type(
                         ssl=False,
                     ) as response:
                         _LOGGER.debug("Response for url %s: %s", url, response.status)
+                        got_response = True
                         if response.status != HTTPStatus.OK:
                             continue
 
@@ -170,8 +181,11 @@ async def get_device_type(
                 ):
                     _LOGGER.debug("Unable to login using protocol %s", protocol)
                     break
-                except TimeoutError as err:
+                except TimeoutError:
                     _LOGGER.debug("Timeout while trying to connect to %s", url)
-                    raise CannotConnect from err
+                    timed_out_protocols.add(protocol)
+                    break
 
+    if timed_out_protocols and not got_response:
+        raise CannotConnect
     raise ModelNotSupported
