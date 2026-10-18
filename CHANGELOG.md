@@ -1,5 +1,19 @@
 # Changelog
 
+## v3.3.6 (2026-10-18)
+
+### Bug fixes
+
+- Update python dependencies ([`55b0c95`](https://github.com/chemelli74/aiovodafone/commit/55b0c953e122172caefe50f7ab6368e6bc2c5fe7))
+
+
+### Build system
+
+- Update devcontainer, vscode and renovate ([`b3ea097`](https://github.com/chemelli74/aiovodafone/commit/b3ea09730af56f5cb7750bad60ea2a4d8f69eea9))
+- Always use the repository .venv for uv ([`454c1c5`](https://github.com/chemelli74/aiovodafone/commit/454c1c521d2a0ae123765d5c20e66e70568d1dac))
+- Bump multidict from 6.7.1 to 6.9.1 in the uv group across 1 directory ([`b9e26a9`](https://github.com/chemelli74/aiovodafone/commit/b9e26a903b944607e3096ab6244ece697222e14d))
+
+
 ## v3.3.5 (2026-10-04)
 
 ### Bug fixes
