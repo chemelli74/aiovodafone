@@ -25,7 +25,7 @@ dependencies = [
 "aiohttp (>=3.14.5)",
 "beautifulsoup4",
 "orjson (>=3.13.0,<4)",
-"pycryptodome (>=3.24.1,<4)",
+"pycryptodome (>=4.0.1,<5)",
 "segno (>=1.6.6)",
 ]
 
@@ -127,5 +127,5 @@ where = ["src"]
 include = ["aiovodafone*"]
 
 [build-system]
-requires = ["setuptools>=69.5.1", "wheel"]
+requires = ["setuptools>=84.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
