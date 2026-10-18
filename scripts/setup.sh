@@ -31,4 +31,4 @@ uv sync --frozen --all-groups
 prek install --overwrite
 prek install --hook-type commit-msg --overwrite
 
-npm install @commitlint/config-conventional
+npm ci
