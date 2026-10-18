@@ -17,7 +17,7 @@ from aiohttp import (
 from yarl import URL
 
 from aiovodafone.api import VodafoneStationCommonApi
-from aiovodafone.const import _LOGGER, DEVICES_SETTINGS, HEADERS
+from aiovodafone.const import _LOGGER, DEFAULT_TIMEOUT, DEVICES_SETTINGS, HEADERS
 from aiovodafone.exceptions import CannotConnect, ModelNotSupported
 
 from .homeware import VodafoneStationHomewareApi
@@ -74,6 +74,7 @@ async def get_device_type(
     """Find out the device type of a Vodafone Stations and returns it as enum.
 
     - The Technicolor devices always answer with a valid HTTP response, the
+      model is identified by a ``ModelName`` key in the JSON ``data`` field.
 
     - Sercomm returns 404 on a missing page. This helps to determine which we are
       talking with.
@@ -84,11 +85,8 @@ async def get_device_type(
     - The Homeware devices return a JSON response with a ``status`` field set to
     ``alive``.
 
-    A timeout on one probe (e.g. a router silently dropping HTTPS) does not abort
-    the detection: the remaining protocols and device types are still probed.
-    A protocol that timed out once is skipped for the remaining device types.
-    ``CannotConnect`` is only raised if no probe got any HTTP response and at
-    least one of them timed out.
+    A protocol that times out or refuses the connection is skipped for the
+    remaining device types; ``CannotConnect`` is raised only if nothing answered.
 
     Args:
     ----
@@ -105,7 +103,7 @@ async def get_device_type(
     ]
 
     """
-    timed_out_protocols: set[str] = set()
+    dead_protocols: set[str] = set()
     got_response = False
     for device_info in DEVICES_SETTINGS.values():
         api_path = device_info.get("login_url")
@@ -113,7 +111,7 @@ async def get_device_type(
         # without params still get a single pass with no params.
         params_list = device_info.get("params") or [None]
         for protocol in ["https", "http"]:
-            if protocol in timed_out_protocols:
+            if protocol in dead_protocols:
                 continue
             for params in params_list:
                 try:
@@ -126,6 +124,7 @@ async def get_device_type(
                         allow_redirects=False,
                         params=params,
                         ssl=False,
+                        timeout=DEFAULT_TIMEOUT,
                     ) as response:
                         _LOGGER.debug("Response for url %s: %s", url, response.status)
                         got_response = True
@@ -180,12 +179,13 @@ async def get_device_type(
                     ClientConnectorError,
                 ):
                     _LOGGER.debug("Unable to login using protocol %s", protocol)
+                    dead_protocols.add(protocol)
                     break
                 except TimeoutError:
                     _LOGGER.debug("Timeout while trying to connect to %s", url)
-                    timed_out_protocols.add(protocol)
+                    dead_protocols.add(protocol)
                     break
 
-    if timed_out_protocols and not got_response:
+    if dead_protocols and not got_response:
         raise CannotConnect
     raise ModelNotSupported

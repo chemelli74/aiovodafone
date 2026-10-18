@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, cast
 import pytest
 from aiohttp import ClientConnectorError
 
+from aiovodafone.const import DEFAULT_TIMEOUT
 from aiovodafone.exceptions import CannotConnect, ModelNotSupported
 from aiovodafone.models import DeviceType, get_device_type, init_device_class
 from aiovodafone.models.homeware import VodafoneStationHomewareApi
@@ -236,8 +237,7 @@ def test_get_device_type_continues_after_connection_error_then_succeeds() -> Non
         "http": _return_html,
     }
 
-    def _get(*_args: object, **_kwargs: object) -> FakeResponse:
-        url = cast("Any", _args[0])
+    def _get(url: URL, *_args: object, **_kwargs: object) -> FakeResponse:
         calls["count"] += 1
         return actions[url.scheme]()
 
@@ -292,8 +292,7 @@ def test_get_device_type_continues_after_https_timeout_then_detects() -> None:
     """
     probed: list[str] = []
 
-    def _get(*_args: object, **_kwargs: object) -> FakeResponse:
-        url = cast("Any", _args[0])
+    def _get(url: URL, *_args: object, **_kwargs: object) -> FakeResponse:
         probed.append(f"{url.scheme}:{url.path}")
         if url.scheme == "https":
             raise TimeoutError
@@ -318,8 +317,7 @@ def test_get_device_type_continues_after_https_timeout_then_detects() -> None:
 def test_get_device_type_timeout_with_other_response_raises_not_supported() -> None:
     """Reachable but unknown device reports ModelNotSupported, not CannotConnect."""
 
-    def _get(*_args: object, **_kwargs: object) -> FakeResponse:
-        url = cast("Any", _args[0])
+    def _get(url: URL, *_args: object, **_kwargs: object) -> FakeResponse:
         if url.scheme == "https":
             raise TimeoutError
         return FakeResponse(status=404, text_data="not found", json_data={})
@@ -327,3 +325,38 @@ def test_get_device_type_timeout_with_other_response_raises_not_supported() -> N
     session = FakeSession(get_impl=_get)
     with pytest.raises(ModelNotSupported):
         asyncio.run(get_device_type("192.168.0.1", cast("Any", session)))
+
+
+def test_get_device_type_https_timeout_http_refused_raises_cannot_connect() -> None:
+    """HTTPS timing out and HTTP refusing every connection means unreachable."""
+    probed: list[str] = []
+
+    def _get(url: URL, *_args: object, **_kwargs: object) -> FakeResponse:
+        probed.append(url.scheme)
+        if url.scheme == "https":
+            raise TimeoutError
+        raise ClientConnectorError(cast("Any", object()), OSError("refused"))
+
+    session = FakeSession(get_impl=_get)
+    with pytest.raises(CannotConnect):
+        asyncio.run(get_device_type("192.168.0.1", cast("Any", session)))
+    # Each protocol is probed only once, then skipped for the other device types
+    assert probed == ["https", "http"]
+
+
+def test_get_device_type_passes_probe_timeout() -> None:
+    """Probe requests use DEFAULT_TIMEOUT instead of the session default."""
+    timeouts: list[object] = []
+
+    def _get(*_args: object, **kwargs: object) -> FakeResponse:
+        timeouts.append(kwargs.get("timeout"))
+        return FakeResponse(
+            status=200,
+            text_data='{"status": "alive"}',
+            json_data={"status": "alive"},
+        )
+
+    session = FakeSession(get_impl=_get)
+    asyncio.run(get_device_type("192.168.1.1", cast("Any", session)))
+    assert timeouts
+    assert all(t is DEFAULT_TIMEOUT for t in timeouts)
