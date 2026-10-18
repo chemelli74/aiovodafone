@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.3.7 (2026-10-18)
+
+### Bug fixes
+
+- Update python dependencies (major) ([`7abfea0`](https://github.com/chemelli74/aiovodafone/commit/7abfea03f15740c2386098a62248039009b2f68c))
+
+
 ## v3.3.6 (2026-10-18)
 
 ### Bug fixes
