@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.3.8 (2026-10-19)
+
+### Bug fixes
+
+- Update dependency pycryptodome to v4.1.0 ([`85ba50e`](https://github.com/chemelli74/aiovodafone/commit/85ba50ede5ab0631fbf4cfb41455a509a83106f0))
+
+
 ## v3.3.7 (2026-10-18)
 
 ### Bug fixes
