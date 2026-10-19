@@ -13,12 +13,12 @@ repos:
       - id: check-yaml
       - id: detect-private-key
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.13.0 # renovate: customPinnedDependency=uv,datasource=pypi
+    rev: 0.13.1 # renovate: customPinnedDependency=uv,datasource=pypi
     hooks:
       - id: uv-lock
         args: ["--check"]
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.0
+    rev: v0.17.1
     hooks:
       - id: ruff-check
         args:
@@ -54,9 +54,9 @@ repos:
       - id: mypy
         pass_filenames: false
         additional_dependencies:
-          - aiohttp==3.14.3
+          - aiohttp==3.14.5
           - beautifulsoup4==4.15.0
-          - orjson==3.12.0
-          - pycryptodome==3.23.0
+          - orjson==3.13.0
+          - pycryptodome==4.1.0
           - segno==1.6.6
-          - yarl==1.24.2
+          - yarl==1.25.1
