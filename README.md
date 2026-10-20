@@ -127,6 +127,13 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
                 </a>
             </td>
             <td align="center">
+                <a href="https://github.com/mauriporte">
+                    <img src="https://avatars.githubusercontent.com/u/11719188?v=4" width="100;" alt="mauriporte"/>
+                    <br />
+                    <sub><b>mauriporte</b></sub>
+                </a>
+            </td>
+            <td align="center">
                 <a href="https://github.com/myhomeiot">
                     <img src="https://avatars.githubusercontent.com/u/70070601?v=4" width="100;" alt="myhomeiot"/>
                     <br />
