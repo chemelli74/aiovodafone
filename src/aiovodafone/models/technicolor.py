@@ -7,7 +7,7 @@ import asyncio
 import hashlib
 from datetime import UTC, datetime, timedelta
 from http import HTTPMethod
-from typing import Any
+from typing import Any, NoReturn
 
 from aiohttp import ClientResponseError
 
@@ -123,6 +123,16 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         _LOGGER.error(msg)
         raise ResultTimeoutError(msg)
 
+    def _raise_login_error(self, response_json: dict[str, Any]) -> NoReturn:
+        """Raise the exception matching a failed login response."""
+        if (
+            response_json.get("message")
+            == DEVICES_SETTINGS["Technicolor"]["user_already_logged_in"]
+        ):
+            raise AlreadyLogged
+        _LOGGER.error(response_json)
+        raise CannotAuthenticate
+
     async def login(self, force_logout: bool = False) -> bool:
         """Router login."""
         _LOGGER.debug("Logging into %s (force: %s)", self.base_url.host, force_logout)
@@ -141,13 +151,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
 
         salt_json = await salt_response.json()
         if "salt" not in salt_json:
-            if (
-                salt_json.get("message")
-                == DEVICES_SETTINGS["Technicolor"]["user_already_logged_in"]
-            ):
-                raise AlreadyLogged
-            _LOGGER.error(salt_json)
-            raise CannotAuthenticate
+            self._raise_login_error(salt_json)
 
         salt = salt_json["salt"]
         salt_web_ui = salt_json["saltwebui"]
@@ -171,13 +175,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         )
         login_json = await login_response.json()
         if "error" in login_json and login_json["error"] == "error":
-            if (
-                login_json["message"]
-                == DEVICES_SETTINGS["Technicolor"]["user_already_logged_in"]
-            ):
-                raise AlreadyLogged
-            _LOGGER.error(login_json)
-            raise CannotAuthenticate
+            self._raise_login_error(login_json)
 
         # Request menu otherwise the next call fails
         _LOGGER.debug("Get menu")
