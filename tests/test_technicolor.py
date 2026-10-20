@@ -251,22 +251,28 @@ def test_login_already_logged(base_url: URL, monkeypatch: pytest.MonkeyPatch) ->
         asyncio.run(api.login())
 
 
-def test_login_already_logged_on_salt_request(
-    base_url: URL, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [
+        pytest.param("MSG_LOGIN_150", AlreadyLogged, id="already_logged"),
+        pytest.param("other", CannotAuthenticate, id="unexpected_answer"),
+    ],
+)
+def test_login_salt_request_error(
+    base_url: URL,
+    monkeypatch: pytest.MonkeyPatch,
+    message: str,
+    expected: type[Exception],
 ) -> None:
-    """Ensure already-logged answer to the salt request raises AlreadyLogged."""
+    """Ensure an error answer to the salt request raises the matching exception."""
     api = _api(base_url)
-    responses = [
-        FakeResponse(
-            json_data={"error": "error", "message": "MSG_LOGIN_150", "data": []}
-        ),
-    ]
+    responses = [FakeResponse(json_data={"error": "error", "message": message})]
 
     async def _request(*_args: object, **_kwargs: object) -> object:
         return responses.pop(0)
 
     monkeypatch.setattr(api, "_request_page_result", _request)
-    with pytest.raises(AlreadyLogged):
+    with pytest.raises(expected):
         asyncio.run(api.login())
 
 
@@ -289,21 +295,6 @@ def test_login_force_logout_on_salt_request(
     monkeypatch.setattr(api, "_request_page_result", _request)
     assert asyncio.run(api.login(force_logout=True)) is True
     assert payloads[0].get("logout") == "true"
-
-
-def test_login_salt_request_unexpected_answer(
-    base_url: URL, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Ensure a salt request answer without salt raises CannotAuthenticate."""
-    api = _api(base_url)
-    responses = [FakeResponse(json_data={"error": "error", "message": "other"})]
-
-    async def _request(*_args: object, **_kwargs: object) -> object:
-        return responses.pop(0)
-
-    monkeypatch.setattr(api, "_request_page_result", _request)
-    with pytest.raises(CannotAuthenticate):
-        asyncio.run(api.login())
 
 
 def test_login_bad_credentials(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None:
