@@ -97,10 +97,15 @@ async def get_device_type(
     -------
     [
         device_type:
-            returns an enum entry in DeviceType or raises `ModelNotSupported`
+            the detected model as an enum entry in DeviceType
         url:
             full router url with scheme and host, e.g. `http://192.168.1.1`
     ]
+
+    Raises:
+    ------
+        CannotConnect: no protocol answered, every probe timed out or was refused
+        ModelNotSupported: the device answered, but no known model matched
 
     """
     dead_protocols: set[str] = set()
