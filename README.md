@@ -113,6 +113,13 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 		</tr>
 		<tr>
             <td align="center">
+                <a href="https://github.com/FloMeyer">
+                    <img src="https://avatars.githubusercontent.com/u/2670188?v=4" width="100;" alt="FloMeyer"/>
+                    <br />
+                    <sub><b>FloMeyer</b></sub>
+                </a>
+            </td>
+            <td align="center">
                 <a href="https://github.com/joostlek">
                     <img src="https://avatars.githubusercontent.com/u/7083755?v=4" width="100;" alt="joostlek"/>
                     <br />
