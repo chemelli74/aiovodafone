@@ -8,9 +8,10 @@ on:
 
 permissions: write-all
 
+# Queue runs on main so a release never races a newer push
 concurrency:
-  group: ${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
+  group: ${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   lint:
