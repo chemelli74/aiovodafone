@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, cast
 import pytest
 from aiohttp import ClientConnectorError
 
+from aiovodafone.const import DEFAULT_TIMEOUT
 from aiovodafone.exceptions import CannotConnect, ModelNotSupported
 from aiovodafone.models import DeviceType, get_device_type, init_device_class
 from aiovodafone.models.homeware import VodafoneStationHomewareApi
@@ -27,6 +28,49 @@ if TYPE_CHECKING:
     from aiovodafone.api import VodafoneStationCommonApi
 
 MIN_ATTEMPTS = 2
+
+NOT_FOUND = FakeResponse(status=404, text_data="not found", json_data={})
+SERCOMM_HTML = FakeResponse(
+    status=200,
+    text_data="<script>var csrf_token = 'abc';</script>",
+    json_data={},
+    content_type="text/html",
+)
+HOMEWARE_ALIVE = FakeResponse(
+    status=200,
+    text_data='{"status": "alive"}',
+    json_data={"status": "alive"},
+)
+HOMEWARE_PARAMS = {"getSessionStatus": "true"}
+
+type Probe = tuple[URL, dict[str, object]]
+type Responder = Callable[[URL, dict[str, object]], FakeResponse | BaseException]
+
+
+def _refused() -> ClientConnectorError:
+    return ClientConnectorError(cast("Any", object()), OSError("refused"))
+
+
+def _session_for_detection(
+    respond: FakeResponse | BaseException | Responder,
+    probed: list[Probe] | None = None,
+) -> FakeSession:
+    """Create a session whose probe requests are answered by ``respond``.
+
+    ``respond`` is a fixed response, an exception to raise, or a callable that
+    receives the probed URL and the request keyword arguments and returns one
+    of the two. Every probe is appended to ``probed`` as ``(url, kwargs)``.
+    """
+
+    def _get(url: URL, *_args: object, **kwargs: object) -> FakeResponse:
+        if probed is not None:
+            probed.append((url, kwargs))
+        result = respond(url, kwargs) if callable(respond) else respond
+        if isinstance(result, BaseException):
+            raise result
+        return result
+
+    return FakeSession(get_impl=_get)
 
 
 @pytest.mark.parametrize(
@@ -64,13 +108,6 @@ def test_init_device_class_unsupported_type_raises(base_url: URL) -> None:
             {"username": "u", "password": "p"},
             cast("Any", session),
         )
-
-
-def _session_for_detection(response: FakeResponse) -> FakeSession:
-    def _get(*_args: object, **_kwargs: object) -> FakeResponse:
-        return response
-
-    return FakeSession(get_impl=_get)
 
 
 def test_get_device_type_detects_technicolor() -> None:
@@ -111,23 +148,8 @@ def test_get_device_type_detects_ultrahub_and_clears_cookie_jar(marker: str) -> 
 @pytest.mark.parametrize(
     ("response", "expected_type"),
     [
-        (
-            FakeResponse(
-                status=200,
-                text_data="<script>var csrf_token = 'abc';</script>",
-                json_data={},
-                content_type="text/html",
-            ),
-            DeviceType.SERCOMM,
-        ),
-        (
-            FakeResponse(
-                status=200,
-                text_data='{"status": "alive"}',
-                json_data={"status": "alive"},
-            ),
-            DeviceType.HOMEWARE,
-        ),
+        (SERCOMM_HTML, DeviceType.SERCOMM),
+        (HOMEWARE_ALIVE, DeviceType.HOMEWARE),
     ],
 )
 def test_get_device_type_detects(
@@ -170,36 +192,26 @@ def test_get_device_type_unmatched_response_raises(response: FakeResponse) -> No
 
 def test_get_device_type_homeware_uses_single_params_entry() -> None:
     """A device with a single params entry is probed once with those params."""
-    homeware_params: list[object] = []
-
-    def _get(*_args: object, **_kwargs: object) -> FakeResponse:
-        params = _kwargs.get("params")
-        if params == {"getSessionStatus": "true"}:
-            homeware_params.append(params)
-            return FakeResponse(
-                status=200,
-                text_data='{"status": "alive"}',
-                json_data={"status": "alive"},
-            )
-        return FakeResponse(status=404, text_data="", json_data={})
-
-    session = FakeSession(get_impl=_get)
+    probed: list[Probe] = []
+    session = _session_for_detection(
+        lambda _url, kwargs: (
+            HOMEWARE_ALIVE if kwargs.get("params") == HOMEWARE_PARAMS else NOT_FOUND
+        ),
+        probed,
+    )
     device_type, _ = asyncio.run(get_device_type("192.168.1.1", cast("Any", session)))
     assert device_type == DeviceType.HOMEWARE
-    assert homeware_params == [{"getSessionStatus": "true"}]
+    homeware_probes = [kw for _, kw in probed if kw.get("params") == HOMEWARE_PARAMS]
+    assert len(homeware_probes) == 1
 
 
 def test_get_device_type_ultrahub_iterates_internal_fields_entries() -> None:
     """UltraHub detection tries each X_INTERNAL_FIELDS entry until one matches."""
-    probed_fields: list[str] = []
 
-    def _get(*_args: object, **_kwargs: object) -> FakeResponse:
-        params = cast("dict[str, str]", _kwargs.get("params") or {})
-        internal_fields = params.get("X_INTERNAL_FIELDS")
-        if internal_fields:
-            probed_fields.append(internal_fields)
+    def _respond(_url: URL, kwargs: dict[str, object]) -> FakeResponse:
+        params = cast("dict[str, str]", kwargs.get("params") or {})
         # Newer firmware only echoes back the language field
-        if internal_fields == "X_VODAFONE_WebUI_Language":
+        if params.get("X_INTERNAL_FIELDS") == "X_VODAFONE_WebUI_Language":
             return FakeResponse(
                 status=200,
                 text_data='{"X_VODAFONE_WebUI_Language": "en"}',
@@ -207,10 +219,15 @@ def test_get_device_type_ultrahub_iterates_internal_fields_entries() -> None:
             )
         return FakeResponse(status=200, text_data="{}", json_data={})
 
-    session = FakeSession(get_impl=_get)
+    probed: list[Probe] = []
+    session = _session_for_detection(_respond, probed)
     device_type, _ = asyncio.run(get_device_type("192.168.1.1", cast("Any", session)))
     assert device_type == DeviceType.ULTRAHUB
     assert session.cookie_jar.cleared is True
+    probed_fields = [
+        cast("dict[str, str]", kw.get("params") or {}).get("X_INTERNAL_FIELDS")
+        for _, kw in probed
+    ]
     assert probed_fields.index("X_VODAFONE_ServiceStatus_1") < probed_fields.index(
         "X_VODAFONE_WebUI_Language"
     )
@@ -218,67 +235,88 @@ def test_get_device_type_ultrahub_iterates_internal_fields_entries() -> None:
 
 def test_get_device_type_continues_after_connection_error_then_succeeds() -> None:
     """Continue protocol probing after connector error and still detect model."""
-    calls = {"count": 0}
-
-    def _raise_tls() -> FakeResponse:
-        raise ClientConnectorError(cast("Any", object()), OSError("no tls"))
-
-    def _return_html() -> FakeResponse:
-        return FakeResponse(
-            status=200,
-            text_data="<script>var csrf_token = 'abc';</script>",
-            json_data={},
-            content_type="text/html",
-        )
-
-    actions: dict[str, Callable[[], FakeResponse]] = {
-        "https": _raise_tls,
-        "http": _return_html,
-    }
-
-    def _get(*_args: object, **_kwargs: object) -> FakeResponse:
-        url = cast("Any", _args[0])
-        calls["count"] += 1
-        return actions[url.scheme]()
-
-    session = FakeSession(get_impl=_get)
+    probed: list[Probe] = []
+    session = _session_for_detection(
+        lambda url, _kwargs: _refused() if url.scheme == "https" else SERCOMM_HTML,
+        probed,
+    )
     device_type, url = asyncio.run(get_device_type("192.168.1.1", cast("Any", session)))
-    assert calls["count"] >= MIN_ATTEMPTS
+    assert len(probed) >= MIN_ATTEMPTS
     assert device_type == DeviceType.SERCOMM
     assert url.scheme == "http"
 
 
 def test_get_device_type_continues_on_non_200_status() -> None:
     """Continue probing when first endpoint returns non-200 response."""
-    calls = {"count": 0}
-    responses = iter(
-        [
-            FakeResponse(status=404, text_data="not found", json_data={}),
-            FakeResponse(
-                status=200,
-                text_data="<script>var csrf_token = 'abc';</script>",
-                json_data={},
-                content_type="text/html",
-            ),
-        ]
-    )
-
-    def _get(*_args: object, **_kwargs: object) -> FakeResponse:
-        calls["count"] += 1
-        return next(responses)
-
-    session = FakeSession(get_impl=_get)
+    responses = iter([NOT_FOUND, SERCOMM_HTML])
+    probed: list[Probe] = []
+    session = _session_for_detection(lambda _url, _kwargs: next(responses), probed)
     device_type, _ = asyncio.run(get_device_type("192.168.1.1", cast("Any", session)))
-    assert calls["count"] >= MIN_ATTEMPTS
+    assert len(probed) >= MIN_ATTEMPTS
     assert device_type == DeviceType.SERCOMM
 
 
 def test_get_device_type_raises_cannot_connect_on_timeout() -> None:
-    """Convert a TimeoutError while probing into CannotConnect."""
-
-    def _get(*_args: object, **_kwargs: object) -> FakeResponse:
-        raise TimeoutError
-
-    session = FakeSession(get_impl=_get)
+    """Raise CannotConnect when every probe times out."""
+    session = _session_for_detection(TimeoutError())
     with pytest.raises(CannotConnect):
         asyncio.run(get_device_type("192.168.1.1", cast("Any", session)))
+
+
+def test_get_device_type_continues_after_https_timeout_then_detects() -> None:
+    """A router silently dropping HTTPS must not abort detection.
+
+    Regression test for Technicolor CGA6444VF: HTTPS probes time out, the
+    Technicolor ``api/v1/login_conf`` endpoint answers over HTTP.
+    """
+
+    def _respond(url: URL, _kwargs: dict[str, object]) -> FakeResponse | BaseException:
+        if url.scheme == "https":
+            return TimeoutError()
+        if url.path == "/api/v1/login_conf":
+            return FakeResponse(
+                status=200,
+                text_data='{"error":"ok","data":{"ModelName":"CGA6444VF"}}',
+                json_data={"error": "ok", "data": {"ModelName": "CGA6444VF"}},
+                content_type="application/json",
+            )
+        return NOT_FOUND
+
+    probed: list[Probe] = []
+    session = _session_for_detection(_respond, probed)
+    device_type, url = asyncio.run(get_device_type("192.168.0.1", cast("Any", session)))
+    assert device_type == DeviceType.TECHNICOLOR
+    assert url.scheme == "http"
+    https_probes = [u for u, _ in probed if u.scheme == "https"]
+    assert [u.path for u in https_probes] == ["/login.lp"]
+
+
+def test_get_device_type_timeout_with_other_response_raises_not_supported() -> None:
+    """Reachable but unknown device reports ModelNotSupported, not CannotConnect."""
+    session = _session_for_detection(
+        lambda url, _kwargs: TimeoutError() if url.scheme == "https" else NOT_FOUND
+    )
+    with pytest.raises(ModelNotSupported):
+        asyncio.run(get_device_type("192.168.0.1", cast("Any", session)))
+
+
+def test_get_device_type_https_timeout_http_refused_raises_cannot_connect() -> None:
+    """HTTPS timing out and HTTP refusing every connection means unreachable."""
+    probed: list[Probe] = []
+    session = _session_for_detection(
+        lambda url, _kwargs: TimeoutError() if url.scheme == "https" else _refused(),
+        probed,
+    )
+    with pytest.raises(CannotConnect):
+        asyncio.run(get_device_type("192.168.0.1", cast("Any", session)))
+    # Each protocol is probed only once, then skipped for the other device types
+    assert [u.scheme for u, _ in probed] == ["https", "http"]
+
+
+def test_get_device_type_passes_probe_timeout() -> None:
+    """Probe requests use DEFAULT_TIMEOUT instead of the session default."""
+    probed: list[Probe] = []
+    session = _session_for_detection(HOMEWARE_ALIVE, probed)
+    asyncio.run(get_device_type("192.168.1.1", cast("Any", session)))
+    assert probed
+    assert all(kw.get("timeout") is DEFAULT_TIMEOUT for _, kw in probed)
