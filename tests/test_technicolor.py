@@ -251,6 +251,52 @@ def test_login_already_logged(base_url: URL, monkeypatch: pytest.MonkeyPatch) ->
         asyncio.run(api.login())
 
 
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [
+        pytest.param("MSG_LOGIN_150", AlreadyLogged, id="already_logged"),
+        pytest.param("other", CannotAuthenticate, id="unexpected_answer"),
+    ],
+)
+def test_login_salt_request_error(
+    base_url: URL,
+    monkeypatch: pytest.MonkeyPatch,
+    message: str,
+    expected: type[Exception],
+) -> None:
+    """Ensure an error answer to the salt request raises the matching exception."""
+    api = _api(base_url)
+    responses = [FakeResponse(json_data={"error": "error", "message": message})]
+
+    async def _request(*_args: object, **_kwargs: object) -> object:
+        return responses.pop(0)
+
+    monkeypatch.setattr(api, "_request_page_result", _request)
+    with pytest.raises(expected):
+        asyncio.run(api.login())
+
+
+def test_login_force_logout_on_salt_request(
+    base_url: URL, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ensure force_logout also sends the logout flag with the salt request."""
+    api = _api(base_url)
+    responses = [
+        FakeResponse(json_data={"salt": "s", "saltwebui": "w"}),
+        FakeResponse(json_data={}),
+        FakeResponse(json_data={}),
+    ]
+    payloads: list[dict[str, object]] = []
+
+    async def _request(*_args: object, **_kwargs: object) -> object:
+        payloads.append(cast("dict[str, object]", _kwargs.get("payload", {})))
+        return responses.pop(0)
+
+    monkeypatch.setattr(api, "_request_page_result", _request)
+    assert asyncio.run(api.login(force_logout=True)) is True
+    assert payloads[0].get("logout") == "true"
+
+
 def test_login_bad_credentials(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure invalid credentials response raises CannotAuthenticate."""
     api = _api(base_url)
@@ -323,6 +369,31 @@ def test_get_sensor_data(base_url: URL, monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setattr(api, "_request_page_result", _request)
     data = asyncio.run(api.get_sensor_data())
     assert data["wan_status"] == "up"
+
+
+def test_get_sensor_data_operational_only(
+    base_url: URL, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ensure firmwares without WANStatus/CMStatus fall back to operational."""
+    api = _api(base_url)
+    payload = {
+        "data": {
+            "serialnumber": "s",
+            "firmwareversion": "f",
+            "hardwaretype": "h",
+            "uptime": "1",
+            "operational": "OPERATIONAL",
+            "LanMode": "router",
+        }
+    }
+
+    async def _request(*_args: object, **_kwargs: object) -> object:
+        return FakeResponse(json_data=payload)
+
+    monkeypatch.setattr(api, "_request_page_result", _request)
+    data = asyncio.run(api.get_sensor_data())
+    assert data["wan_status"] == "OPERATIONAL"
+    assert data["cm_status"] == "OPERATIONAL"
 
 
 def test_get_wifi_data_returns_empty(base_url: URL) -> None:

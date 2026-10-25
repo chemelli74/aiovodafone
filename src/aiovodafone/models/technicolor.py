@@ -7,7 +7,7 @@ import asyncio
 import hashlib
 from datetime import UTC, datetime, timedelta
 from http import HTTPMethod
-from typing import Any
+from typing import Any, NoReturn
 
 from aiohttp import ClientResponseError
 
@@ -123,12 +123,26 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         _LOGGER.error(msg)
         raise ResultTimeoutError(msg)
 
+    def _raise_login_error(self, response_json: dict[str, Any]) -> NoReturn:
+        """Raise the exception matching a failed login response."""
+        if (
+            response_json.get("message")
+            == DEVICES_SETTINGS["Technicolor"]["user_already_logged_in"]
+        ):
+            raise AlreadyLogged
+        _LOGGER.error(response_json)
+        raise CannotAuthenticate
+
     async def login(self, force_logout: bool = False) -> bool:
         """Router login."""
         _LOGGER.debug("Logging into %s (force: %s)", self.base_url.host, force_logout)
 
         _LOGGER.debug("Get salt for login")
         payload = {"username": self.username, "password": "seeksalthash"}
+        # Some firmwares (e.g. CGA6444VFES, Vodafone Spain) check for other
+        # sessions already at this step, so the logout flag is needed here too
+        if force_logout:
+            payload["logout"] = "true"
         salt_response = await self._request_page_result(
             HTTPMethod.POST,
             page="api/v1/session/login",
@@ -136,6 +150,8 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         )
 
         salt_json = await salt_response.json()
+        if "salt" not in salt_json:
+            self._raise_login_error(salt_json)
 
         salt = salt_json["salt"]
         salt_web_ui = salt_json["saltwebui"]
@@ -159,13 +175,7 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         )
         login_json = await login_response.json()
         if "error" in login_json and login_json["error"] == "error":
-            if (
-                login_json["message"]
-                == DEVICES_SETTINGS["Technicolor"]["user_already_logged_in"]
-            ):
-                raise AlreadyLogged
-            _LOGGER.error(login_json)
-            raise CannotAuthenticate
+            self._raise_login_error(login_json)
 
         # Request menu otherwise the next call fails
         _LOGGER.debug("Get menu")
@@ -227,8 +237,10 @@ class VodafoneStationTechnicolorApi(VodafoneStationCommonApi):
         data["sys_firmware_version"] = status_json["data"]["firmwareversion"]
         data["sys_hardware_version"] = status_json["data"]["hardwaretype"]
         data["sys_uptime"] = status_json["data"]["uptime"]
-        data["wan_status"] = status_json["data"]["WANStatus"]
-        data["cm_status"] = status_json["data"]["CMStatus"]
+        # Some firmwares (e.g. CGA6444VFES, Vodafone Spain) only report "operational"
+        operational = status_json["data"].get("operational")
+        data["wan_status"] = status_json["data"].get("WANStatus", operational)
+        data["cm_status"] = status_json["data"].get("CMStatus", operational)
         data["lan_mode"] = status_json["data"]["LanMode"]
         return data
 

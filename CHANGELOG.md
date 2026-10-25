@@ -1,5 +1,22 @@
 # Changelog
 
+## v3.3.9 (2026-10-20)
+
+### Documentation
+
+- Contrib-readme-action has updated readme ([`a4dac9c`](https://github.com/chemelli74/aiovodafone/commit/a4dac9cdd4910d9604bea144b7231cca44d2a81a))
+
+
+### Bug fixes
+
+- Handle technicolor session check at salt request ([`9f8bd17`](https://github.com/chemelli74/aiovodafone/commit/9f8bd1770d9bdf618a46fb719c69b6d072a0ba54))
+
+
+### Build system
+
+- Stop bumping the python minor/major version ([`319d429`](https://github.com/chemelli74/aiovodafone/commit/319d4290bf3ce33a52d12b32096b0d87d0a8d95f))
+
+
 ## v3.3.8 (2026-10-19)
 
 ### Bug fixes
