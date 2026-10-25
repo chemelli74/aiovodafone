@@ -1,5 +1,18 @@
 # Changelog
 
+## v3.3.10 (2026-10-25)
+
+### Documentation
+
+- Contrib-readme-action has updated readme ([`763e1ef`](https://github.com/chemelli74/aiovodafone/commit/763e1ef3e5126ae91073800cbae28164c9eee36e))
+
+
+### Bug fixes
+
+- Continue device detection after a probe timeout ([`7b1a6ea`](https://github.com/chemelli74/aiovodafone/commit/7b1a6eab46f24311c1dd51c3f2fe05987ea816a3))
+- Update dependency pycryptodome to v4.2.0 ([`b0922be`](https://github.com/chemelli74/aiovodafone/commit/b0922be88c3b58066ba52103e8e3d1ba0bd1ba9a))
+
+
 ## v3.3.9 (2026-10-20)
 
 ### Documentation
