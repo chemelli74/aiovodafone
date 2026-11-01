@@ -124,6 +124,30 @@ def test_get_device_type_detects_technicolor() -> None:
 
 
 @pytest.mark.parametrize(
+    ("host", "expected_url"),
+    [
+        pytest.param("192.168.1.1", "https://192.168.1.1", id="ipv4"),
+        pytest.param("192.168.1.1:8080", "https://192.168.1.1:8080", id="ipv4_port"),
+        pytest.param("[fe80::1]", "https://[fe80::1]", id="ipv6"),
+        pytest.param("[fe80::1]:8443", "https://[fe80::1]:8443", id="ipv6_port"),
+        pytest.param(
+            "vodafone.station:8080", "https://vodafone.station:8080", id="name_port"
+        ),
+    ],
+)
+def test_get_device_type_accepts_host_with_port(host: str, expected_url: str) -> None:
+    """Router addresses may carry a port or a bracketed IPv6 literal."""
+    response = FakeResponse(
+        status=200,
+        text_data='{"data": {"ModelName": "Technicolor"}}',
+        json_data={"data": {"ModelName": "Technicolor"}},
+    )
+    session = _session_for_detection(response)
+    _, url = asyncio.run(get_device_type(host, cast("Any", session)))
+    assert str(url) == expected_url
+
+
+@pytest.mark.parametrize(
     "marker",
     [
         # Firmware < 01.08.82

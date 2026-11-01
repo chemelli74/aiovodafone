@@ -120,7 +120,7 @@ async def get_device_type(
                 continue
             for params in params_list:
                 try:
-                    return_url = URL.build(scheme=protocol, host=host)
+                    return_url = URL.build(scheme=protocol, authority=host)
                     url = return_url.joinpath(api_path)
                     _LOGGER.debug("Trying url %s", url)
                     async with session.get(
