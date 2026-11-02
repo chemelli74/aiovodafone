@@ -1,5 +1,22 @@
 # Changelog
 
+## v3.3.11 (2026-11-02)
+
+### Bug fixes
+
+- Allow pycryptodome 3.x for home assistant compatibility ([`aa5f478`](https://github.com/chemelli74/aiovodafone/commit/aa5f478ce16a7224b866d90e8579e0d9f186f792))
+
+
+### Refactoring
+
+- Build probe base url with url.build ([`8b4657e`](https://github.com/chemelli74/aiovodafone/commit/8b4657efeafad4d00284d829158fe96ece030a69))
+
+
+### Build system
+
+- Target python 3.12 in pyupgrade ([`2ae1788`](https://github.com/chemelli74/aiovodafone/commit/2ae178891495f13a836c846eeae40b0af00d42ab))
+
+
 ## v3.3.10 (2026-10-25)
 
 ### Documentation
