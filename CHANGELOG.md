@@ -1,5 +1,18 @@
 # Changelog
 
+## v3.3.12 (2026-11-06)
+
+### Bug fixes
+
+- Update dependency beautifulsoup4 to >=4.15.0 ([`075f12e`](https://github.com/chemelli74/aiovodafone/commit/075f12e349c4445bb1327a08164eaf12d3fdbc8a))
+
+
+### Build system
+
+- Stop grouping python dependency bumps ([`7bb3a2b`](https://github.com/chemelli74/aiovodafone/commit/7bb3a2be25c1f0608cad5143df7696ce0faf536b))
+- Set minimum versions for unversioned dependencies ([`923604d`](https://github.com/chemelli74/aiovodafone/commit/923604d2a964ee12fc619039a1b6dc84f8257190))
+
+
 ## v3.3.11 (2026-11-02)
 
 ### Bug fixes
