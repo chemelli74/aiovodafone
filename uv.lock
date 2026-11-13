@@ -190,7 +190,7 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.14.5" },
     { name = "beautifulsoup4", specifier = ">=4.15.0" },
     { name = "orjson", specifier = ">=3.13.0,<4" },
-    { name = "pycryptodome", specifier = ">=3.24.1,<5" },
+    { name = "pycryptodome", specifier = ">=4.4.0,<5" },
     { name = "segno", specifier = ">=1.6.6" },
 ]
 
