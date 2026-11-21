@@ -15,10 +15,11 @@ import orjson
 import pytest
 from aiohttp import ClientResponseError
 
-from aiovodafone.const import WIFI_DATA
+from aiovodafone.const import ULTRAHUB_TIMEOUT, WIFI_DATA
 from aiovodafone.exceptions import (
     AlreadyLogged,
     CannotAuthenticate,
+    CannotConnect,
     GenericLoginError,
     GenericResponseError,
 )
@@ -207,6 +208,50 @@ def test_login_already_logged(base_url: URL, monkeypatch: pytest.MonkeyPatch) ->
     assert api.csrf_token == ""
     cookie_jar = cast("FakeCookieJar", api.session.cookie_jar)
     assert cookie_jar.cleared is True
+
+
+def test_login_timeout_raises_cannot_connect(
+    base_url: URL, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ensure a login request timeout raises CannotConnect and cleans session."""
+    api = _api(base_url)
+    api.csrf_token = "token"
+    replies = [
+        {"csrf_token": "t", "X_INTERNAL_ID": 7},
+        {"X_VODAFONE_WebUISecret": "test_secret"},
+    ]
+
+    async def _auto(*_args: object, **_kwargs: object) -> object:
+        if not replies:
+            raise TimeoutError
+        return replies.pop(0)
+
+    monkeypatch.setattr(api, "_auto_hub_request_page_result", _auto)
+    with pytest.raises(CannotConnect):
+        asyncio.run(api.login(force_logout=True))
+    assert api.csrf_token == ""
+    cookie_jar = cast("FakeCookieJar", api.session.cookie_jar)
+    assert cookie_jar.cleared is True
+
+
+def test_login_uses_ultrahub_timeout(base_url: URL) -> None:
+    """Ensure the login request is sent with the UltraHub timeout."""
+    replies = [
+        {"csrf_token": "t", "X_INTERNAL_ID": 7},
+        {"X_VODAFONE_WebUISecret": "test_secret"},
+        {},
+    ]
+
+    async def _request(*_args: object, **_kwargs: object) -> FakeResponse:
+        return FakeResponse(status=200, json_data=replies.pop(0))
+
+    session = FakeSession(request_impl=_request)
+    api = VodafoneStationUltraHubApi(base_url, "u", "p", cast("Any", session))
+    assert asyncio.run(api.login()) is True
+    login_args = cast("tuple[object, ...]", session.requests[-1]["args"])
+    login_kwargs = cast("dict[str, object]", session.requests[-1]["kwargs"])
+    assert str(login_args[1]).endswith("api/users/login.jst")
+    assert login_kwargs["timeout"] == ULTRAHUB_TIMEOUT
 
 
 def test_login_success_and_missing_secret(
