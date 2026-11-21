@@ -20,6 +20,8 @@ from aiovodafone.const import (
     _LOGGER,
     DEVICES_SETTINGS,
     REQUEST_ALLOW_REDIRECTS,
+    REQUEST_TIMEOUT,
+    ULTRAHUB_TIMEOUT,
     WIFI_DATA,
     WifiBand,
     WifiType,
@@ -27,6 +29,7 @@ from aiovodafone.const import (
 from aiovodafone.exceptions import (
     AlreadyLogged,
     CannotAuthenticate,
+    CannotConnect,
     GenericLoginError,
     GenericResponseError,
 )
@@ -79,12 +82,16 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
             "csrf_token": self.csrf_token,
         }
 
-        reply_json = await self._auto_hub_request_page_result(
-            HTTPMethod.POST,
-            "api/users/login.jst",
-            payload=payload,
-            set_cookie=True,
-        )
+        try:
+            reply_json = await self._auto_hub_request_page_result(
+                HTTPMethod.POST,
+                "api/users/login.jst",
+                payload=payload,
+                set_cookie=True,
+            )
+        except TimeoutError as err:
+            await self._cleanup_session()
+            raise CannotConnect(f"Login to {self.base_url.host} timed out") from err
 
         if reply_json.get("X_INTERNAL_Password_Status") == "Invalid_PWD":
             await self._cleanup_session()
@@ -127,7 +134,10 @@ class VodafoneStationUltraHubApi(VodafoneStationCommonApi):
             page,
             payload=payload,
             query=params if params is not None else {},
-            additional_params={REQUEST_ALLOW_REDIRECTS: False},
+            additional_params={
+                REQUEST_ALLOW_REDIRECTS: False,
+                REQUEST_TIMEOUT: ULTRAHUB_TIMEOUT,
+            },
         )
 
         reply_json = await response.json()
