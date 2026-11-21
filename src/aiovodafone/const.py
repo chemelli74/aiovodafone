@@ -21,6 +21,8 @@ HEADERS = {
 }
 DEFAULT_TIMEOUT = ClientTimeout(10)
 POST_RESTART_TIMEOUT = ClientTimeout(2)
+# UltraHub takes more than 10 seconds to accept a valid password
+ULTRAHUB_TIMEOUT = ClientTimeout(30)
 
 REQUEST_ALLOW_REDIRECTS = "allow_redirects"
 REQUEST_SUPPRESS_LOG = "suppress_log"
