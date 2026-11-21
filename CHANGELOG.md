@@ -1,5 +1,18 @@
 # Changelog
 
+## v3.3.13 (2026-11-21)
+
+### Bug fixes
+
+- Ultrahub login timeout ([`c856fb1`](https://github.com/chemelli74/aiovodafone/commit/c856fb124baba3771ad39ff9744dae1b9037dd01))
+
+
+### Build system
+
+- Anchor the uv version lookup in pyproject.toml ([`ab69a68`](https://github.com/chemelli74/aiovodafone/commit/ab69a68b9c2547e59752a2785e01e30d71d2bfd8))
+- Make cleanup scripts safer to run ([`e3fb436`](https://github.com/chemelli74/aiovodafone/commit/e3fb4366e1eb0f426748e09709316a5da83e9782))
+
+
 ## v3.3.12 (2026-11-06)
 
 ### Bug fixes

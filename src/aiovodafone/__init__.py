@@ -3,4 +3,4 @@
 
 """aiovodafone library."""
 
-__version__ = "3.3.12"
+__version__ = "3.3.13"
