@@ -19,7 +19,8 @@ HEADERS = {
     "X-Requested-With": "XMLHttpRequest",
     "Priority": "u=1",
 }
-DEFAULT_TIMEOUT = ClientTimeout(10)
+# sock_connect makes aiohttp raise ConnectionTimeoutError for a dropped port
+DEFAULT_TIMEOUT = ClientTimeout(total=10, sock_connect=5)
 POST_RESTART_TIMEOUT = ClientTimeout(2)
 # UltraHub takes more than 10 seconds to accept a valid password
 ULTRAHUB_TIMEOUT = ClientTimeout(30)

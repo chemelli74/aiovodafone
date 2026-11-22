@@ -9,7 +9,7 @@ import asyncio
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
-from aiohttp import ClientConnectorError
+from aiohttp import ClientConnectorError, ConnectionTimeoutError
 
 from aiovodafone.const import DEFAULT_TIMEOUT
 from aiovodafone.exceptions import CannotConnect, ModelNotSupported
@@ -280,9 +280,16 @@ def test_get_device_type_continues_on_non_200_status() -> None:
     assert device_type == DeviceType.SERCOMM
 
 
-def test_get_device_type_raises_cannot_connect_on_timeout() -> None:
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(ConnectionTimeoutError(), id="connect_timeout"),
+        pytest.param(TimeoutError(), id="read_timeout"),
+    ],
+)
+def test_get_device_type_raises_cannot_connect_on_timeout(error: TimeoutError) -> None:
     """Raise CannotConnect when every probe times out."""
-    session = _session_for_detection(TimeoutError())
+    session = _session_for_detection(error)
     with pytest.raises(CannotConnect):
         asyncio.run(get_device_type("192.168.1.1", cast("Any", session)))
 
@@ -296,7 +303,7 @@ def test_get_device_type_continues_after_https_timeout_then_detects() -> None:
 
     def _respond(url: URL, _kwargs: dict[str, object]) -> FakeResponse | BaseException:
         if url.scheme == "https":
-            return TimeoutError()
+            return ConnectionTimeoutError()
         if url.path == "/api/v1/login_conf":
             return FakeResponse(
                 status=200,
@@ -318,7 +325,9 @@ def test_get_device_type_continues_after_https_timeout_then_detects() -> None:
 def test_get_device_type_timeout_with_other_response_raises_not_supported() -> None:
     """Reachable but unknown device reports ModelNotSupported, not CannotConnect."""
     session = _session_for_detection(
-        lambda url, _kwargs: TimeoutError() if url.scheme == "https" else NOT_FOUND
+        lambda url, _kwargs: (
+            ConnectionTimeoutError() if url.scheme == "https" else NOT_FOUND
+        )
     )
     with pytest.raises(ModelNotSupported):
         asyncio.run(get_device_type("192.168.0.1", cast("Any", session)))
@@ -328,13 +337,60 @@ def test_get_device_type_https_timeout_http_refused_raises_cannot_connect() -> N
     """HTTPS timing out and HTTP refusing every connection means unreachable."""
     probed: list[Probe] = []
     session = _session_for_detection(
-        lambda url, _kwargs: TimeoutError() if url.scheme == "https" else _refused(),
+        lambda url, _kwargs: (
+            ConnectionTimeoutError() if url.scheme == "https" else _refused()
+        ),
         probed,
     )
     with pytest.raises(CannotConnect):
         asyncio.run(get_device_type("192.168.0.1", cast("Any", session)))
     # Each protocol is probed only once, then skipped for the other device types
     assert [u.scheme for u, _ in probed] == ["https", "http"]
+
+
+@pytest.mark.parametrize(
+    "https_error",
+    [
+        pytest.param(_refused(), id="https_refused"),
+        pytest.param(ConnectionTimeoutError(), id="https_connect_timeout"),
+        pytest.param(TimeoutError(), id="https_read_timeout"),
+    ],
+)
+def test_get_device_type_read_timeout_skips_only_that_device_type(
+    https_error: BaseException,
+) -> None:
+    """A probe that connects but never answers must not end detection.
+
+    Regression test for Ultra Hub 7 firmware 04.00.10: the Homeware probe
+    ``login.lp?getSessionStatus=true`` hangs, the UltraHub endpoint answers.
+    """
+
+    def _respond(url: URL, kwargs: dict[str, object]) -> FakeResponse | BaseException:
+        if url.scheme == "https":
+            return https_error
+        if url.path == "/login.lp":
+            return TimeoutError()
+        if url.path == "/api/config/details.jst":
+            fields = cast("dict[str, str]", kwargs["params"])["X_INTERNAL_FIELDS"]
+            return FakeResponse(
+                status=200,
+                text_data=f'{{"{fields}": ""}}',
+                json_data={fields: ""},
+                content_type="application/json",
+            )
+        return NOT_FOUND
+
+    probed: list[Probe] = []
+    session = _session_for_detection(_respond, probed)
+    device_type, url = asyncio.run(get_device_type("192.168.0.1", cast("Any", session)))
+    assert device_type == DeviceType.ULTRAHUB
+    assert url.scheme == "http"
+    assert [u.path for u, _ in probed if u.scheme == "http"] == [
+        "/login.lp",
+        "/login.html",
+        "/api/v1/login_conf",
+        "/api/config/details.jst",
+    ]
 
 
 def test_get_device_type_passes_probe_timeout() -> None:
