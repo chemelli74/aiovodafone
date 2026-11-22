@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.3.14 (2026-11-22)
+
+### Bug fixes
+
+- Keep probing other models after a detection read timeout ([`af46f52`](https://github.com/chemelli74/aiovodafone/commit/af46f527c6dc389c9c2d2c71520861dbe73140ec))
+
+
 ## v3.3.13 (2026-11-21)
 
 ### Bug fixes
