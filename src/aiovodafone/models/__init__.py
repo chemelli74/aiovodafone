@@ -13,6 +13,7 @@ from aiohttp import (
     ClientConnectorError,
     ClientConnectorSSLError,
     ClientSession,
+    ConnectionTimeoutError,
 )
 from yarl import URL
 
@@ -85,8 +86,10 @@ async def get_device_type(
     - The Homeware devices return a JSON response with a ``status`` field set to
     ``alive``.
 
-    A protocol that times out or refuses the connection is skipped for the
-    remaining device types; ``CannotConnect`` is raised only if nothing answered.
+    A protocol that refuses or times out the connection is skipped for the
+    remaining device types. A probe that connects but gets no answer in time
+    only skips that device type. ``CannotConnect`` is raised only if nothing
+    answered.
 
     Args:
     ----
@@ -104,7 +107,7 @@ async def get_device_type(
 
     Raises:
     ------
-        CannotConnect: no protocol answered, every probe timed out or was refused
+        CannotConnect: no probe answered, every one timed out or was refused
         ModelNotSupported: the device answered, but no known model matched
 
     """
@@ -182,15 +185,15 @@ async def get_device_type(
                 except (
                     ClientConnectorSSLError,
                     ClientConnectorError,
+                    ConnectionTimeoutError,
                 ):
                     _LOGGER.debug("Unable to login using protocol %s", protocol)
                     dead_protocols.add(protocol)
                     break
                 except TimeoutError:
-                    _LOGGER.debug("Timeout while trying to connect to %s", url)
-                    dead_protocols.add(protocol)
+                    _LOGGER.debug("Timeout waiting for a response from %s", url)
                     break
 
-    if dead_protocols and not got_response:
+    if not got_response:
         raise CannotConnect
     raise ModelNotSupported
